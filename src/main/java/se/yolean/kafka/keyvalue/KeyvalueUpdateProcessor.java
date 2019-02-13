@@ -1,6 +1,8 @@
 package se.yolean.kafka.keyvalue;
 
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Serdes;
@@ -32,6 +34,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   private StoreBuilder<KeyValueStore<String, byte[]>> storeBuilder = null;
 
   private KeyValueStore<String, byte[]> store = null;
+
+  private final Map<String,Long> currentOffset = new HashMap<String,Long>(1);
 
   // Not sure yet if we want to construct these objects for every update
   private final Runnable onUpdateCompletion = new Runnable() {
@@ -95,6 +99,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     logger.debug("Got keyvalue {}={}", key, new String(value));
     UpdateRecord update = new UpdateRecord(context.topic(), context.partition(), context.offset(), key);
     process(update, value);
+    currentOffset.put(update.getTopic(), update.getOffset());
   }
 
   private void process(UpdateRecord update, byte[] value) {
@@ -113,9 +118,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   }
 
   @Override
-  public Long getCurrentOffset() {
-    // TODO Auto-generated method stub
-    return null;
+  public Long getCurrentOffset(String topicName) {
+    return currentOffset.get(topicName);
   }
 
   @Override

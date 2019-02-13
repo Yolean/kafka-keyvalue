@@ -10,7 +10,11 @@ public interface KeyvalueUpdate {
 
 	byte[] getValue(String key);
 
-	Long getCurrentOffset();
+  /**
+   * @param topicName
+   * @return offset for latest update, or null if the topic hasn't got updates
+   */
+  public Long getCurrentOffset(String topicName);
 
 	Iterator<String> getKeys();
 
