@@ -3,11 +3,11 @@ package se.yolean.kafka.keyvalue;
 import java.util.Iterator;
 
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
-import org.apache.kafka.streams.processor.To;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
@@ -30,6 +30,14 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
   private StoreBuilder<KeyValueStore<byte[], byte[]>> storeBuilder = null;
 
   private KeyValueStore<byte[], byte[]> store = null;
+
+  // Not sure yet if we want to construct these objects for every update
+  private final Runnable onUpdateCompletion = new Runnable() {
+    @Override
+    public void run() {
+      logger.trace("onupdate completion ignored");
+    }
+  };
 
   public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate) {
 	  this.sourceTopicPattern = sourceTopic;
@@ -73,14 +81,18 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
   @Override
   public void process(byte[] key, byte[] value) {
     logger.debug("Got keyvalue {}={}", new String(key), new String(value));
-    //store.put(key, value);
-    context.forward(key, value, To.all());
+    UpdateRecord update = new UpdateRecord(context.topic(), context.partition(), context.offset(), key);
+    process(update, value);
+  }
+
+  private void process(UpdateRecord update, byte[] value) {
+    store.put(update.getKey(), value);
+    onUpdate.handle(update, onUpdateCompletion);
   }
 
   @Override
   public void close() {
-    // TODO Auto-generated method stub
-
+    store.close();
   }
 
   @Override

@@ -12,6 +12,8 @@ public interface KeyvalueUpdate {
 
 	Long getCurrentOffset();
 
-	Iterator<byte[]> getAllKeys();
+	Iterator<byte[]> getKeys();
+
+  Iterator<byte[]> getValues();
 
 }

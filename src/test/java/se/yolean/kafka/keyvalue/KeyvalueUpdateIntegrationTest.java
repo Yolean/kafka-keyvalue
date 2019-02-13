@@ -23,7 +23,7 @@ class KeyvalueUpdateIntegrationTest {
 
 	private static final String TOPIC1 = "topic1";
 	private KeyvalueUpdate cache = null;
-	private OnUpdate onUpdate = new OnUpdateRecordInMemory();
+	private OnUpdateRecordInMemory onUpdate = new OnUpdateRecordInMemory();
 
   @BeforeEach
   public void setup() {
@@ -39,7 +39,7 @@ class KeyvalueUpdateIntegrationTest {
   }
 
 	@Test
-	void test() {
+	void testBasicFlow() {
 		testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v1"));
 
 		assertEquals(null, cache.getValue("k0".getBytes()));
@@ -47,6 +47,13 @@ class KeyvalueUpdateIntegrationTest {
 		byte[] v1 = cache.getValue("k1".getBytes());
 		assertNotNull(v1);
 		assertEquals("v1", new String(v1));
+		assertEquals(1, onUpdate.getAll().size());
+
+		UpdateRecord update = onUpdate.getAll().get(0);
+		assertEquals(TOPIC1, update.getTopic());
+		assertEquals(0, update.getPartition());
+		assertEquals(0, update.getOffset());
+		assertEquals("k1", new String(update.getKey()));
 	}
 
 }
