@@ -23,10 +23,11 @@ class KeyvalueUpdateIntegrationTest {
 
 	private static final String TOPIC1 = "topic1";
 	private KeyvalueUpdate cache = null;
+	private OnUpdate onUpdate = new OnUpdateRecordInMemory();
 
   @BeforeEach
   public void setup() {
-    cache = new KeyvalueUpdateProcessor(TOPIC1);
+    cache = new KeyvalueUpdateProcessor(TOPIC1, onUpdate);
 
     Properties config = new Properties();
     config.setProperty(StreamsConfig.APPLICATION_ID_CONFIG, "testBoardStart");
