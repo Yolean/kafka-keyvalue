@@ -2,7 +2,9 @@ package se.yolean.kafka.keyvalue;
 
 import java.util.Iterator;
 
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.processor.Processor;
@@ -62,7 +64,10 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     Topology topology = new Topology();
 
 		topology
-		  .addSource(SOURCE_NAME, sourceTopicPattern)
+		  .addSource(SOURCE_NAME,
+		      new StringDeserializer(),
+		      new ByteArrayDeserializer(),
+		      sourceTopicPattern)
 		  .addProcessor(PROCESSOR_NAME, () -> this, SOURCE_NAME)
 		  .addStateStore(storeBuilder, PROCESSOR_NAME);
 
