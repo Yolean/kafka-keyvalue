@@ -92,7 +92,7 @@ public class OnUpdateIntegrationTest {
 
     testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v1"));
 
-    Thread.sleep(100);
+    Thread.sleep(1000);
     assertEquals(1, updatesServlet.posts.size());
   }
 
