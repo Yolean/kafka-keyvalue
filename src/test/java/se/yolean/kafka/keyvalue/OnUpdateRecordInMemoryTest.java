@@ -14,7 +14,7 @@ class OnUpdateRecordInMemoryTest {
     OnUpdateRecordInMemory onUpdate = new OnUpdateRecordInMemory();
     assertEquals(onUpdate.getAll().size(), 0);
     final List<Object> ok = new LinkedList<Object>();
-    onUpdate.handle(new UpdateRecord(0, 0, "0".getBytes()), new Runnable() {
+    onUpdate.handle(new UpdateRecord("test", 0, 0, "0".getBytes()), new Runnable() {
       @Override
       public void run() {
         ok.add(null);
