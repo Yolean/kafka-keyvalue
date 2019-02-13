@@ -87,6 +87,15 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     this.context = context;
   }
 
+  @Override
+  public void close() {
+    store.close();
+  }
+
+  public boolean isReady() {
+    throw new UnsupportedOperationException("TODO remains to figure out how to know if the cache is warmed up");
+  }
+
   @SuppressWarnings("unchecked")
   private void keepStateStore(ProcessorContext context) {
     StateStore stateStore = context.getStateStore(STATE_STORE_NAME);
@@ -105,11 +114,6 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   private void process(UpdateRecord update, byte[] value) {
     store.put(update.getKey(), value);
     onUpdate.handle(update, onUpdateCompletion);
-  }
-
-  @Override
-  public void close() {
-    store.close();
   }
 
   @Override
