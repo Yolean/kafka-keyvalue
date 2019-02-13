@@ -79,10 +79,15 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   @Override
   public void init(ProcessorContext context) {
     logger.info("Init applicationId={}", context.applicationId());
+    keepStateStore(context);
+    this.context = context;
+  }
+
+  @SuppressWarnings("unchecked")
+  private void keepStateStore(ProcessorContext context) {
     StateStore stateStore = context.getStateStore(STATE_STORE_NAME);
     logger.info("Found store {} open={}, persistent={}", stateStore.name(), stateStore.isOpen(), stateStore.persistent());
     this.store = (KeyValueStore<String, byte[]>) stateStore;
-    this.context = context;
   }
 
   @Override
