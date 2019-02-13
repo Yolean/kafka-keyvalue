@@ -17,11 +17,12 @@ public class ConfigureRest {
   public static final String RESOURCE_SERVLET_PATHSPEC = "/*";
 
   public Resources createContext(final int port, String contextPath) {
+    Server jettyServer = new Server(port);
 
-    final ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+    final ServletContextHandler context = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
     context.setContextPath(contextPath);
 
-    Server jettyServer = new Server(port);
+    jettyServer.setHandler(context);
 
     logger.debug("Configuring contextPath {}", contextPath);
 

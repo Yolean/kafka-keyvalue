@@ -44,7 +44,6 @@ class JettyCacheServerIntegrationTest {
     CacheServiceOptions options = Mockito.mock(CacheServiceOptions.class);
     Mockito.when(options.getPort()).thenReturn(port);
     KafkaCache cache = Mockito.mock(KafkaCache.class);
-    Mockito.when(cache.getValue("k1")).thenReturn("v1".getBytes());
     TestEndpoints endpoints = new TestEndpoints();
     server = new ConfigureRest()
         .createContext(options.getPort(), "/")
@@ -55,12 +54,19 @@ class JettyCacheServerIntegrationTest {
         .create();
     server.start();
 
-    Response response1 = client.target(root).request(root + "/cache/k1").get();
-    assertEquals(200, response1.getStatus());
+    Response r1 = client.target(root + "/cache/v1/k1").request().get();
+    assertEquals(200, r1.getStatus());
+    assertEquals("v-k1", r1.readEntity(String.class));
 
-    Response response2 = client.target(root).request(root + "/cache/k2").get();
-    assertEquals(404, response2.getStatus());
-    Mockito.verify(cache).getValue("k2");
+    Response r2 = client.target(root + "/cache/v1/null").request().get();
+    assertEquals(404, r2.getStatus());
+
+    Mockito.when(cache.isReady()).thenReturn(false);
+    Response unready = client.target(root + "/ready").request().get();
+    assertEquals(412, unready.getStatus());
+    Mockito.when(cache.isReady()).thenReturn(true);
+    Response ready = client.target(root + "/ready").request().get();
+    assertEquals(204, ready.getStatus());
   }
 
 }

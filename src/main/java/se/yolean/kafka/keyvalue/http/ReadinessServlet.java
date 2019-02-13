@@ -30,7 +30,11 @@ public class ReadinessServlet extends HttpServlet {
       resp.setStatus(503);
       return;
     }
-    resp.setStatus(410); // TODO implement
+    if (cache.isReady()) {
+      resp.setStatus(204);
+    } else {
+      resp.setStatus(412); // TODO what's the recommended status code for unready? 503 might be misleading in proxied setups.
+    }
   }
 
 }

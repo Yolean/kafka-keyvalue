@@ -118,6 +118,12 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
 
   @Override
   public byte[] getValue(String key) {
+    if (key == null) {
+      throw new IllegalArgumentException("Key can not be null because such messages are ignored at cache update");
+    }
+    if (key.length() == 0) {
+      throw new IllegalArgumentException("Empty string key is disallowed to avoid surprises");
+    }
     return store.get(key);
   }
 

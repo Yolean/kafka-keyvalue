@@ -40,6 +40,12 @@ public class Endpoints implements RestResource {
    *                           somehow was null
    */
   private byte[] getCacheValue(String key) throws NotFoundException {
+    if (key == null) {
+      throw new javax.ws.rs.BadRequestException("Request key can not be null");
+    }
+    if (key == "") {
+      throw new javax.ws.rs.BadRequestException("Request key can not be empty");
+    }
     final byte[] value = cache.getValue(key);
     if (value == null) {
       throw new NotFoundException();
