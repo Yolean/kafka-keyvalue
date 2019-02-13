@@ -7,6 +7,7 @@ import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
+import org.apache.kafka.streams.processor.To;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
@@ -72,7 +73,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
   @Override
   public void process(byte[] key, byte[] value) {
     logger.debug("Got keyvalue {}={}", new String(key), new String(value));
-    store.put(key, value);
+    //store.put(key, value);
+    context.forward(key, value, To.all());
   }
 
   @Override
