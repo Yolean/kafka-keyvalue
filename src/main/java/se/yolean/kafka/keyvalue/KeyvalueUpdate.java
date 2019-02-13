@@ -8,11 +8,11 @@ public interface KeyvalueUpdate {
 
 	Topology getTopology();
 
-	byte[] getValue(byte[] key);
+	byte[] getValue(String key);
 
 	Long getCurrentOffset();
 
-	Iterator<byte[]> getKeys();
+	Iterator<String> getKeys();
 
   Iterator<byte[]> getValues();
 

@@ -14,7 +14,7 @@ import org.apache.kafka.streams.state.Stores;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[], byte[]> {
+public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String, byte[]> {
 
   private static final String SOURCE_NAME = "Source";
   private static final String PROCESSOR_NAME = "KeyvalueUpdate";
@@ -27,9 +27,9 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
   private ProcessorContext context;
 
   // We can't use this to build so we keep it for sanity checks
-  private StoreBuilder<KeyValueStore<byte[], byte[]>> storeBuilder = null;
+  private StoreBuilder<KeyValueStore<String, byte[]>> storeBuilder = null;
 
-  private KeyValueStore<byte[], byte[]> store = null;
+  private KeyValueStore<String, byte[]> store = null;
 
   // Not sure yet if we want to construct these objects for every update
   private final Runnable onUpdateCompletion = new Runnable() {
@@ -47,7 +47,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
   private void configureStateStore(String name) {
     storeBuilder = Stores.keyValueStoreBuilder(
       Stores.inMemoryKeyValueStore(name),
-      Serdes.ByteArray(),
+      Serdes.String(),
       Serdes.ByteArray()
     );
   }
@@ -66,6 +66,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
 		  .addProcessor(PROCESSOR_NAME, () -> this, SOURCE_NAME)
 		  .addStateStore(storeBuilder, PROCESSOR_NAME);
 
+		logger.info(topology.describe().toString());
+
 		return topology;
 	}
 
@@ -74,13 +76,13 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
     logger.info("Init applicationId={}", context.applicationId());
     StateStore stateStore = context.getStateStore(STATE_STORE_NAME);
     logger.info("Found store {} open={}, persistent={}", stateStore.name(), stateStore.isOpen(), stateStore.persistent());
-    this.store = (KeyValueStore<byte[], byte[]>) stateStore;
+    this.store = (KeyValueStore<String, byte[]>) stateStore;
     this.context = context;
   }
 
   @Override
-  public void process(byte[] key, byte[] value) {
-    logger.debug("Got keyvalue {}={}", new String(key), new String(value));
+  public void process(String key, byte[] value) {
+    logger.debug("Got keyvalue {}={}", key, new String(value));
     UpdateRecord update = new UpdateRecord(context.topic(), context.partition(), context.offset(), key);
     process(update, value);
   }
@@ -96,7 +98,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
   }
 
   @Override
-  public byte[] getValue(byte[] key) {
+  public byte[] getValue(String key) {
     return store.get(key);
   }
 
@@ -107,9 +109,9 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
   }
 
   @Override
-  public Iterator<byte[]> getKeys() {
-    final Iterator<KeyValue<byte[], byte[]>> all = store.all();
-    return new Iterator<byte[]>() {
+  public Iterator<String> getKeys() {
+    final Iterator<KeyValue<String, byte[]>> all = store.all();
+    return new Iterator<String>() {
 
 
       @Override
@@ -118,7 +120,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
       }
 
       @Override
-      public byte[] next() {
+      public String next() {
         return all.next().key;
       }
 
@@ -127,7 +129,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
 
   @Override
   public Iterator<byte[]> getValues() {
-    final Iterator<KeyValue<byte[], byte[]>> all = store.all();
+    final Iterator<KeyValue<String, byte[]>> all = store.all();
     return new Iterator<byte[]>() {
 
 
