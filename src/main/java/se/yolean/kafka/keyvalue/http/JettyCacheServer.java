@@ -6,8 +6,8 @@ public class JettyCacheServer implements CacheServer {
 
   private Server jettyServer;
 
-  public JettyCacheServer(int port) {
-    jettyServer = new Server(port);
+  JettyCacheServer(Server jettyServer) {
+    this.jettyServer = jettyServer;
   }
 
   @Override

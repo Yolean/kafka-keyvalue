@@ -5,6 +5,7 @@ import org.apache.kafka.streams.Topology;
 
 import se.yolean.kafka.keyvalue.http.CacheServer;
 import se.yolean.kafka.keyvalue.http.ConfigureRest;
+import se.yolean.kafka.keyvalue.http.ReadinessServlet;
 
 public class App {
 
@@ -23,7 +24,7 @@ public class App {
         .registerResourceInstance(endpoints)
         .asServlet()
         // TODO metrics: .addCustomServlet(servlet, pathSpec)
-        // TODO readiness: .addCustomServlet(servlet, pathSpec)
+        .addCustomServlet(new ReadinessServlet(keyvalueUpdate), "/ready")
         .create();
     server.start();
 

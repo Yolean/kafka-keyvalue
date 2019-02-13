@@ -21,6 +21,7 @@ import se.yolean.kafka.keyvalue.http.RestResource;
 /**
  * REST resources for {@link KafkaCache}.
  */
+@Path("cache/v1")
 public class Endpoints implements RestResource {
 
   private KafkaCache cache;
