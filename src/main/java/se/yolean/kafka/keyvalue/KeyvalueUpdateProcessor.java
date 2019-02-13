@@ -107,9 +107,41 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
   }
 
   @Override
-  public Iterator<byte[]> getAllKeys() {
-    // TODO Auto-generated method stub
-    return null;
+  public Iterator<byte[]> getKeys() {
+    final Iterator<KeyValue<byte[], byte[]>> all = store.all();
+    return new Iterator<byte[]>() {
+
+
+      @Override
+      public boolean hasNext() {
+        return all.hasNext();
+      }
+
+      @Override
+      public byte[] next() {
+        return all.next().key;
+      }
+
+    };
+  }
+
+  @Override
+  public Iterator<byte[]> getValues() {
+    final Iterator<KeyValue<byte[], byte[]>> all = store.all();
+    return new Iterator<byte[]>() {
+
+
+      @Override
+      public boolean hasNext() {
+        return all.hasNext();
+      }
+
+      @Override
+      public byte[] next() {
+        return all.next().value;
+      }
+
+    };
   }
 
 }

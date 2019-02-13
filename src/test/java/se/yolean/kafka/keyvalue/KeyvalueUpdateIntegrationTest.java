@@ -1,12 +1,13 @@
 package se.yolean.kafka.keyvalue;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Iterator;
 import java.util.Properties;
 
-import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
@@ -17,13 +18,13 @@ import org.junit.jupiter.api.Test;
 
 class KeyvalueUpdateIntegrationTest {
 
-	private TopologyTestDriver testDriver;
-  private ConsumerRecordFactory<String, String> recordFactory =
-      new ConsumerRecordFactory<>(new StringSerializer(), new StringSerializer());
+  private TopologyTestDriver testDriver;
+  private ConsumerRecordFactory<String, String> recordFactory = new ConsumerRecordFactory<>(new StringSerializer(),
+      new StringSerializer());
 
-	private static final String TOPIC1 = "topic1";
-	private KeyvalueUpdate cache = null;
-	private OnUpdateRecordInMemory onUpdate = new OnUpdateRecordInMemory();
+  private static final String TOPIC1 = "topic1";
+  private KeyvalueUpdate cache = null;
+  private OnUpdateRecordInMemory onUpdate = new OnUpdateRecordInMemory();
 
   @BeforeEach
   public void setup() {
@@ -38,22 +39,44 @@ class KeyvalueUpdateIntegrationTest {
     testDriver = new TopologyTestDriver(topology, config);
   }
 
-	@Test
-	void testBasicFlow() {
-		testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v1"));
+  @Test
+  void testBasicFlow() {
+    testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v1"));
 
-		assertEquals(null, cache.getValue("k0".getBytes()));
+    assertEquals(null, cache.getValue("k0".getBytes()));
 
-		byte[] v1 = cache.getValue("k1".getBytes());
-		assertNotNull(v1);
-		assertEquals("v1", new String(v1));
-		assertEquals(1, onUpdate.getAll().size());
+    byte[] v1 = cache.getValue("k1".getBytes());
+    assertNotNull(v1);
+    assertEquals("v1", new String(v1));
+    assertEquals(1, onUpdate.getAll().size());
 
-		UpdateRecord update = onUpdate.getAll().get(0);
-		assertEquals(TOPIC1, update.getTopic());
-		assertEquals(0, update.getPartition());
-		assertEquals(0, update.getOffset());
-		assertEquals("k1", new String(update.getKey()));
-	}
+    UpdateRecord update1 = onUpdate.getAll().get(0);
+    assertEquals(TOPIC1, update1.getTopic());
+    assertEquals(0, update1.getPartition());
+    assertEquals(0, update1.getOffset());
+    assertEquals("k1", new String(update1.getKey()));
+
+    testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v2"));
+    byte[] v2 = cache.getValue("k1".getBytes());
+    assertEquals("v2", new String(v2));
+    assertEquals(2, onUpdate.getAll().size());
+
+    UpdateRecord update2 = onUpdate.getAll().get(1);
+    assertEquals(TOPIC1, update2.getTopic());
+    assertEquals(0, update2.getPartition());
+    assertEquals(1, update2.getOffset());
+    assertEquals("k1", new String(update2.getKey()));
+    assertEquals(0, update1.getOffset());
+
+    Iterator<byte[]> keys = cache.getKeys();
+    assertTrue(keys.hasNext());
+    assertEquals("k1", new String(keys.next()));
+    assertFalse(keys.hasNext());
+
+    Iterator<byte[]> values = cache.getValues();
+    assertTrue(values.hasNext());
+    assertEquals("v2", new String(values.next()));
+    assertFalse(values.hasNext());
+  }
 
 }
