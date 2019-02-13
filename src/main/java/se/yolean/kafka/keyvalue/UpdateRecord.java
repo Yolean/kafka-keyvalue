@@ -5,9 +5,9 @@ public class UpdateRecord {
   private String topic;
   private int partition;
   private long offset;
-  private byte[] key;
+  private String key;
 
-  public UpdateRecord(String topic, int partition, long offset, byte[] key) {
+  public UpdateRecord(String topic, int partition, long offset, String key) {
     this.topic = topic;
     this.partition = partition;
     this.offset = offset;
@@ -26,7 +26,7 @@ public class UpdateRecord {
     return offset;
   }
 
-  public byte[] getKey() {
+  public String getKey() {
     return key;
   }
 
