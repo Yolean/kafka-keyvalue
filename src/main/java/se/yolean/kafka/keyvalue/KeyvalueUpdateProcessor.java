@@ -20,6 +20,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
   private OnUpdate onUpdate;
   private ProcessorContext context;
 
+  private KeyValueStore<byte[], byte[]> store;
+
   public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate) {
 	  this.sourceTopicPattern = sourceTopic;
 	  this.onUpdate = onUpdate;
@@ -27,7 +29,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
 
   private KeyValueStore<byte[], byte[]> getStateStore() {
     StoreBuilder<KeyValueStore<byte[], byte[]>> storeBuilder = Stores.keyValueStoreBuilder(
-      Stores.inMemoryKeyValueStore("inmemory-counts"),
+      Stores.inMemoryKeyValueStore("Keyvalue"),
       Serdes.ByteArray(),
       Serdes.ByteArray()
     );
@@ -36,7 +38,12 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
 
 	@Override
 	public Topology getTopology() {
-		Topology topology = new Topology();
+    if (this.store != null) {
+      throw new IllegalStateException("This processor instance has already created a topology");
+    }
+    this.store = getStateStore();
+
+    Topology topology = new Topology();
 
 		topology.addSource("Source", sourceTopicPattern);
 
@@ -46,9 +53,25 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
 	}
 
   @Override
-  public byte[] getValue(byte[] key) {
+  public void init(ProcessorContext context) {
+    this.context = context;
+  }
+
+  @Override
+  public void process(byte[] key, byte[] value) {
+    logger.debug("Got keyvalue {}={}", new String(key), new String(value));
+    store.put(key, value);
+  }
+
+  @Override
+  public void close() {
     // TODO Auto-generated method stub
-    return null;
+
+  }
+
+  @Override
+  public byte[] getValue(byte[] key) {
+    return store.get(key);
   }
 
   @Override
@@ -61,22 +84,6 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[]
   public Iterator<byte[]> getAllKeys() {
     // TODO Auto-generated method stub
     return null;
-  }
-
-  @Override
-  public void init(ProcessorContext context) {
-    this.context = context;
-  }
-
-  @Override
-  public void process(byte[] key, byte[] value) {
-    logger.debug("Got keyvalue {}={}", new String(key), new String(value));
-  }
-
-  @Override
-  public void close() {
-    // TODO Auto-generated method stub
-
   }
 
 }
