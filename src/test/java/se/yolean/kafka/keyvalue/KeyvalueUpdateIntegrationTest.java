@@ -41,6 +41,12 @@ class KeyvalueUpdateIntegrationTest {
 	@Test
 	void test() {
 		testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v1"));
+
+		assertEquals(null, cache.getValue("k0".getBytes()));
+
+		byte[] v1 = cache.getValue("k1".getBytes());
+		assertNotNull(v1);
+		assertEquals("v1", new String(v1));
 	}
 
 }
