@@ -1,0 +1,84 @@
+
+repositories {
+  mavenCentral()
+  jcenter()
+  maven {
+    url "http://packages.confluent.io/maven/"
+  }
+}
+
+apply plugin: 'java'
+apply plugin: "idea"
+apply plugin: "eclipse"
+apply plugin: "maven"
+apply plugin: "jacoco"
+
+group 'se.yolean'
+
+sourceCompatibility = 1.8
+
+configurations {
+  compile.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+  compile.exclude group: 'log4j', module: 'log4j'
+}
+
+dependencies {
+  runtime 'com.fasterxml.jackson.core:jackson-databind:2.9.8'
+  runtime 'com.fasterxml.jackson.core:jackson-annotations:2.9.8'
+  runtime 'javax.xml.bind:jaxb-api:2.3.0'
+  runtime 'javax.activation:activation:1.1.1'
+
+  compile group: 'javax.inject', name: 'javax.inject', version: '1'
+  compile group: 'com.google.inject', name: 'guice', version: '4.2.0'
+
+  compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.1.0'
+  compile group: 'org.apache.kafka', name: 'kafka-streams', version: '2.1.0'
+
+  compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.25'
+  compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.25'
+  compile group: 'structlog4j', name: 'structlog4j-api', version: '1.0.0'
+  compile group: 'structlog4j', name: 'structlog4j-json', version: '1.0.0'
+
+  compile group: 'io.prometheus', name: 'simpleclient', version: '0.6.0'
+  compile group: 'io.prometheus', name: 'simpleclient_httpserver', version: '0.6.0'
+
+  testCompile("org.junit.jupiter:junit-jupiter-api:5.4.0")
+  testRuntime("org.junit.jupiter:junit-jupiter-engine:5.4.0")
+  testRuntime("org.junit.platform:junit-platform-launcher:1.4.0")
+  testCompile group: 'org.mockito', name: 'mockito-core', version: '2.24.0'
+
+  testCompile group: 'org.apache.kafka', name: 'kafka-streams-test-utils', version: '2.1.0'
+
+  testCompile group: 'javax.json', name: 'javax.json-api', version: '1.1.2'
+
+  // REST API
+  compile group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.1.1'
+  compile group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.14.v20181114'
+  compile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.4.14.v20181114'
+  compile group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet', version: '2.28'
+  compile group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version: '2.28'
+
+}
+
+test {
+  useJUnitPlatform()
+}
+
+task copyToLib(type: Copy) {
+	into "$buildDir/libs"
+	from configurations.runtime
+}
+
+build.dependsOn(copyToLib)
+
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath 'org.standardout:gradle-eclipseconfig:1.1.0'
+  }
+}
+
+// for .editorconfig support in Eclipse
+apply plugin: 'org.standardout.eclipseconfig'

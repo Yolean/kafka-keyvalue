@@ -1,0 +1,14 @@
+build/
+.gradle
+*.iml
+*.iws
+*.ipr
+.classpath
+.project
+.settings
+.idea
+bin/
+gradlew
+out/
+node_modules
+dist
