@@ -8,6 +8,9 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 
@@ -16,6 +19,8 @@ import se.yolean.kafka.keyvalue.UpdateRecord;
  * i.e. reports success every time and is not retryable.
  */
 public class OnUpdateHttpIgnoreResult implements OnUpdate {
+
+  private static final Logger logger = LoggerFactory.getLogger(OnUpdateHttpIgnoreResult.class);
 
   private String url;
 
@@ -29,9 +34,10 @@ public class OnUpdateHttpIgnoreResult implements OnUpdate {
   @Override
   public void handle(UpdateRecord update, Runnable onSuccess) {
     @SuppressWarnings("unused")
+    //Response res = client.target(url).request().post(
     Future<Response> res = client.target(url).request().async().post(
         Entity.entity(update, MediaType.APPLICATION_JSON_TYPE));
-
+    logger.debug("Onupdate POST dispatched to {} for key {} at {},{},{}", url, update.getKey(), update.getTopic(), update.getPartition(), update.getOffset());
   }
 
   @Override
