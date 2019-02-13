@@ -6,6 +6,7 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
@@ -14,46 +15,57 @@ import org.slf4j.LoggerFactory;
 
 public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[], byte[]> {
 
+  private static final String SOURCE_NAME = "Source";
+  private static final String PROCESSOR_NAME = "KeyvalueUpdate";
+  private static final String STATE_STORE_NAME = "Keyvalue";
+
   public static final Logger logger = LoggerFactory.getLogger(KeyvalueUpdateProcessor.class);
 
 	private String sourceTopicPattern;
   private OnUpdate onUpdate;
   private ProcessorContext context;
 
-  private KeyValueStore<byte[], byte[]> store;
+  // We can't use this to build so we keep it for sanity checks
+  private StoreBuilder<KeyValueStore<byte[], byte[]>> storeBuilder = null;
+
+  private KeyValueStore<byte[], byte[]> store = null;
 
   public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate) {
 	  this.sourceTopicPattern = sourceTopic;
 	  this.onUpdate = onUpdate;
 	}
 
-  private KeyValueStore<byte[], byte[]> getStateStore() {
-    StoreBuilder<KeyValueStore<byte[], byte[]>> storeBuilder = Stores.keyValueStoreBuilder(
-      Stores.inMemoryKeyValueStore("Keyvalue"),
+  private void configureStateStore(String name) {
+    storeBuilder = Stores.keyValueStoreBuilder(
+      Stores.inMemoryKeyValueStore(name),
       Serdes.ByteArray(),
       Serdes.ByteArray()
     );
-    return storeBuilder.build();
   }
 
 	@Override
 	public Topology getTopology() {
-    if (this.store != null) {
+    if (this.storeBuilder != null) {
       throw new IllegalStateException("This processor instance has already created a topology");
     }
-    this.store = getStateStore();
+    configureStateStore(STATE_STORE_NAME);
 
     Topology topology = new Topology();
 
-		topology.addSource("Source", sourceTopicPattern);
-
-		topology.addProcessor("KeyvalueUpdate", () -> this, "Source");
+		topology
+		  .addSource(SOURCE_NAME, sourceTopicPattern)
+		  .addProcessor(PROCESSOR_NAME, () -> this, SOURCE_NAME)
+		  .addStateStore(storeBuilder, PROCESSOR_NAME);
 
 		return topology;
 	}
 
   @Override
   public void init(ProcessorContext context) {
+    logger.info("Init applicationId={}", context.applicationId());
+    StateStore stateStore = context.getStateStore(STATE_STORE_NAME);
+    logger.info("Found store {} open={}, persistent={}", stateStore.name(), stateStore.isOpen(), stateStore.persistent());
+    this.store = (KeyValueStore<byte[], byte[]>) stateStore;
     this.context = context;
   }
 
