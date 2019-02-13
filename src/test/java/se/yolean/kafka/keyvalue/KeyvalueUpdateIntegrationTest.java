@@ -30,7 +30,7 @@ class KeyvalueUpdateIntegrationTest {
     cache = new KeyvalueUpdateProcessor(TOPIC1, onUpdate);
 
     Properties config = new Properties();
-    config.setProperty(StreamsConfig.APPLICATION_ID_CONFIG, "testBoardStart");
+    config.setProperty(StreamsConfig.APPLICATION_ID_CONFIG, "test-kafka-keyvalue");
     config.setProperty(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "dummy:1234");
 
     Topology topology = cache.getTopology();

@@ -1,11 +1,28 @@
 package se.yolean.kafka.keyvalue;
 
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class OnUpdateRecordInMemory implements OnUpdate {
 
-  @Override
-  public void handle(String key, Runnable onSuccess) {
-    // TODO Auto-generated method stub
+  private LinkedList<UpdateRecord> updates = new LinkedList<UpdateRecord>();
+  private ExecutorService executor;
 
+  public OnUpdateRecordInMemory() {
+    this.executor = Executors.newSingleThreadExecutor();
+  }
+
+  @Override
+  public void handle(UpdateRecord update, Runnable onSuccess) {
+    updates.add(update);
+    executor.submit(onSuccess);
+  }
+
+  public List<UpdateRecord> getAll() {
+    return Collections.unmodifiableList(updates);
   }
 
 }

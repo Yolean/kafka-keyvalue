@@ -3,11 +3,14 @@ package se.yolean.kafka.keyvalue;
 import java.util.Iterator;
 
 import org.apache.kafka.streams.Topology;
+import org.apache.kafka.streams.processor.Processor;
+import org.apache.kafka.streams.processor.ProcessorContext;
 
-public class KeyvalueUpdateProcessor implements KeyvalueUpdate {
+public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<byte[], byte[]> {
 
 	private String sourceTopicPattern;
   private OnUpdate onUpdate;
+  private ProcessorContext context;
 
   public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate) {
 	  this.sourceTopicPattern = sourceTopic;
@@ -39,6 +42,23 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate {
   public Iterator<byte[]> getAllKeys() {
     // TODO Auto-generated method stub
     return null;
+  }
+
+  @Override
+  public void init(ProcessorContext context) {
+    this.context = context;
+  }
+
+  @Override
+  public void process(byte[] key, byte[] value) {
+    // TODO Auto-generated method stub
+
+  }
+
+  @Override
+  public void close() {
+    // TODO Auto-generated method stub
+
   }
 
 }
