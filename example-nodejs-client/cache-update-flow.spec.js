@@ -113,19 +113,11 @@ describe("A complete cache update flow", () => {
   });
 
   it("When the notify handler returns non-200 gets another notify", async () => {
-
+    // We have nether retries nor error handling for onupdate requests in the cache impl now
   });
 
   it("Includes the updated key and the offset at which the update happened", () => {
-
-  });
-
-  it("The message is now retrievable from KV using the key", async () => {
-
-  });
-
-  it("The current cache offset (global, not the key's latest) is avialable from KV", async () => {
-
+    // Assert response body of an onupdate
   });
 
   it("Nothing crashes when messages lack keys, they are simply ignored", async () => {
@@ -138,6 +130,22 @@ describe("A complete cache update flow", () => {
     });
     expect(response.status).toEqual(200);
     expect(await response.json()).toEqual({});
+  });
+
+  it("Can enumerate keys", async () => {
+    const response = await fetch(`${CACHE1_HOST}/cache/v1/keys`);
+    expect(await response.json()).toEqual(["test1", "testasync"]);
+  });
+
+  it("Can stream values, newline separated - but note that order isn't guaranteed to match that of /keys", async () => {
+    const response = await fetch(`${CACHE1_HOST}/cache/v1/values`);
+    expect(await response.text()).toEqual(
+      `{"test":"${TEST_ID}","step":"First wait for ack"}` + '\n' +
+      `{"test":"${TEST_ID}","step":"First async produce"}` + '\n'
+    );
+  });
+
+  xit("... so if we key+value streaming we should add another endpoint", async () => {
   });
 
 });

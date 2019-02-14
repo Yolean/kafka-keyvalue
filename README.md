@@ -1,4 +1,10 @@
 
+# Kafka key-value cache
+
+## Example usage
+
+See [the Node.js example](./example-nodejs-client/cache-update-flow.spec.js).
+
 ## Design choices
 
  * OnUpdate does not include message value because it could mean that consumers get old values, for example at retries or restarts.
