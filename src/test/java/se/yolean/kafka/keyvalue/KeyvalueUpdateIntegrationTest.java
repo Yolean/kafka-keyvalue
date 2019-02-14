@@ -54,7 +54,7 @@ class KeyvalueUpdateIntegrationTest {
   @Test
   void testBasicFlow() {
     assertEquals(null, cache.getValue("k1"));
-    assertEquals(null, cache.getCurrentOffset(TOPIC1));
+    assertEquals(null, cache.getCurrentOffset(TOPIC1, 0));
 
     testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v1"));
 
@@ -71,8 +71,8 @@ class KeyvalueUpdateIntegrationTest {
     assertEquals(0, update1.getOffset());
     assertEquals("k1", update1.getKey());
 
-    assertEquals(0, cache.getCurrentOffset(TOPIC1));
-    assertEquals(null, cache.getCurrentOffset("othertopic"));
+    assertEquals(0, cache.getCurrentOffset(TOPIC1, 0));
+    assertEquals(null, cache.getCurrentOffset("othertopic", 0));
 
     testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v2"));
     byte[] v2 = cache.getValue("k1");
@@ -85,7 +85,8 @@ class KeyvalueUpdateIntegrationTest {
     assertEquals(1, update2.getOffset());
     assertEquals("k1", update2.getKey());
     assertEquals(0, update1.getOffset());
-    assertEquals(1, cache.getCurrentOffset(TOPIC1));
+    assertEquals(1, cache.getCurrentOffset(TOPIC1, 0));
+    assertEquals(null, cache.getCurrentOffset(TOPIC1, 1));
 
     Iterator<String> keys = cache.getKeys();
     assertTrue(keys.hasNext());

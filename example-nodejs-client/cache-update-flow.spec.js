@@ -80,17 +80,25 @@ describe("A complete cache update flow", () => {
     expect(syncResponse.ok).toBeTruthy();
   });
 
+  let latestOffset = null;
+
   it("Gets the produced offset from Pixy's response", async () => {
     expect(syncResponse).toBeTruthy();
     const result = await syncResponse.json();
     expect(result).toBeTruthy();
     expect(result.partition).toEqual(0);
     expect(result.offset).toBeGreaterThan(0);
+    latestOffset = result.offset;
     console.log('Got offset', result.offset, 'partition', result.partition);
   });
 
   it("Until onUpdate is implemented we just have to wait here", done => {
     setTimeout(done, 1000);
+  });
+
+  it("The known offset should now be updated", async () => {
+    const response = await fetch(`${CACHE1_HOST}/cache/v1/offset/${TOPIC1_NAME}/0`);
+    expect(await response.json()).toEqual(latestOffset);
   });
 
   it("Finds the value in the cache", async () => {

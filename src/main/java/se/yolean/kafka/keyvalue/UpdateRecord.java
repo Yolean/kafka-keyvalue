@@ -1,5 +1,7 @@
 package se.yolean.kafka.keyvalue;
 
+import org.apache.kafka.common.TopicPartition;
+
 public class UpdateRecord {
 
   private String topic;
@@ -28,6 +30,10 @@ public class UpdateRecord {
 
   public String getKey() {
     return key;
+  }
+
+  TopicPartition getTopicPartition() {
+    return new TopicPartition(topic, partition);
   }
 
 }

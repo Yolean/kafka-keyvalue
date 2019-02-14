@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Iterator;
 
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Path;
@@ -58,6 +59,22 @@ public class Endpoints implements RestResource {
   @Produces(MediaType.APPLICATION_OCTET_STREAM)
   public byte[] valueByKey(@PathParam("key") final String key, @Context UriInfo uriInfo) {
     return getCacheValue(key);
+  }
+
+  @GET
+  @Path("/offset/{topic}/{partition}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Long getCurrentOffset(@PathParam("topic") String topic, @PathParam("partition") Integer partition) {
+    if (topic == null) {
+      throw new BadRequestException("Topic can not be null");
+    }
+    if (topic.length() == 0) {
+      throw new BadRequestException("Topic can not be a zero length string");
+    }
+    if (partition == null) {
+      throw new BadRequestException("Partition can not be null");
+    }
+    return cache.getCurrentOffset(topic, partition);
   }
 
   /**

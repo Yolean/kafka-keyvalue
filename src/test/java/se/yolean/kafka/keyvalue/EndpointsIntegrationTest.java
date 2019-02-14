@@ -71,6 +71,12 @@ class EndpointsIntegrationTest {
     Response values = client.target(root + "/cache/v1/values").request().get();
     assertEquals(200, values.getStatus());
     assertEquals("v1" + "\n" + "v2" + "\n", values.readEntity(String.class));
+
+    Mockito.when(cache.getCurrentOffset("topic2", 2)).thenReturn(123L);
+    Response offset = client.target(root + "/cache/v1/offset/topic2/2").request().get();
+    assertEquals(200, offset.getStatus());
+    assertEquals("application/json", offset.getHeaderString("Content-Type"));
+    assertEquals("123", offset.readEntity(String.class));
   }
 
 }

@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -35,7 +36,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
 
   private KeyValueStore<String, byte[]> store = null;
 
-  private final Map<String,Long> currentOffset = new HashMap<String,Long>(1);
+  private final Map<TopicPartition,Long> currentOffset = new HashMap<TopicPartition,Long>(1);
 
   // Not sure yet if we want to construct these objects for every update
   private final Runnable onUpdateCompletion = new Runnable() {
@@ -116,7 +117,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       return;
     }
     process(update, value);
-    currentOffset.put(update.getTopic(), update.getOffset());
+    currentOffset.put(update.getTopicPartition(), update.getOffset());
   }
 
   private void process(UpdateRecord update, byte[] value) {
@@ -136,8 +137,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   }
 
   @Override
-  public Long getCurrentOffset(String topicName) {
-    return currentOffset.get(topicName);
+  public Long getCurrentOffset(String topicName, int partition) {
+    return currentOffset.get(new TopicPartition(topicName, partition));
   }
 
   @Override

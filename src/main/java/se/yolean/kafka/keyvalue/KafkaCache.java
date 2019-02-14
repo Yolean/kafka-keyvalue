@@ -17,9 +17,10 @@ public interface KafkaCache {
 
   /**
    * @param topicName
+   * @param partition
    * @return offset for latest update, or null if the topic hasn't got updates
    */
-  Long getCurrentOffset(String topicName);
+  Long getCurrentOffset(String topicName, int partition);
 
   Iterator<String> getKeys();
 
