@@ -48,7 +48,6 @@ class EndpointsIntegrationTest {
     Endpoints endpoints = new Endpoints(cache);
     server = new ConfigureRest()
         .createContext(options.getPort(), "/")
-        // let's see when we need this: .registerResourceClass(org.glassfish.jersey.jackson.JacksonFeature.class)
         .registerResourceInstance(endpoints)
         .asServlet()
         .create();

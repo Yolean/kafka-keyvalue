@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Iterator;
 import java.util.Properties;
 
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
@@ -20,8 +21,8 @@ import org.junit.jupiter.api.Test;
 class KeyvalueUpdateIntegrationTest {
 
   private TopologyTestDriver testDriver;
-  private ConsumerRecordFactory<String, String> recordFactory = new ConsumerRecordFactory<>(new StringSerializer(),
-      new StringSerializer());
+  private ConsumerRecordFactory<String, byte[]> recordFactory = new ConsumerRecordFactory<>(new StringSerializer(),
+      new ByteArraySerializer());
 
   private static final String TOPIC1 = "topic1";
   private KeyvalueUpdate cache = null;
@@ -50,7 +51,7 @@ class KeyvalueUpdateIntegrationTest {
     assertEquals(null, cache.getValue("k1"));
     assertEquals(null, cache.getCurrentOffset(TOPIC1, 0));
 
-    testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v1"));
+    testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v1".getBytes()));
 
     assertEquals(null, cache.getValue("k0"));
 
@@ -68,7 +69,7 @@ class KeyvalueUpdateIntegrationTest {
     assertEquals(0, cache.getCurrentOffset(TOPIC1, 0));
     assertEquals(null, cache.getCurrentOffset("othertopic", 0));
 
-    testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v2"));
+    testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v2".getBytes()));
     byte[] v2 = cache.getValue("k1");
     assertEquals("v2", new String(v2));
     assertEquals(2, onUpdate.getAll().size());
