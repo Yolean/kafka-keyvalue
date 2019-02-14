@@ -2,7 +2,7 @@
 grpc_addr: 0.0.0.0:19091
 
 # TCP address that RESTful API server should listen on.
-tcp_addr: 0.0.0.0:19092
+tcp_addr: 0.0.0.0:19090
 
 # Unix domain socket address that RESTful API server should listen on.
 # Listening on a unix domain socket is disabled by default.
@@ -29,7 +29,7 @@ proxies:
       # List of seed Kafka peers that Kafka-Pixy should access to resolve the
       # Kafka cluster topology.
       seed_peers:
-        - localhost:9092
+        - kafka:9092
 
       # Version of the Kafka cluster. Supported versions are 0.10.2.1 - 2.0.0
       version: 0.10.2.1
@@ -53,7 +53,7 @@ proxies:
       # List of seed ZooKeeper peers that Kafka-Pixy should access to resolve the
       # ZooKeeper cluster topology.
       seed_peers:
-        - localhost:2181
+        - zookeeper:2181
 
       # A root directory in ZooKeeper to store consumers data.
       # chroot: ""
