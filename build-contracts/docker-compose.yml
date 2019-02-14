@@ -73,9 +73,7 @@ services:
     depends_on:
     - kafka
     - topic1-create
-    image: yolean/kafka-key-value-store
-    build:
-      context: ../
+    image: yolean/kafka-keyvalue:dev
     labels:
     - com.yolean.build-target
     ports:
