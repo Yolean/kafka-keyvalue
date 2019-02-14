@@ -15,6 +15,7 @@ import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.apache.kafka.streams.test.ConsumerRecordFactory;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -43,6 +44,11 @@ class KeyvalueUpdateIntegrationTest {
     Topology topology = cache.getTopology();
 
     testDriver = new TopologyTestDriver(topology, config);
+  }
+
+  @AfterEach
+  public void tearDown() {
+    testDriver.close();
   }
 
   @Test

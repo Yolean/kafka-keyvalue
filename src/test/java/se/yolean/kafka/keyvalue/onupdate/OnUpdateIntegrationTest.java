@@ -68,6 +68,8 @@ public class OnUpdateIntegrationTest {
 
   @AfterEach
   void teardown() throws Exception {
+    testDriver.close();
+
     if (server != null) {
       server.stop();
     }
