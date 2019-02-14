@@ -1,0 +1,108 @@
+version: "3.4"
+services:
+
+  zookeeper:
+    image: solsson/kafka:2.1.0@sha256:ac3f06d87d45c7be727863f31e79fbfdcb9c610b51ba9cf03c75a95d602f15e1
+    entrypoint: ./bin/zookeeper-server-start.sh
+    command:
+    - ./config/zookeeper.properties
+
+  kafka:
+    image: solsson/kafka:2.1.0@sha256:ac3f06d87d45c7be727863f31e79fbfdcb9c610b51ba9cf03c75a95d602f15e1
+    links:
+    - zookeeper
+    entrypoint:
+    - ./bin/kafka-server-start.sh
+    - ./config/server.properties
+    - --override
+    -   zookeeper.connect=zookeeper:2181
+    - --override
+    -   log.retention.hours=-1
+    - --override
+    -   log.dirs=/var/lib/kafka/data/topics
+    - --override
+    # Shouldn't be needed for streams, but currently for the test container(s) to produce data
+    -   auto.create.topics.enable=true
+    - --override
+    -   default.replication.factor=1
+    - --override
+    -   min.insync.replicas=1
+    - --override
+    -   offsets.retention.minutes=10080
+    # For access from dev environment
+    - --override
+    -   listeners=OUTSIDE://:19092,PLAINTEXT://:9092
+    - --override
+    -   advertised.listeners=OUTSIDE://localhost:19092,PLAINTEXT://:9092
+    - --override
+    -   listener.security.protocol.map=PLAINTEXT:PLAINTEXT,OUTSIDE:PLAINTEXT
+    - --override
+    -   inter.broker.listener.name=PLAINTEXT
+    ports:
+    - 19092:19092
+
+  pixy:
+    depends_on:
+    - kafka
+    image: mailgun/kafka-pixy:0.16.0@sha256:2a2d426f9fe17ede9c21b2f8b7418d8787293e39327b638fd6c403f3726597fb 
+    entrypoint:
+    - kafka-pixy
+    - -kafkaPeers
+    -  kafka:9092
+    - -zookeeperPeers
+    -  zookeeper:2181
+    - -tcpAddr
+    -  0.0.0.0:19090
+    ports:
+    - 19090:19090
+
+  topic1-create:
+    image: solsson/kafkacat@sha256:b91241b5741fccaef282eb8dbdfb6e5289bb8586274175b1836e57912ffecaef
+    command:
+    - -b
+    -  kafka:9092
+    # good enough with auto topic create
+    - -C
+    - -K
+    -  '='
+    - -t
+    -  topic1
+    - -e
+
+  cache1:
+    depends_on:
+    - kafka
+    - topic1-create
+    image: yolean/kafka-key-value-store
+    build:
+      context: ../
+    labels:
+    - com.yolean.build-target
+    ports:
+    - 19081:19081
+    command:
+    - --port
+    -   '19081'
+    - --streams-props
+    -   bootstrap.servers=kafka:9092
+    -   num.standby.replicas=0
+    - --hostname
+    -   cache1
+    - --application-id
+    -   kv-001
+    - --topic
+    -   topic1
+
+  example-nodejs-client:
+    depends_on:
+    - pixy
+    - cache1
+    build:
+      context: ../example-nodejs-client
+    labels:
+    - com.yolean.build-contract
+    expose:
+    - "8080"
+    environment:
+    - PIXY_HOST=http://pixy:19090
+    - CACHE1_HOST=http://cache1:19081

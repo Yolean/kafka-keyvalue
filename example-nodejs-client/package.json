@@ -1,0 +1,20 @@
+{
+  "name": "kafka-kv-example-client",
+  "version": "1.0.0",
+  "description": "",
+  "main": "mockserver.js",
+  "scripts": {
+    "test": "./node_modules/.bin/jest",
+    "start": "node ./"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "express": "4.16.4",
+    "jest": "24.1.0",
+    "mockserver-node": "5.5.2",
+    "morgan": "1.9.1",
+    "node-fetch": "2.3.0",
+    "sinon": "7.2.3"
+  }
+}
