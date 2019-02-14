@@ -2,6 +2,7 @@ package se.yolean.kafka.keyvalue;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.Arrays;
 import java.util.Random;
 
 import javax.ws.rs.client.Client;
@@ -60,6 +61,16 @@ class EndpointsIntegrationTest {
     Response r1 = client.target(root + "/cache/v1/raw/key01").request().get();
     assertEquals(200, r1.getStatus());
     assertEquals("value01", r1.readEntity(String.class));
+
+    Mockito.when(cache.getKeys()).thenReturn(Arrays.asList("k1", "k2").iterator());
+    Response keys = client.target(root + "/cache/v1/keys").request().get();
+    assertEquals(200, keys.getStatus());
+    assertEquals("[\"k1\",\"k2\"]", keys.readEntity(String.class));
+
+    Mockito.when(cache.getValues()).thenReturn(Arrays.asList("v1".getBytes(), "v2".getBytes()).iterator());
+    Response values = client.target(root + "/cache/v1/values").request().get();
+    assertEquals(200, values.getStatus());
+    assertEquals("v1" + "\n" + "v2" + "\n", values.readEntity(String.class));
   }
 
 }
