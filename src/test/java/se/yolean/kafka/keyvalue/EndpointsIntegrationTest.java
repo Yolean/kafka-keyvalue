@@ -1,6 +1,6 @@
 package se.yolean.kafka.keyvalue;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Arrays;
 import java.util.Random;
@@ -16,7 +16,6 @@ import org.mockito.Mockito;
 
 import se.yolean.kafka.keyvalue.http.CacheServer;
 import se.yolean.kafka.keyvalue.http.ConfigureRest;
-import se.yolean.kafka.keyvalue.onupdate.OnUpdateFactory;
 
 class EndpointsIntegrationTest {
 

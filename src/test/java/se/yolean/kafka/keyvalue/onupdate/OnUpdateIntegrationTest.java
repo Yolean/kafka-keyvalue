@@ -1,16 +1,10 @@
 package se.yolean.kafka.keyvalue.onupdate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Iterator;
+import java.io.IOException;
 import java.util.Properties;
 import java.util.Random;
-
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
 
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.streams.StreamsConfig;
@@ -28,7 +22,6 @@ import se.yolean.kafka.keyvalue.KeyvalueUpdateProcessor;
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.http.CacheServer;
 import se.yolean.kafka.keyvalue.http.ConfigureRest;
-import se.yolean.kafka.keyvalue.onupdate.OnUpdateFactory;
 
 public class OnUpdateIntegrationTest {
 
@@ -44,14 +37,12 @@ public class OnUpdateIntegrationTest {
   private CacheServer server = null;
   private int port;
   private String root;
-  private Client client;
 
   @BeforeEach
   public void setup() {
     Random random = new Random();
     port = 58000 + random.nextInt(1000);
     root = "http://127.0.0.1:" + port;
-    client = ClientBuilder.newBuilder().build();
 
     OnUpdate onUpdate = OnUpdateFactory.getInstance().fromUrl(root + UPDATES_ENDPOINT_PATH);
 
@@ -77,7 +68,7 @@ public class OnUpdateIntegrationTest {
   }
 
   @Test
-  void testBasicFlow() throws InterruptedException {
+  void testBasicFlow() throws InterruptedException, IOException {
     CacheServiceOptions options = Mockito.mock(CacheServiceOptions.class);
     Mockito.when(options.getPort()).thenReturn(port);
 
@@ -96,6 +87,9 @@ public class OnUpdateIntegrationTest {
 
     Thread.sleep(1000);
     assertEquals(1, updatesServlet.posts.size());
+
+    assertEquals(1, updatesServlet.payloads.size());
+    assertEquals("{\"topic\":\"topic1\",\"partition\":0,\"offset\":0,\"key\":\"k1\"}", updatesServlet.payloads.get(0));
   }
 
 }

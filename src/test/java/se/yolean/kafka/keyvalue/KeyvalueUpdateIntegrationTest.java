@@ -8,8 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Iterator;
 import java.util.Properties;
 
-import javax.ws.rs.core.Response;
-
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
@@ -18,10 +16,6 @@ import org.apache.kafka.streams.test.ConsumerRecordFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
-import se.yolean.kafka.keyvalue.http.ConfigureRest;
-import se.yolean.kafka.keyvalue.onupdate.OnUpdateFactory;
 
 class KeyvalueUpdateIntegrationTest {
 
