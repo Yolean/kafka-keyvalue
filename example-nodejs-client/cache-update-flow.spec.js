@@ -7,6 +7,7 @@ const {
 } = process.env;
 
 const fetch = require('node-fetch');
+const { gzipSync, gunzipSync } = require('zlib');
 
 const mockserver = require('./mockserver');
 
@@ -143,6 +144,23 @@ describe("A complete cache update flow", () => {
       `{"test":"${TEST_ID}","step":"First wait for ack"}` + '\n' +
       `{"test":"${TEST_ID}","step":"First async produce"}` + '\n'
     );
+  });
+
+  it('handles gzipped payloads', async () => {
+    await fetch(`${PIXY_HOST}/topics/${TOPIC1_NAME}/messages?key=testgzip1&sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: gzipSync(JSON.stringify({ test: TEST_ID, step: 'No key' }))
+    });
+    const response = await fetch(`${CACHE1_HOST}/cache/v1/raw/testgzip1`);
+    expect(response.ok).toEqual(true);
+    expect(response.status).toEqual(200);
+    const buffer = await response.buffer();
+    const json = gunzipSync(buffer);
+
+    expect(JSON.parse(json)).toEqual({ test: TEST_ID, step: 'No key' });
   });
 
   xit("... so if we key+value streaming we should add another endpoint", async () => {

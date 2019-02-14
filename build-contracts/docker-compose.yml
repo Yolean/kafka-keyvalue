@@ -73,7 +73,7 @@ services:
     depends_on:
     - kafka
     - topic1-create
-    image: yolean/kafka-key-value-store
+    image: yolean/kafka-keyvalue
     build:
       context: ../
     labels:
@@ -92,6 +92,8 @@ services:
     -   kv-001
     - --topic
     -   topic1
+    - --onupdate
+    - http://example-nodejs-client:8080/kafka-keyvalue/v1/updates
 
   example-nodejs-client:
     depends_on:
