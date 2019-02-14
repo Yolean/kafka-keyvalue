@@ -42,15 +42,17 @@ describe("A complete cache update flow", () => {
   });
 
   test("Check that cache is online at " + CACHE1_HOST, async () => {
-    const response = await fetch(`${CACHE1_HOST}/messages/processors`, {
+    //const response = await fetch(`${CACHE1_HOST}/ready`, {
+      const response = await fetch(`${CACHE1_HOST}/`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
       }
     });
-    //expect(response.status).toEqual(200);
-    // The endpoint responds "No serializer found"
-    expect(response.status).toEqual(400);
+    //expect(response.status).toEqual(204);
+    // For now we don't have a working readiness check
+    //expect(response.status).toEqual(500);
+    expect(response.status).toEqual(404);
   });
 
   it("Starts with a produce to Pixy", async () => {
@@ -92,8 +94,8 @@ describe("A complete cache update flow", () => {
   });
 
   it("Finds the value in the cache", async () => {
-    const response = await fetch(`${CACHE1_HOST}/messages/test1`);
-    expect(await response.json()).toEqual({"key":"test1","value":`{\"test\":\"${TEST_ID}\",\"step\":\"First wait for ack\"}`});
+    const response = await fetch(`${CACHE1_HOST}/cache/v1/raw/test1`);
+    expect(await response.text()).toEqual(`{"test":"${TEST_ID}","step":"First wait for ack"}`);
     expect(response.status).toEqual(200);
   });
 

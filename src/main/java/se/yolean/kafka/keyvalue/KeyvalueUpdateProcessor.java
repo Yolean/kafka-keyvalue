@@ -105,8 +105,16 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
 
   @Override
   public void process(String key, byte[] value) {
-    logger.debug("Got keyvalue {}={}", key, new String(value));
+    logger.trace("Got keyvalue {}={}", key, new String(value));
     UpdateRecord update = new UpdateRecord(context.topic(), context.partition(), context.offset(), key);
+    if (key == null) {
+      logger.debug("Ignoring null key at " + update);
+      return;
+    }
+    if (key.length() == 0) {
+      logger.debug("Ignoring zero-length key at " + update);
+      return;
+    }
     process(update, value);
     currentOffset.put(update.getTopic(), update.getOffset());
   }
