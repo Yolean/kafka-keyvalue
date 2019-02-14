@@ -32,7 +32,7 @@ proxies:
         - kafka:9092
 
       # Version of the Kafka cluster. Supported versions are 0.10.2.1 - 2.0.0
-      version: 0.10.2.1
+      version: 2.1.0
 
     # Networking parameters section. These all pass through to sarama's
     # `config.Net` field.
