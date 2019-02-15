@@ -54,7 +54,8 @@ public class ArgsToOptions implements CacheServiceOptions {
         .type(String.class)
         .dest("streamsConfig")
         .help("kafka streams related configuration properties like bootstrap.servers etc. " +
-                "These configs take precedence over those passed via --streams.config.");
+                "These configs take precedence over those passed via --streams.config." +
+                "The consumer can be configured using prefix: " + StreamsConfig.CONSUMER_PREFIX + ".");
 
     parser.addArgument("--streams.config")
         .action(store())
