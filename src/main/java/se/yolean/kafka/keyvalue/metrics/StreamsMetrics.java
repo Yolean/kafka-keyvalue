@@ -44,7 +44,7 @@ public class StreamsMetrics {
         Double partitions = (Double) metricValue;
         if (partitions > 0.5) {
           hasSeenAssignedParititions = true;
-          logger.info("Saw assigned partitions for the first time");
+          logger.info("Noticed assigned partitions for the first time");
         }
       }
       String name = metric.name();

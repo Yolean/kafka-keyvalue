@@ -23,7 +23,7 @@ public class StreamsStateListener implements StateListener {
 
   @Override
   public void onChange(State newState, State oldState) {
-    logger.info("Streams state change to {} from {}", newState, oldState);
+    logger.info("Streams state change from {} to {}", oldState, newState);
     if (State.RUNNING.equals(newState) && State.REBALANCING.equals(oldState)) {
       hasBeenRunning = true;
     }

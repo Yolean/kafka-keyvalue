@@ -1,11 +1,7 @@
 package se.yolean.kafka.keyvalue;
 
-import java.util.Collection;
-
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.Topology;
-import org.apache.kafka.streams.KafkaStreams.State;
-import org.apache.kafka.streams.state.StreamsMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,14 +16,16 @@ public class App {
 
   private static final Logger logger = LoggerFactory.getLogger(App.class);
 
-  private long streamsStatusCheckInterval = 5000;
-  private int checksBeforeRequireRunning = 3;
+  private StreamsStateListener stateListener;
+  private StreamsUncaughtExceptionHandler streamsExceptionHandler;
+  private StreamsMetrics metrics;
+  private Runnable shutdown;
 
-  private final StreamsStateListener stateListener = new StreamsStateListener();
-  private final StreamsUncaughtExceptionHandler streamsExceptionHandler = new StreamsUncaughtExceptionHandler();
-  private long streamsStartTime = -1;
-  private StreamsMetrics metrics = null;
-
+  /**
+   * Start a streams app with REST server and return control to the caller.
+   * @see #doWhateverRegularMaintenance()
+   * @param options well, options
+   */
   public App(CacheServiceOptions options) {
     logger.info("Starting App using options {}", options);
 
@@ -43,9 +41,11 @@ public class App {
     KafkaStreams streams = new KafkaStreams(topology, options.getStreamsProperties());
     logger.info("Streams application configured", streams);
 
+    stateListener = new StreamsStateListener();
     streams.setStateListener(stateListener);
     logger.info("Registered streams state listener {}", stateListener);
 
+    streamsExceptionHandler = new StreamsUncaughtExceptionHandler();
     streams.setUncaughtExceptionHandler(streamsExceptionHandler);
     logger.info("Registered streams exception handler {}", streamsExceptionHandler);
 
@@ -68,63 +68,54 @@ public class App {
     server.start();
     logger.info("REST server stated");
 
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> streams.close()));
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-        try {
-            server.stop();
-        } catch (Exception e) {}
-        logger.info("REST server stopped");
-    }));
-
-    runStreams(streams);
-  }
-
-  private void runStreams(KafkaStreams streams) {
-    startStreams(streams);
-
-    while (true) {
-      try {
-        Thread.sleep(streamsStatusCheckInterval);
-      } catch (InterruptedException e) {
-        logger.error("Interrupted after streams start", e);
-      }
-      watchStreams(streams);
-    }
-  }
-
-  private void watchStreams(KafkaStreams streams) {
-    metrics.check();
-    if (checksBeforeRequireRunning > 0) {
-      logger.info("Looking for signs of successful startup");
-      if (metrics.hasSeenAssignedParititions() && stateListener.streamsHasBeenRunning()) {
-        checksBeforeRequireRunning = -1;
-      } else {
-        checksBeforeRequireRunning--;
-      }
-    }
-    if (checksBeforeRequireRunning == 0) {
-      logger.error("Failed to confirm streams startup in {} secods", (System.currentTimeMillis() - streamsStartTime) / 1000);
-      checksBeforeRequireRunning = 3;
-      restartStreams(streams);
-    }
-  }
-
-  private void startStreams(KafkaStreams streams) {
-    streamsStartTime = System.currentTimeMillis();
-    logger.info("Starting streams application at {}", streamsStartTime);
     streams.start();
     logger.info("Streams application started");
+
+    shutdown = new ShutdownHook(streams, server);
+    Runtime.getRuntime().addShutdownHook(new Thread(shutdown));
   }
 
-  private void restartStreams(KafkaStreams streams) {
-    logger.warn("Forcing streams instance restart");
-    streams.close();
-    try {
-      Thread.sleep(streamsStatusCheckInterval);
-    } catch (InterruptedException e) {
-      logger.error("Interrupted after streams close", e);
+  /**
+   * To keep a single control thread for now, the caller of {@link #App(CacheServiceOptions)}
+   * should invoke this method at sane intervals,
+   * to do things like poll metrics or health/readiness stuff.
+   */
+  public void doWhateverRegularMaintenance() {
+    metrics.check();
+  }
+
+  /**
+   * @return true if streams seems to have been successfully connected to the source topic
+   * <em>at any time</em> i.e. will never toggle from true to false
+   */
+  public boolean hasConnectedToSourceTopic() {
+    return metrics.hasSeenAssignedParititions() && stateListener.streamsHasBeenRunning();
+  }
+
+  public void shutdown() {
+    this.shutdown.run();
+  }
+
+  private static class ShutdownHook implements Runnable {
+
+    private KafkaStreams streams;
+    private CacheServer server;
+
+    ShutdownHook(KafkaStreams streams, CacheServer server) {
+      this.streams = streams;
+      this.server = server;
     }
-    startStreams(streams);
+
+    @Override
+    public void run() {
+      try {
+        server.stop();
+      } catch (Exception e) {}
+      logger.info("REST server stopped");
+      streams.close();
+      logger.info("Streams stopped");
+    }
+
   }
 
 }
