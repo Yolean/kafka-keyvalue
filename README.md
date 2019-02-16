@@ -20,9 +20,6 @@ The [build-contract](https://github.com/Yolean/build-contract/) can be used as d
 
 ```
 alias compose='docker-compose -f build-contracts/docker-compose.yml'
-compose up -d kafka
-compose up -d pixy
-compose up -d topic1-create
 compose up -d --build cache1
 compose up --build example-nodejs-client
 compose down

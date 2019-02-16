@@ -44,30 +44,21 @@ services:
   pixy:
     depends_on:
     - kafka
-    image: mailgun/kafka-pixy:0.16.0@sha256:2a2d426f9fe17ede9c21b2f8b7418d8787293e39327b638fd6c403f3726597fb 
-    entrypoint:
-    - kafka-pixy
-    - -kafkaPeers
-    -  kafka:9092
-    - -zookeeperPeers
-    -  zookeeper:2181
-    - -tcpAddr
-    -  0.0.0.0:19090
+    build: ./pixy
     ports:
     - 19090:19090
+    command:
+    - -tcpAddr
+    -  0.0.0.0:19090
 
   topic1-create:
     image: solsson/kafkacat@sha256:b91241b5741fccaef282eb8dbdfb6e5289bb8586274175b1836e57912ffecaef
+    entrypoint:
+    - /bin/bash
+    - -c
     command:
-    - -b
-    -  kafka:9092
-    # good enough with auto topic create
-    - -C
-    - -K
-    -  '='
-    - -t
-    -  topic1
-    - -e
+    - |
+      until kafkacat -b kafka:9092 -C -K '=' -t topic1 -e; do sleep 3; done
 
   cache1:
     depends_on:
@@ -90,6 +81,10 @@ services:
     -   kv-001
     - --topic
     -   topic1
+    - --onupdate
+    -   http://example-nodejs-client:8080/updates
+    - --starttimeout
+    -   '10'
 
   example-nodejs-client:
     depends_on:
