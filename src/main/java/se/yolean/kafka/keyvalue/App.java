@@ -10,6 +10,7 @@ import se.yolean.kafka.keyvalue.healthz.StreamsUncaughtExceptionHandler;
 import se.yolean.kafka.keyvalue.http.CacheServer;
 import se.yolean.kafka.keyvalue.http.ConfigureRest;
 import se.yolean.kafka.keyvalue.http.ReadinessServlet;
+import se.yolean.kafka.keyvalue.metrics.PrometheusMetricsServlet;
 import se.yolean.kafka.keyvalue.metrics.StreamsMetrics;
 
 public class App {
@@ -55,12 +56,14 @@ public class App {
     Endpoints endpoints = new Endpoints(keyvalueUpdate);
     logger.info("Starting REST service with endpoints {}", endpoints);
 
+    PrometheusMetricsServlet metricsServlet = new PrometheusMetricsServlet(metrics);
+
     CacheServer server = new ConfigureRest()
         .createContext(options.getPort(), "/")
         .registerResourceClass(org.glassfish.jersey.jackson.JacksonFeature.class)
         .registerResourceInstance(endpoints)
         .asServlet()
-        // TODO metrics: .addCustomServlet(servlet, pathSpec)
+        .addCustomServlet(metricsServlet, "/metrics")
         .addCustomServlet(new ReadinessServlet(keyvalueUpdate), "/ready")
         .create();
     logger.info("REST server created {}", server);

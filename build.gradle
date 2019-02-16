@@ -57,7 +57,7 @@ dependencies {
   compile group: 'structlog4j', name: 'structlog4j-json', version: '1.0.0'
 
   compile group: 'io.prometheus', name: 'simpleclient', version: '0.6.0'
-  compile group: 'io.prometheus', name: 'simpleclient_httpserver', version: '0.6.0'
+  compile group: 'io.prometheus', name: 'simpleclient_servlet', version: '0.6.0'
 
   compile group: 'net.sourceforge.argparse4j', name: 'argparse4j', version: '0.8.1'
 

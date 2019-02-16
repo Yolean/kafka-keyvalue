@@ -1,9 +1,9 @@
 package se.yolean.kafka.keyvalue.metrics;
 
+import static se.yolean.kafka.keyvalue.metrics.KafkaGaugeToPrometheus.getNameInPrometheus;
+
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
@@ -14,16 +14,18 @@ public class StreamsMetrics {
 
   public static final Logger logger = LoggerFactory.getLogger(StreamsMetrics.class);
 
-  private static final Map<MetricName, KafkaGaugeToPrometheus> prometheus = new HashMap<>();
+  private static final Map<String, KafkaGaugeToPrometheus> prometheus = new HashMap<>();
 
-  private static final KafkaMetricName ASSIGNED_PARTITIONS =
-      new KafkaMetricName("consumer-coordinator-metrics", "assigned-partitions");
+  private static final String ASSIGNED_PARTITIONS =
+      getNameInPrometheus("consumer-coordinator-metrics", "assigned-partitions");
+  private static final String KAFKA_METRICS_COUNT =
+      getNameInPrometheus("kafka-metrics-count", "count");
 
   // These might be interesting too for health
-  private static final KafkaMetricName COMMIT_TOTAL =
-      new KafkaMetricName("consumer-coordinator-metrics", "commit-total");
-  private static final KafkaMetricName RECORDS_CONSUMED_TOTAL =
-      new KafkaMetricName("consumer-fetch-manager-metrics", "records-consumed-total");
+  private static final String COMMIT_TOTAL =
+      getNameInPrometheus("consumer-coordinator-metrics", "commit-total");
+  private static final String RECORDS_CONSUMED_TOTAL =
+      getNameInPrometheus("consumer-fetch-manager-metrics", "records-consumed-total");
 
   private Map<MetricName, ? extends Metric> kafkaMetrics;
 
@@ -37,24 +39,32 @@ public class StreamsMetrics {
   }
 
   /**
-   * So we can trigger re-check from the main thread without thread cretion in this class.
+   * So we can trigger re-check from the main thread without thread creation in this class.
    */
   public void check() {
     for (Map.Entry<MetricName, ? extends Metric> metric : kafkaMetrics.entrySet()) {
-      KafkaGaugeToPrometheus prom = prometheus.get(metric.getKey());
+
+      String promName = getNameInPrometheus(metric.getKey());
+
+      if (KAFKA_METRICS_COUNT.equals(promName)) continue;
+
+      KafkaGaugeToPrometheus prom = prometheus.get(promName);
       if (prom == null) {
         prom = new KafkaGaugeToPrometheus(metric.getKey());
-        prometheus.put(metric.getKey(), prom);
-        logger.info("Found new metric {}, created Prometheus metric {}", metric.getKey(), prom);
+        prometheus.put(promName, prom);
+        logger.trace("Found new metric {}, created Prometheus metric {}", metric.getKey(), prom);
       }
+
       prom.update(metric.getValue());
-      if (!hasSeenAssignedParititions && ASSIGNED_PARTITIONS.equals(prom)) {
+
+      if (!hasSeenAssignedParititions && ASSIGNED_PARTITIONS.equals(promName)) {
         Double partitions = (Double) metric.getValue().metricValue();
         if (partitions > 0.5) {
           hasSeenAssignedParititions = true;
           logger.info("Noticed assigned partitions for the first time");
         }
       }
+
     }
   }
 
