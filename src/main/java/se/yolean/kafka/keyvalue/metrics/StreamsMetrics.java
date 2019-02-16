@@ -14,7 +14,7 @@ public class StreamsMetrics {
 
   public static final Logger logger = LoggerFactory.getLogger(StreamsMetrics.class);
 
-  private static final Map<MetricName, KafkaGaugeToPrometheus> prometheus = new HashMap<>();
+  private static final Map<String, KafkaGaugeToPrometheus> prometheus = new HashMap<>();
 
   private static final KafkaMetricName ASSIGNED_PARTITIONS =
       new KafkaMetricName("consumer-coordinator-metrics", "assigned-partitions");
@@ -41,10 +41,10 @@ public class StreamsMetrics {
    */
   public void check() {
     for (Map.Entry<MetricName, ? extends Metric> metric : kafkaMetrics.entrySet()) {
-      KafkaGaugeToPrometheus prom = prometheus.get(metric.getKey());
+      KafkaGaugeToPrometheus prom = prometheus.get(metric.getKey().name());
       if (prom == null) {
         prom = new KafkaGaugeToPrometheus(metric.getKey());
-        prometheus.put(metric.getKey(), prom);
+        prometheus.put(prom.getKafkaName(), prom);
         logger.info("Found new metric {}, created Prometheus metric {}", metric.getKey(), prom);
       }
       prom.update(metric.getValue());
