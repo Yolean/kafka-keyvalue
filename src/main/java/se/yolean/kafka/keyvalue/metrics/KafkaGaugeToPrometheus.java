@@ -57,9 +57,9 @@ public class KafkaGaugeToPrometheus extends KafkaMetricName {
 
   public void update(Metric metric) {
     MetricName name = metric.metricName();
-    if (!getKafkaName().equals(metric.metricName().name())) {
-      throw new IllegalArgumentException("This metric was created with name '" +
-          getKafkaName() + "' but update attempted with: " + name);
+    if (!super.equals(name)) {
+      throw new IllegalArgumentException("This metric was created with name '" + getKafkaName() +
+          "' group '" + getKafkaGroup() + "' but update attempted with: " + name);
     }
     Object value = metric.metricValue();
     if (value == null) {
@@ -70,12 +70,7 @@ public class KafkaGaugeToPrometheus extends KafkaMetricName {
         setup(name);
       }
       List<String> labelValues = getLabelValues(name);
-      String[] labelValuesArray = labelValues.toArray(new String[labelValues.size()]);
-      try {
-        gauge.labels(labelValuesArray).set((Double) value);
-      } catch (RuntimeException e) {
-        logger.info("Failed to update metric " + name + ": " + e);
-      }
+      gauge.labels(labelValues.toArray(new String[labelValues.size()])).set((Double) value);
     } else {
       if (lastUpdated == 0) {
         logger.warn("Ignoring metric {} with value type {}", value, value.getClass());
