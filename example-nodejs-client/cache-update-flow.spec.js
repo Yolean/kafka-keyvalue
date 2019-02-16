@@ -7,6 +7,22 @@ const {
 } = process.env;
 
 const fetch = require('node-fetch');
+const fetchRetry = async (url, opts) => {
+  let retry = opts && opts.retries || 3
+  while (retry > 0) {
+    try {
+      return await fetch(url, opts)
+    } catch(e) {
+      if (opts.retryCallback) {
+          opts.retryCallback(retry)
+      }
+      retry = retry - 1
+      if (retry == 0) {
+          throw e
+      }
+    }
+  }
+};
 
 const mockserver = require('./mockserver');
 
@@ -26,7 +42,11 @@ describe("A complete cache update flow", () => {
   });
 
   test("Check that pixy is online at " + PIXY_HOST, async () => {
-    const response = await fetch(PIXY_HOST);
+    let response = await fetchRetry(PIXY_HOST, {
+      timeout: 3,
+      retries: 5,
+      retryCallback: retry => console.log('Retrying pixy access', retry)
+    });
     expect(response.status).toEqual(404);
   });
 
@@ -43,11 +63,14 @@ describe("A complete cache update flow", () => {
 
   test("Check that cache is online at " + CACHE1_HOST, async () => {
     //const response = await fetch(`${CACHE1_HOST}/ready`, {
-      const response = await fetch(`${CACHE1_HOST}/`, {
+    const response = await fetchRetry(`${CACHE1_HOST}/`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
-      }
+      },
+      timeout: 3,
+      retries: 5,
+      retryCallback: retry => console.log('Retrying cache access', retry)
     });
     //expect(response.status).toEqual(204);
     // For now we don't have a working readiness check
