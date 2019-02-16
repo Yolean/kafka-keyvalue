@@ -54,6 +54,9 @@ public class ConfigureRest {
 
       @Override
       public Resources registerResourceInstance(RestResource component) {
+        // There'll be a warning, see
+        // https://stackoverflow.com/a/50269323
+        // https://github.com/eclipse-ee4j/jersey/issues/3700
         resourceConfig.register(component);
         logger.debug("Registered resource component {}", component);
         return this;

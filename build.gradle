@@ -1,4 +1,17 @@
 
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath 'org.standardout:gradle-eclipseconfig:1.1.0'
+  }
+}
+
+plugins {
+  id 'com.google.cloud.tools.jib' version '1.0.0'
+}
+
 repositories {
   mavenCentral()
   jcenter()
@@ -12,10 +25,14 @@ apply plugin: "idea"
 apply plugin: "eclipse"
 apply plugin: "maven"
 apply plugin: "jacoco"
+// for .editorconfig support in Eclipse
+apply plugin: 'org.standardout.eclipseconfig'
 
 group 'se.yolean'
 
-sourceCompatibility = 1.8
+sourceCompatibility = 1.11
+
+jib.from.image = 'gcr.io/distroless/java@sha256:a3ec250f951cf33017843691cc54f8dfb43a3727e095a75d149dc2ada5720d30'
 
 configurations {
   compile.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
@@ -75,14 +92,3 @@ task copyToLib(type: Copy) {
 
 build.dependsOn(copyToLib)
 
-buildscript {
-  repositories {
-    jcenter()
-  }
-  dependencies {
-    classpath 'org.standardout:gradle-eclipseconfig:1.1.0'
-  }
-}
-
-// for .editorconfig support in Eclipse
-apply plugin: 'org.standardout.eclipseconfig'

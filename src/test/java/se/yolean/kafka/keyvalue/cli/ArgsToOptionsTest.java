@@ -14,12 +14,13 @@ class ArgsToOptionsTest {
 
   @Test
   void test() {
-    String args = "--port 19081 "
-        + "--streams-props bootstrap.servers=localhost:19092 num.standby.replicas=0 "
-        + "--hostname mypod-abcde "
-        + "--topic topic1 "
-        + "--application-id kv-test1-001 "
-        + "--onupdate http://127.0.0.1:8081/updated";
+    String args = "--port 19081"
+        + " --streams-props bootstrap.servers=localhost:19092 num.standby.replicas=0"
+        + " --hostname mypod-abcde"
+        + " --topic topic1"
+        + " --application-id kv-test1-001"
+        + " --onupdate http://127.0.0.1:8081/updated"
+        + " --starttimeout 15";
     OnUpdateFactory onUpdateFactory = Mockito.mock(OnUpdateFactory.class);
     ArgsToOptions a = new ArgsToOptions();
     a.setOnUpdateFactory(onUpdateFactory);
@@ -31,6 +32,7 @@ class ArgsToOptionsTest {
     Properties props = options.getStreamsProperties();
     assertEquals("localhost:19092", props.get("bootstrap.servers"));
     assertEquals("0", props.get("num.standby.replicas"));
+    assertEquals(15, options.getStartTimeoutSecods());
   }
 
 }

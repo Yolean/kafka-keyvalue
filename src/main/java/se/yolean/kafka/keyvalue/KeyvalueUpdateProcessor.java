@@ -29,7 +29,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
 
 	private String sourceTopicPattern;
   private OnUpdate onUpdate;
-  private ProcessorContext context;
+  private ProcessorContext context = null;
 
   // We can't use this to build so we keep it for sanity checks
   private StoreBuilder<KeyValueStore<String, byte[]>> storeBuilder = null;
@@ -94,6 +94,9 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   }
 
   public boolean isReady() {
+    if (context == null) {
+      return false;
+    }
     throw new UnsupportedOperationException("TODO remains to figure out how to know if the cache is warmed up");
   }
 

@@ -28,6 +28,7 @@ public class ArgsToOptions implements CacheServiceOptions {
   private String applicationId;
   private Properties streamsProperties = null;
   private OnUpdate onUpdate = null;
+  private Integer startTimeoutSeconds = null;
 
   public ArgsToOptions setOnUpdateFactory(OnUpdateFactory factory) {
     this.onUpdateFactory  = factory;
@@ -54,7 +55,8 @@ public class ArgsToOptions implements CacheServiceOptions {
         .type(String.class)
         .dest("streamsConfig")
         .help("kafka streams related configuration properties like bootstrap.servers etc. " +
-                "These configs take precedence over those passed via --streams.config.");
+                "These configs take precedence over those passed via --streams.config. " +
+                "The consumer can be configured using prefix: " + StreamsConfig.CONSUMER_PREFIX + ".");
 
     parser.addArgument("--streams.config")
         .action(store())
@@ -96,6 +98,16 @@ public class ArgsToOptions implements CacheServiceOptions {
         .metavar("ONUPDATE")
         .help("A URL to POST the key to upon updates (may be debounced)");
 
+    parser.addArgument("--starttimeout")
+        .action(store())
+        .required(false)
+        .type(Integer.class)
+        .metavar("STARTTIMEOUT")
+        .setDefault(0)
+        .help("Activates retries: close+restart of the streams setup if it fails to go online."
+            + " Useful because Streams' kafka client has retries but failure conditions like missing source topic don't."
+            + " Set to >0 to enable a check after this many seconds.");
+
     return parser;
   }
 
@@ -118,6 +130,7 @@ public class ArgsToOptions implements CacheServiceOptions {
       List<String> streamsProps = res.getList("streamsConfig");
       String streamsConfig = res.getString("streamsConfigFile");
       onupdateUrl = res.getString("onupdate");
+      startTimeoutSeconds = res.getInt("starttimeout");
 
       if (streamsProps == null && streamsConfig == null) {
         throw new ArgumentParserException("Either --streams-props or --streams.config must be specified.", parser);
@@ -139,7 +152,9 @@ public class ArgsToOptions implements CacheServiceOptions {
       }
 
       props.put(StreamsConfig.APPLICATION_ID_CONFIG, applicationId);
-      // props.put(StreamsConfig.APPLICATION_SERVER_CONFIG, hostName + ":" + port);
+      // For when we start to deal with metadata and replicas like in https://medium.com/bakdata/queryable-kafka-topics-with-kafka-streams-8d2cca9de33f
+      //props.put(StreamsConfig.APPLICATION_SERVER_CONFIG, hostName + ":" + port);
+
     } catch (ArgumentParserException e) {
       if (args.length == 0) {
         parser.printHelp();
@@ -164,44 +179,34 @@ public class ArgsToOptions implements CacheServiceOptions {
     return this;
   }
 
-  /* (non-Javadoc)
-   * @see se.yolean.kafka.keyvalue.CacheServiceOptions#getTopicName()
-   */
   @Override
   public String getTopicName() {
     return topicName;
   }
 
-  /* (non-Javadoc)
-   * @see se.yolean.kafka.keyvalue.CacheServiceOptions#getPort()
-   */
   @Override
   public Integer getPort() {
     return port;
   }
 
-  /* (non-Javadoc)
-   * @see se.yolean.kafka.keyvalue.CacheServiceOptions#getStreamsProperties()
-   */
   @Override
   public Properties getStreamsProperties() {
     return streamsProperties;
   }
 
-  /* (non-Javadoc)
-   * @see se.yolean.kafka.keyvalue.CacheServiceOptions#getOnUpdate()
-   */
   @Override
   public OnUpdate getOnUpdate() {
     return onUpdate;
   }
 
-  /* (non-Javadoc)
-   * @see se.yolean.kafka.keyvalue.CacheServiceOptions#getApplicationId()
-   */
   @Override
   public String getApplicationId() {
     return applicationId;
+  }
+
+  @Override
+  public Integer getStartTimeoutSecods() {
+    return startTimeoutSeconds;
   }
 
 }
