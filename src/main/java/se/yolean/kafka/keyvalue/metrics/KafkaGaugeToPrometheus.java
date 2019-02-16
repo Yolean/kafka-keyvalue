@@ -6,14 +6,14 @@ import java.util.List;
 
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import io.prometheus.client.Gauge;
 
 public class KafkaGaugeToPrometheus {
 
-  private static final Logger logger = LoggerFactory.getLogger(KafkaGaugeToPrometheus.class);
+  private static final Logger logger = LogManager.getLogger(KafkaGaugeToPrometheus.class);
 
   private String kafkaName;
   private String kafkaGroup;

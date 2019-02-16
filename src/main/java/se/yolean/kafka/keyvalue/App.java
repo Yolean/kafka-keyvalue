@@ -2,8 +2,8 @@ package se.yolean.kafka.keyvalue;
 
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.Topology;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import se.yolean.kafka.keyvalue.healthz.ReadinessImpl;
 import se.yolean.kafka.keyvalue.healthz.StreamsStateListener;
@@ -16,7 +16,7 @@ import se.yolean.kafka.keyvalue.metrics.StreamsMetrics;
 
 public class App {
 
-  private static final Logger logger = LoggerFactory.getLogger(App.class);
+  private static final Logger logger = LogManager.getLogger(App.class);
 
   private StreamsStateListener stateListener;
   private StreamsUncaughtExceptionHandler streamsExceptionHandler;

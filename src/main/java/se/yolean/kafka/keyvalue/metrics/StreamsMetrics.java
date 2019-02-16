@@ -7,12 +7,12 @@ import java.util.Map;
 
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 public class StreamsMetrics {
 
-  public static final Logger logger = LoggerFactory.getLogger(StreamsMetrics.class);
+  public static final Logger logger = LogManager.getLogger(StreamsMetrics.class);
 
   private static final Map<String, KafkaGaugeToPrometheus> prometheus = new HashMap<>();
 

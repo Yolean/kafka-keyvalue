@@ -7,12 +7,12 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 public class ConfigureRest {
 
-  public static final Logger logger = LoggerFactory.getLogger(ConfigureRest.class);
+  public static final Logger logger = LogManager.getLogger(ConfigureRest.class);
 
   public static final String RESOURCE_SERVLET_PATHSPEC = "/*";
 

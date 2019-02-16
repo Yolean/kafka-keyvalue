@@ -16,8 +16,8 @@ import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String, byte[]> {
 
@@ -25,7 +25,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   private static final String PROCESSOR_NAME = "KeyvalueUpdate";
   private static final String STATE_STORE_NAME = "Keyvalue";
 
-  public static final Logger logger = LoggerFactory.getLogger(KeyvalueUpdateProcessor.class);
+  public static final Logger logger = LogManager.getLogger(KeyvalueUpdateProcessor.class);
 
 	private String sourceTopicPattern;
   private OnUpdate onUpdate;

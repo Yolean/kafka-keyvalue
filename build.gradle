@@ -34,11 +34,6 @@ sourceCompatibility = 1.11
 
 jib.from.image = 'gcr.io/distroless/java@sha256:a3ec250f951cf33017843691cc54f8dfb43a3727e095a75d149dc2ada5720d30'
 
-configurations {
-  compile.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
-  compile.exclude group: 'log4j', module: 'log4j'
-}
-
 dependencies {
   runtime 'com.fasterxml.jackson.core:jackson-databind:2.9.8'
   runtime 'com.fasterxml.jackson.core:jackson-annotations:2.9.8'
@@ -51,10 +46,9 @@ dependencies {
   compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.1.0'
   compile group: 'org.apache.kafka', name: 'kafka-streams', version: '2.1.0'
 
-  compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.25'
-  compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.25'
-  compile group: 'structlog4j', name: 'structlog4j-api', version: '1.0.0'
-  compile group: 'structlog4j', name: 'structlog4j-json', version: '1.0.0'
+  compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.11.2'
+  compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.2'
+  runtime group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.11.2'
 
   compile group: 'io.prometheus', name: 'simpleclient', version: '0.6.0'
   compile group: 'io.prometheus', name: 'simpleclient_servlet', version: '0.6.0'

@@ -8,8 +8,8 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.UpdateRecord;
@@ -20,7 +20,7 @@ import se.yolean.kafka.keyvalue.UpdateRecord;
  */
 public class OnUpdateHttpIgnoreResult implements OnUpdate {
 
-  private static final Logger logger = LoggerFactory.getLogger(OnUpdateHttpIgnoreResult.class);
+  private static final Logger logger = LogManager.getLogger(OnUpdateHttpIgnoreResult.class);
 
   private String url;
 

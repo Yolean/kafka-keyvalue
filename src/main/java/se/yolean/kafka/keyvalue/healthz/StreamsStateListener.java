@@ -2,15 +2,15 @@ package se.yolean.kafka.keyvalue.healthz;
 
 import org.apache.kafka.streams.KafkaStreams.State;
 import org.apache.kafka.streams.KafkaStreams.StateListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 /**
  * Needed because transitions say more than calls to streams.state()
  */
 public class StreamsStateListener implements StateListener {
 
-  public final Logger logger = LoggerFactory.getLogger(StreamsStateListener.class);
+  public final Logger logger = LogManager.getLogger(StreamsStateListener.class);
 
   private boolean hasBeenRunning = false;
 

@@ -2,12 +2,12 @@ package se.yolean.kafka.keyvalue.healthz;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 public class StreamsUncaughtExceptionHandler implements UncaughtExceptionHandler {
 
-  private final Logger logger = LoggerFactory.getLogger(StreamsUncaughtExceptionHandler.class);
+  private final Logger logger = LogManager.getLogger(StreamsUncaughtExceptionHandler.class);
 
   @Override
   public void uncaughtException(Thread t, Throwable e) {
