@@ -110,7 +110,14 @@ public class App {
     public void run() {
       try {
         server.stop();
-      } catch (Exception e) {}
+      } catch (Exception e) {
+        logger.error("REST server shutdown failed", e);
+      }
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        logger.warn("Interrupted when waiting for server to shut down");
+      }
       logger.info("REST server stopped");
       streams.close();
       logger.info("Streams stopped");
