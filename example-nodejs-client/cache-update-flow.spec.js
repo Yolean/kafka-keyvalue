@@ -7,6 +7,9 @@ const {
 } = process.env;
 
 const fetch = require('node-fetch');
+
+// retry on no connection, but not on any status code
+// There's node-fetch-retry and node-fetch-plus if we want libs
 const fetchRetry = async (url, opts) => {
   let retry = opts && opts.retries || 3
   while (retry > 0) {
@@ -51,14 +54,23 @@ describe("A complete cache update flow", () => {
   });
 
   test("Check existence of test topic " + TOPIC1_NAME, async () => {
-    const response = await fetch(`${PIXY_HOST}/topics`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json'
+    let retries = 5;
+    while (true) {
+      try {
+        const response = await fetch(`${PIXY_HOST}/topics`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        expect(response.status).toEqual(200);
+        expect(await response.json()).toContain(TOPIC1_NAME);
+        retries = 0;
+      } catch (e) {
+        if (retries-- < 1) throw e;
+        console.log('Retrying topic existence');
       }
-    });
-    expect(response.status).toEqual(200);
-    expect(await response.json()).toContain(TOPIC1_NAME);
+    }
   });
 
   test("Check that cache is online at " + CACHE1_HOST, async () => {
@@ -69,7 +81,7 @@ describe("A complete cache update flow", () => {
         'Accept': 'application/json'
       },
       timeout: 3,
-      retries: 5,
+      retries: 10,
       retryCallback: retry => console.log('Retrying cache access', retry)
     });
     //expect(response.status).toEqual(204);

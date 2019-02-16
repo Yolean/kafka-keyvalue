@@ -83,6 +83,8 @@ services:
     -   kv-001
     - --topic
     -   topic1
+    - --onupdate
+    -   http://example-nodejs-client:8080/updates
     - --starttimeout
     -   '10'
 
