@@ -4,4 +4,4 @@ FROM solsson/kafka-pixy:metadata-retries-conf@sha256:25b91e93d648a9539a5fb0888a5
 
 COPY pixy.yaml /etc/pixy.yaml
 
-CMD ["-config","/etc/pixy.yaml"]
+ENTRYPOINT ["/usr/bin/kafka-pixy", "-config","/etc/pixy.yaml"]

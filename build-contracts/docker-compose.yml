@@ -47,6 +47,9 @@ services:
     build: ./pixy
     ports:
     - 19090:19090
+    command:
+    - -tcpAddr
+    -  0.0.0.0:19090
 
   topic1-create:
     image: solsson/kafkacat@sha256:b91241b5741fccaef282eb8dbdfb6e5289bb8586274175b1836e57912ffecaef
