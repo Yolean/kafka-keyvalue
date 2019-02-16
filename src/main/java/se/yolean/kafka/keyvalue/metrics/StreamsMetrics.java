@@ -22,10 +22,10 @@ public class StreamsMetrics {
       getNameInPrometheus("kafka-metrics-count", "count");
 
   // These might be interesting too for health
-  private static final String COMMIT_TOTAL =
-      getNameInPrometheus("consumer-coordinator-metrics", "commit-total");
-  private static final String RECORDS_CONSUMED_TOTAL =
-      getNameInPrometheus("consumer-fetch-manager-metrics", "records-consumed-total");
+  //private static final String COMMIT_TOTAL =
+  //    getNameInPrometheus("consumer-coordinator-metrics", "commit-total");
+  //private static final String RECORDS_CONSUMED_TOTAL =
+  //    getNameInPrometheus("consumer-fetch-manager-metrics", "records-consumed-total");
 
   private Map<MetricName, ? extends Metric> kafkaMetrics;
 

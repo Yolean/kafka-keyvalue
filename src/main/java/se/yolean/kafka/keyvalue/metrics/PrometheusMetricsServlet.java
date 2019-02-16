@@ -20,7 +20,6 @@ public class PrometheusMetricsServlet extends MetricsServlet {
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-    System.out.println("Got request to metrics");
     streamsMetrics.checkOnPrometheusScrape();
     super.doGet(req, resp);
   }

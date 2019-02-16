@@ -5,6 +5,7 @@ import org.apache.kafka.streams.Topology;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import se.yolean.kafka.keyvalue.healthz.ReadinessImpl;
 import se.yolean.kafka.keyvalue.healthz.StreamsStateListener;
 import se.yolean.kafka.keyvalue.healthz.StreamsUncaughtExceptionHandler;
 import se.yolean.kafka.keyvalue.http.CacheServer;
@@ -20,7 +21,9 @@ public class App {
   private StreamsStateListener stateListener;
   private StreamsUncaughtExceptionHandler streamsExceptionHandler;
   private StreamsMetrics metrics;
+
   private Runnable shutdown;
+  private ReadinessImpl readiness;
 
   /**
    * Start a streams app with REST server and return control to the caller.
@@ -68,31 +71,25 @@ public class App {
         .create();
     logger.info("REST server created {}", server);
 
-    server.start();
-    logger.info("REST server stated");
-
     streams.start();
     logger.info("Streams application started");
 
     shutdown = new ShutdownHook(streams, server);
     Runtime.getRuntime().addShutdownHook(new Thread(shutdown));
+
+    readiness = new ReadinessImpl(keyvalueUpdate, stateListener, metrics)
+        .setHttpEnable(() -> server.start())
+        .setHttpDisable(() -> {
+          try {
+            server.stop();
+          } catch (Exception e) {
+            logger.error("REST server shutdown failed", e);
+          }
+        });
   }
 
-  /**
-   * To keep a single control thread for now, the caller of {@link #App(CacheServiceOptions)}
-   * should invoke this method at sane intervals,
-   * to do things like poll metrics or health/readiness stuff.
-   */
-  public void doWhateverRegularMaintenance() {
-    metrics.check();
-  }
-
-  /**
-   * @return true if streams seems to have been successfully connected to the source topic
-   * <em>at any time</em> i.e. will never toggle from true to false
-   */
-  public boolean hasConnectedToSourceTopic() {
-    return metrics.hasSeenAssignedParititions() && stateListener.streamsHasBeenRunning();
+  public Readiness getReadiness() {
+    return readiness;
   }
 
   public void shutdown() {

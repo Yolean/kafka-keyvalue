@@ -93,11 +93,13 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     store.close();
   }
 
+  @Override
   public boolean isReady() {
     if (context == null) {
       return false;
     }
-    throw new UnsupportedOperationException("TODO remains to figure out how to know if the cache is warmed up");
+    // we should add more unreadiness criterias here if we can find any
+    return true;
   }
 
   @SuppressWarnings("unchecked")

@@ -5,11 +5,8 @@ import java.util.Iterator;
 public interface KafkaCache {
 
   /**
-   * Meant to be used with Kubernetes readiness probes to block use of the cache
-   * during startup whey it may lag behind the topic.
-   * Or if there's any other reason to suspect that the cache is unreliable.
-   *
-   * @return true if the cache can be considered up-to-date
+   * @return false if anything on the processor side indicates unreadiness
+   * @see Readiness#isStreamsReady()
    */
   boolean isReady();
 
