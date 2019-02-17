@@ -11,12 +11,12 @@ public interface Readiness {
    * Pod/container readiness is probably {@link #isAppReady()} + http started,
    * and the latter should not happen until first app readiness.
    */
-  void httpEnable();
+  void enableServiceEndpoints();
 
   /**
    * Stops all responding to HTTP requests
    * including, unfortunately, the /metrics endpoint.
    */
-  void httpDisable();
+  void disableServiceEndpoints();
 
 }

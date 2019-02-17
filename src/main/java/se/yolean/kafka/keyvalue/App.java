@@ -80,6 +80,7 @@ public class App {
     readiness = new ReadinessImpl(keyvalueUpdate, stateListener, metrics)
         .setHttpEnable(() -> server.start())
         .setHttpDisable(() -> {
+          // not reusing code with shutdown hook because we might want to make this a partial shutdown
           try {
             server.stop();
           } catch (Exception e) {

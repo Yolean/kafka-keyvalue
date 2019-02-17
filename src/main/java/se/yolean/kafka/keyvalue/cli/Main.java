@@ -36,7 +36,7 @@ public class Main {
     while (true) {
       if (poll(readiness)) {
         logger.info("App looks ready. Asking for HTTP server to be enabled.");
-        readiness.httpEnable();
+        readiness.enableServiceEndpoints();
         return true;
       }
       if (options.getStartTimeoutSecods() > 0

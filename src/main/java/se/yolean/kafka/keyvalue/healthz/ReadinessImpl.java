@@ -45,13 +45,13 @@ public class ReadinessImpl implements Readiness {
   }
 
   @Override
-  public void httpEnable() {
+  public void enableServiceEndpoints() {
     if (this.httpEnable == null) throw new UnsupportedOperationException("Missing httpEnable hook");
     this.httpEnable.run();
   }
 
   @Override
-  public void httpDisable() {
+  public void disableServiceEndpoints() {
     if (this.httpDisable == null) throw new UnsupportedOperationException("Missing httpDisable hook");
     this.httpDisable.run();
   }
