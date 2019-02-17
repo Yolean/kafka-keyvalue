@@ -1,5 +1,8 @@
-FROM solsson/jdk-opensource:11.0.1@sha256:740feb6c1ecbdf2beac1dc41405c3215511b90d83a7211f805e88f92946dd2a9
+FROM gradle:5.2.1-jdk11-slim@sha256:d76c7448ee9923493a9155c771a904ff6cedc3e3f4813416402debd125d21a48
 
+USER root
+
+# Installs docker like we do in https://github.com/Yolean/kafka-cache/
 ENV docker_version=17.09.1~ce-0~debian
 
 RUN export DEBIAN_FRONTEND=noninteractive \
@@ -15,10 +18,9 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 # This image expects a mounted docker.sock or env that points to docker tcp
 RUN update-rc.d -f docker remove
 
-ENV GRADLE_VERSION=5.2.1
+USER gradle
+# actually no, non-root typically won't be allowed to push to docker
+# This might however mess up file rights in .gradle
+USER root
 
-RUN cd /opt \
-  && curl -o gradle-${GRADLE_VERSION}.zip -sLS https://downloads.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip \
-  && unzip gradle-${GRADLE_VERSION}.zip \
-  && rm gradle-${GRADLE_VERSION}.zip \
-  && ln -s /opt/gradle-5.2.1/bin/gradle /usr/local/bin/gradle
+WORKDIR /workspace
