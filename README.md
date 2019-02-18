@@ -22,11 +22,12 @@ The [build-contract](https://github.com/Yolean/build-contract/) can be used as d
 alias compose='docker-compose -f build-contracts/docker-compose.yml'
 gradle jibDockerBuild --image=yolean/kafka-keyvalue:dev
 compose up -d cache1
+compose up smoketest
 compose up --build example-nodejs-client
 compose down
 ```
 
-Note: Running `build-contract` without warmup doesn't work ATM, due to timing issues at start.
+Note: `build-contract` (see [build-and-push.sh](./build-and-push.sh)) sometimes fails due to timing issues. Try re-running.
 
 During development of the cache itself or the example nodejs client
 it's more convenient to start only `kafka` and `pixy` through docker.
