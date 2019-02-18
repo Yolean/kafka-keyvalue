@@ -128,6 +128,3 @@ services:
     environment:
     - PIXY_HOST=http://pixy:19090
     - CACHE1_HOST=http://cache1:19081
-    entrypoint:
-    - echo
-    - Disabled for now
