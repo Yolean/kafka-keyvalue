@@ -82,9 +82,38 @@ services:
     - --topic
     -   topic1
     - --onupdate
-    -   http://example-nodejs-client:8080/updates
+    #-   http://example-nodejs-client:8080/updates
+    -   http://onupdate-logging:8080/
     - --starttimeout
     -   '10'
+
+  onupdate-logging:
+    image: solsson/httpstatus-random:access-logging@sha256:5330b2e84457e65ae9552acb00b26e8b7b2a878bcafb3baabddc13c1f840cd90
+    expose:
+    - '8080'
+
+  smoketest:
+    depends_on:
+    - onupdate-logging
+    - pixy
+    - cache1
+    image: solsson/curl@sha256:92ebf15ac57bea360484480336ed5d9fa16d38d773fd00f7e9fb2cae94baf25a
+    labels:
+    - com.yolean.build-contract
+    entrypoint:
+    - /bin/bash
+    - -cex
+    - |
+      curl --ipv4 --retry 5 --retry-connrefused -H 'User-Agent: curl-based-kafka-keyvalue-smoketest' http://onupdate-logging:8080/
+      curl --ipv4 --retry 5 --retry-connrefused http://pixy:19090 -I
+      curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081 -I
+      curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/metrics -f | grep consumer_metrics | grep incoming_byte_total
+      curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/cache/v1/raw/smoketest1 -I
+      curl --ipv4 --retry 5 --retry-connrefused http://pixy:19090/topics -f | grep topic1
+      curl --ipv4 -d '{"x":1}' -H 'Content-Type: application/json' 'http://pixy:19090/topics/topic1/messages?key=smoketest1' -f
+      curl --ipv4 -d '{"x":2}' -H 'Content-Type: application/json' 'http://pixy:19090/topics/topic1/messages?key=smoketest1&sync' -f
+      curl --ipv4 -d '{"x":3}' -H 'Content-Type: application/json' 'http://pixy:19090/topics/topic1/messages?key=smoketest1&sync' -f
+      curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/cache/v1/raw/smoketest1 -f | grep '{"x":3}'
 
   example-nodejs-client:
     depends_on:
@@ -99,3 +128,6 @@ services:
     environment:
     - PIXY_HOST=http://pixy:19090
     - CACHE1_HOST=http://cache1:19081
+    entrypoint:
+    - echo
+    - Disabled for now

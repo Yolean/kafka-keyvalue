@@ -37,7 +37,7 @@ public class OnUpdateHttpIgnoreResult implements OnUpdate {
     //Response res = client.target(url).request().post(
     Future<Response> res = client.target(url).request().async().post(
         Entity.entity(update, MediaType.APPLICATION_JSON_TYPE));
-    logger.debug("Onupdate POST dispatched to {} for key {} at {},{},{}", url, update.getKey(), update.getTopic(), update.getPartition(), update.getOffset());
+    logger.debug("Onupdate POST dispatched to {} for key {} at {},{},{}", url, update.getKey(), update.getTopic(), update.getPartition(), update.getOffset());
   }
 
   @Override
