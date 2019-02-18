@@ -92,6 +92,7 @@ public class ArgsToOptions implements CacheServiceOptions {
         .help("The TCP Port for the HTTP REST Service");
 
     parser.addArgument("--onupdate")
+        .nargs("+")
         .action(store())
         .required(false)
         .type(String.class)
@@ -115,7 +116,7 @@ public class ArgsToOptions implements CacheServiceOptions {
 
     @SuppressWarnings("unused") // kept for forward compatibility
     String hostName = null;
-    String onupdateUrl = null;
+    List<String> onupdate = null;
     Properties props = new Properties();
 
     ArgumentParser parser = getParser();
@@ -129,7 +130,7 @@ public class ArgsToOptions implements CacheServiceOptions {
       applicationId = res.getString("applicationId");
       List<String> streamsProps = res.getList("streamsConfig");
       String streamsConfig = res.getString("streamsConfigFile");
-      onupdateUrl = res.getString("onupdate");
+      onupdate = res.getList("onupdate");
       startTimeoutSeconds = res.getInt("starttimeout");
 
       if (streamsProps == null && streamsConfig == null) {
@@ -169,11 +170,15 @@ public class ArgsToOptions implements CacheServiceOptions {
 
     this.streamsProperties = props;
 
-    if (onupdateUrl != null) {
+    if (onupdate != null && !onupdate.isEmpty()) {
       if (this.onUpdateFactory == null) {
         throw new IllegalStateException("setOnUpdateFactory must be called first");
       }
-      this.onUpdate = this.onUpdateFactory.fromUrl(onupdateUrl);
+      if (onupdate.size() == 1) {
+        this.onUpdate = this.onUpdateFactory.fromUrl(onupdate.get(0));
+      } else {
+        this.onUpdate = this.onUpdateFactory.fromManyUrls(onupdate);
+      }
     }
 
     return this;

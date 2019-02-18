@@ -35,4 +35,19 @@ class ArgsToOptionsTest {
     assertEquals(15, options.getStartTimeoutSecods());
   }
 
+  @Test
+  void testOnupdateMany() {
+    String args = "--port 19082"
+        + " --streams-props bootstrap.servers=localhost:19092"
+        + " --topic topic2"
+        + " --application-id kv-test1-001"
+        + " --onupdate http://127.0.0.1:8081/updated http://127.0.0.1:8082/updates";
+    OnUpdateFactory onUpdateFactory = Mockito.mock(OnUpdateFactory.class);
+    ArgsToOptions a = new ArgsToOptions();
+    a.setOnUpdateFactory(onUpdateFactory);
+    CacheServiceOptions options = a.fromCommandLineArguments(args.split("\\s+"));
+    // TODO capture and verify
+    Mockito.verify(onUpdateFactory).fromManyUrls(Mockito.any());
+  }
+
 }
