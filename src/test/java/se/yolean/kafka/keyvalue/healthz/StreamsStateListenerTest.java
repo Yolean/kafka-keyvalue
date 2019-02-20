@@ -16,7 +16,7 @@ class StreamsStateListenerTest {
     // happens right after start
     listener.onChange(State.RUNNING, State.CREATED);
     listener.onChange(State.REBALANCING, State.RUNNING);
-    // what sucks is that we never get these state transitions
+    // It sucks that we never get onChange for these state transitions:
     // INFO org.apache.kafka.streams.processor.internals.StreamThread - stream-thread [-StreamThread-1] State transition from PARTITIONS_REVOKED to PENDING_SHUTDOWN
     // INFO org.apache.kafka.streams.processor.internals.StreamThread - stream-thread [-StreamThread-1] State transition from PENDING_SHUTDOWN to DEAD
     // and .state() makes no difference, it also reports REBALANCING
