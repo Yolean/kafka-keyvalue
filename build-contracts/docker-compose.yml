@@ -128,3 +128,6 @@ services:
     environment:
     - PIXY_HOST=http://pixy:19090
     - CACHE1_HOST=http://cache1:19081
+    command:
+    # By design the cache service deals with a single topic, meaning that tests probably can't run concurrently
+    - --runInBand
