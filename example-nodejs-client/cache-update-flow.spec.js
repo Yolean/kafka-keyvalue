@@ -55,9 +55,10 @@ describe("A complete cache update flow", () => {
 
   test("Check existence of test topic " + TOPIC1_NAME, async () => {
     let retries = 5;
-    while (true) {
+    while (retries > 0) {
       try {
         const response = await fetch(`${PIXY_HOST}/topics`, {
+          timeout: 3,
           method: 'GET',
           headers: {
             'Accept': 'application/json'
@@ -68,7 +69,7 @@ describe("A complete cache update flow", () => {
         retries = 0;
       } catch (e) {
         if (retries-- < 1) throw e;
-        console.log('Retrying topic existence');
+        console.log('Retrying topic existence', retries);
       }
     }
   });
