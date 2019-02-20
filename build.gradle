@@ -32,7 +32,15 @@ group 'se.yolean'
 
 sourceCompatibility = 1.11
 
-jib.from.image = 'gcr.io/distroless/java@sha256:a3ec250f951cf33017843691cc54f8dfb43a3727e095a75d149dc2ada5720d30'
+jib {
+  from {
+    image = 'gcr.io/distroless/java@sha256:8ba52a2d23b816325c7c95c486f4e41b9fe1ae52ed6c270073328aabc80e6df7'
+  }
+  to {
+    image = 'yolean/kafka-keyvalue'
+    tags = ['dev']
+  }
+}
 
 dependencies {
   runtime 'com.fasterxml.jackson.core:jackson-databind:2.9.8'
@@ -69,7 +77,7 @@ dependencies {
   compile group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.14.v20181114'
   compile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.4.14.v20181114'
   compile group: 'org.glassfish.jersey.core', name: 'jersey-common', version: '2.28'
-  compile group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.28'  
+  compile group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.28'
   compile group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet', version: '2.28'
   compile group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version: '2.28'
 
@@ -85,4 +93,3 @@ task copyToLib(type: Copy) {
 }
 
 build.dependsOn(copyToLib)
-
