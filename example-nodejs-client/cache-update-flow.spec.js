@@ -171,15 +171,14 @@ describe("A complete cache update flow", () => {
 
   it("Can enumerate keys", async () => {
     const response = await fetch(`${CACHE1_HOST}/cache/v1/keys`);
-    expect(await response.json()).toEqual(["test1", "testasync"]);
+    expect(await response.json()).toEqual(expect.arrayContaining(["test1", "testasync"]));
   });
 
   it("Can stream values, newline separated - but note that order isn't guaranteed to match that of /keys", async () => {
     const response = await fetch(`${CACHE1_HOST}/cache/v1/values`);
-    expect(await response.text()).toEqual(
-      `{"test":"${TEST_ID}","step":"First wait for ack"}` + '\n' +
-      `{"test":"${TEST_ID}","step":"First async produce"}` + '\n'
-    );
+    const body = await response.text();
+    expect(body).toContain(`{"test":"${TEST_ID}","step":"First wait for ack"}` + '\n');
+    expect(body).toContain(`{"test":"${TEST_ID}","step":"First async produce"}` + '\n');
   });
 
   it('handles gzipped payloads', async () => {
