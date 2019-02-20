@@ -82,7 +82,7 @@ services:
     - --topic
     -   topic1
     - --onupdate
-    -   http://example-nodejs-client:8080/updates
+    -   http://example-nodejs-client:8080/kafka-keyvalue/v1/updates
     -   http://onupdate-logging:8080/
     - --starttimeout
     -   '10'
