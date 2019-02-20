@@ -30,7 +30,7 @@ public class OnUpdateFactory {
   }
 
   public OnUpdate fromManyUrls(List<String> onupdate) {
-    if (onupdate.size() < 2) throw new IllegalArgumentException("Use the old factory for a single onupdate");
+    if (onupdate.size() < 2) throw new IllegalArgumentException("Use fromUrl for a single onupdate");
     List<OnUpdate> many = onupdate.stream()
         .map(url -> fromUrl(url))
         .collect(Collectors.toUnmodifiableList());

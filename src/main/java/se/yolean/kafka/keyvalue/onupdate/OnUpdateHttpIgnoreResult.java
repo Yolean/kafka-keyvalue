@@ -24,7 +24,6 @@ public class OnUpdateHttpIgnoreResult implements OnUpdate {
 
   private String url;
 
-  //private final Client client = ClientBuilder.newBuilder().register(JacksonFeature.class).build();
   private final Client client = ClientBuilder.newBuilder().build();
 
   public OnUpdateHttpIgnoreResult(String webhookUrl) {
@@ -34,7 +33,6 @@ public class OnUpdateHttpIgnoreResult implements OnUpdate {
   @Override
   public void handle(UpdateRecord update, Runnable onSuccess) {
     @SuppressWarnings("unused")
-    //Response res = client.target(url).request().post(
     Future<Response> res = client.target(url).request().async().post(
         Entity.entity(update, MediaType.APPLICATION_JSON_TYPE));
     logger.debug("Onupdate POST dispatched to {} for key {} at {},{},{}", url, update.getKey(), update.getTopic(), update.getPartition(), update.getOffset());
