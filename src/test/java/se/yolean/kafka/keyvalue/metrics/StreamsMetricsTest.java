@@ -1,31 +1,38 @@
 package se.yolean.kafka.keyvalue.metrics;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.metrics.MetricConfig;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.Sensor;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
-import static org.mockito.Mockito.*;
 
 class StreamsMetricsTest {
 
+  @Disabled // Mocking metrics didn't work
   @Test
   void testHasSeenAssignedParititions() {
-    Map<MetricName, ? extends Metric> metrics = new HashMap<>();
-    //MetricName assigned = mock(MetricName.class);
-    //when(assigned.name()).thenReturn("");
-    //when(assigned.group()).thenReturn("");
-    //metrics.put(
-    // ... argh, don't mock other people's code
-    Metric assignedMetric = mock(Metric.class);
-    when(assignedMetric.metricValue()).thenReturn(1.0).thenReturn(0.0);
+    Map<String, String> metricTags = new HashMap<String, String>();
+    MetricConfig metricConfig = new MetricConfig().tags(metricTags);
+    Metrics metrics = new Metrics(metricConfig);
 
-    StreamsMetrics ourMetrics = new StreamsMetrics(metrics);
-    //assertTrue(ourMetrics.hasSeenAssignedParititions(), "Should have seen the assigned partitions value");
+    Sensor sensor = metrics.sensor("assigned-partitions");
+    MetricName metricName = metrics.metricName("consumer-coordinator-metrics", "assigned-partitions", "fake metric");
+    sensor.add(metricName, new org.apache.kafka.common.metrics.stats.Value());
+    sensor.record(1.0);
+
+    assertEquals(1, metrics.metrics().size(), "This test setup should be a working mock");
+
+    StreamsMetrics ourMetrics = new StreamsMetrics(metrics.metrics());
+    assertTrue(ourMetrics.hasSeenAssignedParititions(), "Should have seen the assigned partitions value");
+
+    metrics.close();
   }
 
 }
