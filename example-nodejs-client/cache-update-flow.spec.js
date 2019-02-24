@@ -9,31 +9,11 @@ const {
 const fetch = require('node-fetch');
 const { gzipSync, gunzipSync } = require('zlib');
 
-// retry on no connection, but not on any status code
-// There's node-fetch-retry and node-fetch-plus if we want libs
-const fetchRetry = async (url, opts) => {
-  let retry = opts && opts.retries || 3
-  while (retry > 0) {
-    try {
-      return await fetch(url, opts)
-    } catch(e) {
-      if (opts.retryCallback) {
-          opts.retryCallback(retry)
-      }
-      retry = retry - 1
-      if (retry == 0) {
-          throw e
-      }
-    }
-  }
-};
-
+// we don't use mockserver for any asserts now (onupdate- spec does that) but the access logging is a bit useful for multi-onupdate still
 const mockserver = require('./mockserver');
-
 beforeAll(() => {
   mockserver.start();
 });
-
 afterAll(() => {
   mockserver.stop();
 });
@@ -43,53 +23,6 @@ describe("A complete cache update flow", () => {
   test("Check that the mock server is online on port " + mockserver.port, async () => {
     const response = await fetch(mockserver.localroot);
     expect(response.status).toEqual(200);
-  });
-
-  test("Check that pixy is online at " + PIXY_HOST, async () => {
-    let response = await fetchRetry(PIXY_HOST, {
-      timeout: 3,
-      retries: 5,
-      retryCallback: retry => console.log('Retrying pixy access', retry)
-    });
-    expect(response.status).toEqual(404);
-  });
-
-  test("Check existence of test topic " + TOPIC1_NAME, async () => {
-    let retries = 5;
-    while (retries > 0) {
-      try {
-        const response = await fetch(`${PIXY_HOST}/topics`, {
-          timeout: 3,
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
-        expect(response.status).toEqual(200);
-        expect(await response.json()).toContain(TOPIC1_NAME);
-        retries = 0;
-      } catch (e) {
-        if (retries-- < 1) throw e;
-        console.log('Retrying topic existence', retries);
-      }
-    }
-  });
-
-  test("Check that cache is online at " + CACHE1_HOST, async () => {
-    //const response = await fetch(`${CACHE1_HOST}/ready`, {
-    const response = await fetchRetry(`${CACHE1_HOST}/`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json'
-      },
-      timeout: 3,
-      retries: 10,
-      retryCallback: retry => console.log('Retrying cache access', retry)
-    });
-    //expect(response.status).toEqual(204);
-    // For now we don't have a working readiness check
-    //expect(response.status).toEqual(500);
-    expect(response.status).toEqual(404);
   });
 
   it("Starts with a produce to Pixy", async () => {
