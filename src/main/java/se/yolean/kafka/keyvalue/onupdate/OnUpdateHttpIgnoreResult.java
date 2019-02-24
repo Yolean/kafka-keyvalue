@@ -26,7 +26,10 @@ public class OnUpdateHttpIgnoreResult implements OnUpdate {
 
   private final Client client = ClientBuilder.newBuilder().build();
 
-  public OnUpdateHttpIgnoreResult(String webhookUrl) {
+  /**
+   * @see OnUpdateFactory
+   */
+  OnUpdateHttpIgnoreResult(String webhookUrl) {
     this.url = webhookUrl;
   }
 

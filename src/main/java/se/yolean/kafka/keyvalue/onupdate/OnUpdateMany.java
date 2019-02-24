@@ -9,7 +9,10 @@ public class OnUpdateMany implements OnUpdate {
 
   private List<OnUpdate> all;
 
-  public OnUpdateMany(List<OnUpdate> many) {
+  /**
+   * @see OnUpdateFactory
+   */
+  OnUpdateMany(List<OnUpdate> many) {
     this.all = many;
   }
 
