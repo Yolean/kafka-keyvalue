@@ -16,7 +16,7 @@ public class OnUpdateRecordInMemory implements OnUpdate {
   }
 
   @Override
-  public void handle(UpdateRecord update, Runnable onSuccess) {
+  public void handle(UpdateRecord update, Runnable onSuccess, Runnable onFailure) {
     updates.add(update);
     executor.submit(onSuccess);
   }

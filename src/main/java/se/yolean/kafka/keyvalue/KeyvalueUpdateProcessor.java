@@ -17,6 +17,7 @@ import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 
 public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String, byte[]> {
@@ -37,14 +38,6 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   private KeyValueStore<String, byte[]> store = null;
 
   private final Map<TopicPartition,Long> currentOffset = new HashMap<TopicPartition,Long>(1);
-
-  // Not sure yet if we want to construct these objects for every update
-  private final Runnable onUpdateCompletion = new Runnable() {
-    @Override
-    public void run() {
-      logger.trace("onupdate completion ignored");
-    }
-  };
 
   public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate) {
 	  this.sourceTopicPattern = sourceTopic;
@@ -127,7 +120,10 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
 
   private void process(UpdateRecord update, byte[] value) {
     store.put(update.getKey(), value);
-    onUpdate.handle(update, onUpdateCompletion);
+    onUpdate.handle(update,
+        new OnUpdateResultLogging(update, OnUpdateResultLogging.Type.success, Level.DEBUG),
+        new OnUpdateResultLogging(update, OnUpdateResultLogging.Type.failure, Level.WARN)
+        );
   }
 
   @Override
@@ -182,6 +178,28 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       }
 
     };
+  }
+
+  private static class OnUpdateResultLogging implements Runnable {
+
+    enum Type { success, failure }
+
+    private UpdateRecord record;
+    private Type type;
+    private Level level;
+
+    public OnUpdateResultLogging(UpdateRecord record, Type type, Level level) {
+      this.record = record;
+      this.type = type;
+      this.level = level;
+    }
+
+    @Override
+    public void run() {
+      logger.log(Level.DEBUG, "On-update completed with status {} for topic {} partition {} offset {} key {}",
+          type, record.getTopic(), record.getPartition(), record.getOffset(), record.getKey());
+    }
+
   }
 
 }

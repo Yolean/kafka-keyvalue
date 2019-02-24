@@ -19,7 +19,7 @@ class OnUpdateRecordInMemoryTest {
       public void run() {
         ok.add(null);
       }
-    });
+    }, null);
     assertEquals(1, onUpdate.getAll().size());
     assertEquals(0, ok.size());
     Thread.sleep(1);
