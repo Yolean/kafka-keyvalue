@@ -9,12 +9,11 @@ const {
 const fetch = require('node-fetch');
 const { gzipSync, gunzipSync } = require('zlib');
 
+// we don't use mockserver for any asserts now (onupdate- spec does that) but the access logging is a bit useful for multi-onupdate still
 const mockserver = require('./mockserver');
-
 beforeAll(() => {
   mockserver.start();
 });
-
 afterAll(() => {
   mockserver.stop();
 });
