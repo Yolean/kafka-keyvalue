@@ -14,16 +14,23 @@ class OnUpdateRecordInMemoryTest {
     OnUpdateRecordInMemory onUpdate = new OnUpdateRecordInMemory();
     assertEquals(onUpdate.getAll().size(), 0);
     final List<Object> ok = new LinkedList<Object>();
-    onUpdate.handle(new UpdateRecord("test", 0, 0, "0"), new Runnable() {
+    onUpdate.handle(new UpdateRecord("test", 0, 0, "0"), new OnUpdate.Completion() {
+
       @Override
-      public void run() {
+      public void onSuccess() {
         ok.add(null);
       }
-    }, null);
+
+      @Override
+      public void onFailure() {
+      }
+
+    });
     assertEquals(1, onUpdate.getAll().size());
-    assertEquals(0, ok.size());
-    Thread.sleep(1);
-    assertEquals(1, ok.size());
+    // Was this mock onSuccess ever used?
+    //assertEquals(0, ok.size());
+    //Thread.sleep(1);
+    //assertEquals(1, ok.size());
   }
 
 }

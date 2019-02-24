@@ -11,9 +11,22 @@ public interface OnUpdate {
    * = should lead to service restart without commits from the failed offset.
    *
    * @param key The new value (which may be the old value at a new offset)
-   * @param onSuccess If the hooks succeed (after retries, if applicable)
-   * @param onFailure If any of the hooks fail (after retries, if applicable)
+   * @param completion Handles outcome of the update
    */
-  void handle(UpdateRecord update, Runnable onSuccess, Runnable onFailure);
+  void handle(UpdateRecord update, Completion completion);
+
+  public interface Completion {
+
+    /**
+     * Called if the hooks succeed (after retries, if applicable)
+     */
+    void onSuccess();
+
+    /**
+     * Calledf any of the hooks fail (after retries, if applicable)
+     */
+    void onFailure();
+
+  }
 
 }

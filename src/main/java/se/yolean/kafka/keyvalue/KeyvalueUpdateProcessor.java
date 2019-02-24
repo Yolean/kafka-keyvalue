@@ -16,9 +16,8 @@ import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String, byte[]> {
 
@@ -37,7 +36,9 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
 
   private KeyValueStore<String, byte[]> store = null;
 
-  private final Map<TopicPartition,Long> currentOffset = new HashMap<TopicPartition,Long>(1);
+  private final Map<TopicPartition,Long> currentOffset = new HashMap<>(1);
+
+  private final Map<TopicPartition,OnUpdateCompletionLogging> latestPending = new HashMap<>(1);
 
   public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate) {
 	  this.sourceTopicPattern = sourceTopic;
@@ -120,10 +121,10 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
 
   private void process(UpdateRecord update, byte[] value) {
     store.put(update.getKey(), value);
-    onUpdate.handle(update,
-        new OnUpdateResultLogging(update, OnUpdateResultLogging.Type.success, Level.DEBUG),
-        new OnUpdateResultLogging(update, OnUpdateResultLogging.Type.failure, Level.WARN)
-        );
+    OnUpdateCompletionLogging previous = latestPending.get(update.getTopicPartition());
+    OnUpdateCompletionLogging completion = new OnUpdateCompletionLogging(update, previous);
+    onUpdate.handle(update, completion);
+    latestPending.put(update.getTopicPartition(), completion);
   }
 
   @Override
@@ -180,24 +181,52 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     };
   }
 
-  private static class OnUpdateResultLogging implements Runnable {
-
-    enum Type { success, failure }
+  private static class OnUpdateCompletionLogging implements OnUpdate.Completion {
 
     private UpdateRecord record;
-    private Type type;
-    private Level level;
+    private OnUpdateCompletionLogging previous;
 
-    public OnUpdateResultLogging(UpdateRecord record, Type type, Level level) {
+    private boolean completed = false;
+
+    OnUpdateCompletionLogging(UpdateRecord record, OnUpdateCompletionLogging previous) {
       this.record = record;
-      this.type = type;
-      this.level = level;
+      if (previous == null) {
+        logger.info("This is the first on-update for topic {} partition {}", record.getTopic(), record.getPartition());
+      } else {
+        this.previous = previous;
+        UpdateRecord p = previous.record;
+        if (!record.getTopic().equals(p.getTopic())) throw new IllegalArgumentException("Mismatch with previous, topics: " + record.getTopic() + " != " + p.getTopic());
+        if (record.getPartition() != p.getPartition()) throw new IllegalArgumentException("Mismatch with previous, partitions: " + record.getPartition() + "!=" + p.getPartition());
+      }
+    }
+
+    void onAny() {
+      if (completed) {
+        throw new IllegalArgumentException("Got on-update completion for already completed " + record);
+      }
+      completed = true;
+      if (previous == null) {
+        logger.info("Completed the first on-update for topic {} partition {}", record.getTopic(), record.getPartition());
+      } else if (!previous.completed) {
+        logger.warn("On-update completed out of order, topic {} partition {} offset {} before {}",
+            record.getTopic(), record.getPartition(), record.getOffset(), previous.record.getOffset());
+      }
+      // let it be garbage collected
+      previous = null;
     }
 
     @Override
-    public void run() {
-      logger.log(Level.DEBUG, "On-update completed with status {} for topic {} partition {} offset {} key {}",
-          type, record.getTopic(), record.getPartition(), record.getOffset(), record.getKey());
+    public void onSuccess() {
+      onAny();
+      logger.debug("On-update completed for topic {} partition {} offset {} key {}",
+          record.getTopic(), record.getPartition(), record.getOffset(), record.getKey());
+    }
+
+    @Override
+    public void onFailure() {
+      onAny();
+      logger.warn("On-update failed for topic {} partition {} offset {} key {}",
+          record.getTopic(), record.getPartition(), record.getOffset(), record.getKey());
     }
 
   }

@@ -17,7 +17,7 @@ public class OnUpdateMany implements OnUpdate {
   }
 
   @Override
-  public void handle(UpdateRecord update, Runnable onSuccess/*, Runnable onFailure*/) {
+  public void handle(UpdateRecord update, Completion completion) {
     all.forEach(single -> {
       if (single instanceof OnUpdateHttpIgnoreResult) {
         single.handle(update, null);

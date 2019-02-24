@@ -34,7 +34,7 @@ public class OnUpdateHttpIgnoreResult implements OnUpdate {
   }
 
   @Override
-  public void handle(UpdateRecord update, Runnable onSuccess) {
+  public void handle(UpdateRecord update, Completion completion) {
     @SuppressWarnings("unused")
     Future<Response> res = client.target(url).request().async().post(
         Entity.entity(update, MediaType.APPLICATION_JSON_TYPE));
