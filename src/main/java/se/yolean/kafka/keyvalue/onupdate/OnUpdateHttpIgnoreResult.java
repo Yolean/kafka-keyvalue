@@ -26,18 +26,21 @@ public class OnUpdateHttpIgnoreResult implements OnUpdate {
 
   private final Client client = ClientBuilder.newBuilder().build();
 
+  private RequestWatcher coordination;
+
   /**
    * @see OnUpdateFactory
    */
-  OnUpdateHttpIgnoreResult(String webhookUrl) {
+  OnUpdateHttpIgnoreResult(String webhookUrl, RequestWatcher coordination) {
     this.url = webhookUrl;
+    this.coordination = coordination;
   }
 
   @Override
   public void handle(UpdateRecord update, Completion completion) {
-    @SuppressWarnings("unused")
     Future<Response> res = client.target(url).request().async().post(
         Entity.entity(update, MediaType.APPLICATION_JSON_TYPE));
+    coordination.watch(update, res, completion);
     logger.debug("Onupdate POST dispatched to {} for key {} at {},{},{}", url, update.getKey(), update.getTopic(), update.getPartition(), update.getOffset());
   }
 

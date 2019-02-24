@@ -10,10 +10,19 @@ public class OnUpdateFactory {
 
   public static final Pattern URL_VALIDATION = Pattern.compile("^https?://[^/]+/.*");
 
-  private OnUpdateFactory() {
-  }
+  private static final ResponseSuccessCriteria RESPONSE_SUCCESS_CRITERIA = new ResponseSuccessCriteriaDefaultImpl();
 
   private static OnUpdateFactory instance = null;
+
+  private RequestWatcher watcher = null;
+
+  private OnUpdateFactory() {
+    setRequestWatcher(new RequestWatcherDefaultImpl());
+  }
+
+  void setRequestWatcher(RequestWatcher watcher) {
+    this.watcher = watcher;
+  }
 
   public static OnUpdateFactory getInstance() {
     if (instance == null) {
@@ -26,7 +35,7 @@ public class OnUpdateFactory {
     if (!URL_VALIDATION.matcher(url).matches()) {
       throw new IllegalArgumentException("Invalid onupdate URL: " + url);
     }
-    return new OnUpdateHttpIgnoreResult(url);
+    return new OnUpdateHttpIgnoreResult(url, watcher);
   }
 
   public OnUpdate fromManyUrls(List<String> onupdate) {
