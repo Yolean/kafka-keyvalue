@@ -34,21 +34,18 @@ module.exports = async function() {
   if (cache.status !== 404) console.warn('Unexpected cache service response status', cache.status, PIXY_HOST);
   console.log('Cache service is reachable at', CACHE1_HOST);
 
-  const topic = await retryx(() => new Promise((resolve, reject) => {
-    return fetch(`${PIXY_HOST}/topics`, {
+  const topic = await retryx(() => fetch(`${PIXY_HOST}/topics`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
       }
-    }).then(response => {
-      return response.json().then(topics => {
-        if (!topics || !topics.length) return reject('Unexpected topics response ' + topics);
-        if (topics.indexOf(TOPIC1_NAME) === -1) return reject('Topic ' + TOPIC1_NAME + ' not found in: ' + topics);
+    }).then(response => response.json().then(topics => {
+        if (!topics || !topics.length) return Promise.reject('Unexpected topics response ' + topics);
+        if (topics.indexOf(TOPIC1_NAME) === -1) return Promise.reject('Topic ' + TOPIC1_NAME + ' not found in: ' + topics);
         console.log('Found test topic ' + TOPIC1_NAME + ' in pixy\'s topic list');
-        resolve(response);
-      });
-    });
-  }),{
+        Promise.resolve(response);
+    }))
+  ,{
     maxTries: 10,
     beforeWait: n => console.log('Try', n, 'topic existence', TOPIC1_NAME)
   });
