@@ -19,7 +19,17 @@ import org.apache.kafka.streams.state.Stores;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.prometheus.client.Counter;
+import io.prometheus.client.Gauge;
+
 public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String, byte[]> {
+
+  static final Gauge onUpdatePending = Gauge.build()
+      .name("onupdate_pending").help("On-update instances created but not marked completed").register();
+  static final Counter onUpdateCompleted = Counter.build()
+      .name("onupdate_completed").help("Total on-update requests completed").register();
+  static final Counter onUpdateCompletedOutOfOrder = Counter.build()
+      .name("onupdate_completed_outoforder").help("On-update requests completed out of order with previous").register();
 
   private static final String SOURCE_NAME = "Source";
   private static final String PROCESSOR_NAME = "KeyvalueUpdate";
@@ -196,8 +206,10 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
         this.previous = previous;
         UpdateRecord p = previous.record;
         if (!record.getTopic().equals(p.getTopic())) throw new IllegalArgumentException("Mismatch with previous, topics: " + record.getTopic() + " != " + p.getTopic());
-        if (record.getPartition() != p.getPartition()) throw new IllegalArgumentException("Mismatch with previous, partitions: " + record.getPartition() + "!=" + p.getPartition());
+        if (record.getPartition() != p.getPartition()) throw new IllegalArgumentException("Mismatch with previous, topic " + record.getTopic() + " partitions: " + record.getPartition() + "!=" + p.getPartition());
+        if (record.getOffset() != p.getOffset() + 1) throw new IllegalArgumentException("Offset gap from previous, topic " + record.getTopic() + " partition " + record.getPartition() + ": from " + p.getOffset() + " to " + record.getOffset());
       }
+      onUpdatePending.inc();
     }
 
     void onAny() {
@@ -208,11 +220,14 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       if (previous == null) {
         logger.info("Completed the first on-update for topic {} partition {}", record.getTopic(), record.getPartition());
       } else if (!previous.completed) {
+        onUpdateCompletedOutOfOrder.inc();
         logger.warn("On-update completed out of order, topic {} partition {} offset {} before {}",
             record.getTopic(), record.getPartition(), record.getOffset(), previous.record.getOffset());
       }
       // let it be garbage collected
       previous = null;
+      onUpdatePending.dec();
+      onUpdateCompleted.inc();
     }
 
     @Override
