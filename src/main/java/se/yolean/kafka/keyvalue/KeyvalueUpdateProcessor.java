@@ -201,13 +201,17 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     OnUpdateCompletionLogging(UpdateRecord record, OnUpdateCompletionLogging previous) {
       this.record = record;
       if (previous == null) {
-        logger.info("This is the first on-update for topic {} partition {}", record.getTopic(), record.getPartition());
+        logger.info("This is the first on-update for topic {} partition {} at offset {}", record.getTopic(), record.getPartition(), record.getOffset());
       } else {
+        logger.debug("Got onupdate completeion for topic {} partition {} offset {} previous offset {}", record.getTopic(), record.getPartition(), record.getOffset(), previous.record.getOffset());
+        // sanity checks here and the whole previous tracking can probably be removed once we have decent e2e coverage
         this.previous = previous;
         UpdateRecord p = previous.record;
         if (!record.getTopic().equals(p.getTopic())) throw new IllegalArgumentException("Mismatch with previous, topics: " + record.getTopic() + " != " + p.getTopic());
         if (record.getPartition() != p.getPartition()) throw new IllegalArgumentException("Mismatch with previous, topic " + record.getTopic() + " partitions: " + record.getPartition() + "!=" + p.getPartition());
-        if (record.getOffset() != p.getOffset() + 1) throw new IllegalArgumentException("Offset gap from previous, topic " + record.getTopic() + " partition " + record.getPartition() + ": from " + p.getOffset() + " to " + record.getOffset());
+        if (record.getOffset() == p.getOffset()) throw new IllegalArgumentException("Duplicate completion logging for topic " + record.getTopic() + " partition " + record.getPartition() + " offset " + p.getOffset());
+        // null keys will be ignored so there might be gaps, but we should be able to create these logging instances in offset order
+        if (record.getOffset() < p.getOffset()) throw new IllegalArgumentException("Completion tracking created in reverse offset order, topic " + record.getTopic() + " partition " + record.getPartition() + ": from " + p.getOffset() + " to " + record.getOffset());
       }
       onUpdatePending.inc();
     }
