@@ -41,7 +41,7 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
 
   public OnUpdateWithExternalPollTrigger(
       List<String> onupdateUrls,
-      long requestTimeoutMilliseconds,
+      int requestTimeoutMilliseconds,
       int retries) {
     if (onupdateUrls.isEmpty()) {
       logger.warn("Initialization without onupdate urls is only meant for testing");
@@ -54,7 +54,7 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
   /**
    * Dynamic reconfiguration is outside scope so this method is kept private
    */
-  private void addTarget(String onupdateUrl, long timeoutMs, int retries) {
+  private void addTarget(String onupdateUrl, int timeoutMs, int retries) {
     HttpTargetRequestInvokerJersey invoker = new HttpTargetRequestInvokerJersey(onupdateUrl, timeoutMs, timeoutMs);
     addTarget(invoker, DEFAULT_RESPONSE_SUCCESS_CRITERIA, retries);
   }
@@ -85,11 +85,16 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
       Entry<UpdateRecord, TargetsInvocations> pendingUpdate = allPendingUpdates.next();
       UpdateRecord update = pendingUpdate.getKey();
       TargetsInvocations targets = pendingUpdate.getValue();
-      checkCompletion(update, targets);
+      if (checkCompletion(update, targets)) {
+        allPendingUpdates.remove();
+      }
     }
   }
 
-  void checkCompletion(UpdateRecord update, TargetsInvocations targets) {
+  /**
+   * @return true if all targets have completed for this update
+   */
+  boolean checkCompletion(UpdateRecord update, TargetsInvocations targets) {
     List<TargetInvocation> unfinishedRequests = targets.invocations;
     if (unfinishedRequests.isEmpty()) throw new IllegalStateException("Pending status should have been removed if there are no pending requests: " + update);
     Iterator<TargetInvocation> allRemainingInvocations = unfinishedRequests.iterator();
@@ -97,13 +102,24 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
       TargetInvocation invocation = allRemainingInvocations.next();
       if (invocation.request.isDone()) {
         allRemainingInvocations.remove();
-        boolean result;
+        Response response = null;
+        Throwable error = null;
         try {
-          result = invocation.criteria.isSuccess(invocation.request.get());
+          response = invocation.request.get();
         } catch (InterruptedException e) {
           throw new IllegalStateException("Got interrupted in an operation that should have been synchronous after isDone returned true", e);
         } catch (ExecutionException e) {
-          throw new IllegalStateException("Failed to get response after isDone returned true", e);
+          if (e.getCause() == null) {
+            throw new IllegalStateException("Failed to get response after isDone returned true, no cause given", e);
+          }
+          error = e.getCause();
+        }
+        boolean result = false;
+        if (error == null) {
+          result = invocation.criteria.isSuccess(response);
+          if (!result) logger.info("Update request failure for {}: {}", invocation, response);
+        } else if (error instanceof java.net.ConnectException) {
+          logger.info("ConnectException for {}: {}", invocation, error.getMessage());
         }
         targets.addResult(result);
       }
@@ -114,7 +130,9 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
       } else {
         targets.completion.onFailure();
       }
+      return true;
     }
+    return false;
   }
 
   private class Target {

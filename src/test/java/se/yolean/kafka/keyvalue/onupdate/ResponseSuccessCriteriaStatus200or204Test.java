@@ -35,4 +35,14 @@ class ResponseSuccessCriteriaStatus200or204Test {
     assertFalse(criteria.isSuccess(response));
   }
 
+  @Test
+  void testNullResponse() {
+    try {
+      criteria.isSuccess(null);
+      fail("Should have thrown on null response");
+    } catch (IllegalArgumentException e) {
+      assertEquals("Response is null", e.getMessage());
+    }
+  }
+
 }

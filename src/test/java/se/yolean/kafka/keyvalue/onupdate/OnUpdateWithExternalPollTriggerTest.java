@@ -7,7 +7,21 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import javax.ws.rs.client.AsyncInvoker;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.client.ClientProperties;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import se.yolean.kafka.keyvalue.OnUpdate;
@@ -35,6 +49,29 @@ class OnUpdateWithExternalPollTriggerTest {
     request.setFailure();
     assertTrue(request.isDone());
     assertFalse(criteria.isSuccess(request.get()));
+  }
+
+  @Disabled // was used to discover the breaking effect of using long for timeout millis
+  @Test
+  void testRealRequest() throws InterruptedException, ExecutionException {
+    String onupdateTargetUrl = "http://yolean.com";
+    int connectTimeoutMilliseconds = 5000;
+    int readTimeoutMilliseconds = 5000;
+    ClientConfig configuration = new ClientConfig();
+    configuration.property(ClientProperties.CONNECT_TIMEOUT, connectTimeoutMilliseconds);
+    configuration.property(ClientProperties.READ_TIMEOUT, readTimeoutMilliseconds);
+    Client client = ClientBuilder.newClient(configuration);
+
+    WebTarget target = client.target(onupdateTargetUrl);
+    AsyncInvoker async = target.request().async();
+    UpdateRecord update = new UpdateRecord("t", 0, 1, "k");
+    Future<Response> request = async.post(Entity.entity(update, MediaType.APPLICATION_JSON_TYPE));
+    assertFalse(request.isDone());
+    while (!request.isDone()) {
+      Thread.sleep(100);
+    }
+    Response response = request.get();
+    assertNotNull(response);
   }
 
   @Test

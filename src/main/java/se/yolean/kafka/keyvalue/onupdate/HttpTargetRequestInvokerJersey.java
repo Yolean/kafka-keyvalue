@@ -26,8 +26,8 @@ public class HttpTargetRequestInvokerJersey implements HttpTargetRequestInvoker 
 
   public HttpTargetRequestInvokerJersey(
       String onupdateTargetUrl,
-      long connectTimeoutMilliseconds,
-      long readTimeoutMilliseconds) {
+      int connectTimeoutMilliseconds,
+      int readTimeoutMilliseconds) {
     ClientConfig configuration = new ClientConfig();
     configuration.property(ClientProperties.CONNECT_TIMEOUT, connectTimeoutMilliseconds);
     configuration.property(ClientProperties.READ_TIMEOUT, readTimeoutMilliseconds);

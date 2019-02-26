@@ -6,6 +6,9 @@ public class ResponseSuccessCriteriaStatus200or204 implements ResponseSuccessCri
 
   @Override
   public boolean isSuccess(Response response) {
+    if (response == null) {
+      throw new IllegalArgumentException("Response is null");
+    }
     return response.getStatus() == 200 || response.getStatus() == 204;
   }
 
