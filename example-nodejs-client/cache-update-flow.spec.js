@@ -7,7 +7,7 @@ const {
 } = process.env;
 
 const fetch = require('node-fetch');
-const { gzipSync, gunzipSync } = require('zlib');
+const { gzip, gunzip } = require('zlib');
 
 // we don't use mockserver for any asserts now (onupdate- spec does that) but the access logging is a bit useful for multi-onupdate still
 const mockserver = require('./mockserver');
@@ -114,21 +114,39 @@ describe("A complete cache update flow", () => {
     expect(body).toContain(`{"test":"${TEST_ID}","step":"First async produce"}` + '\n');
   });
 
+  let testblob, testblobcomingback;
+
+  test("We can gzip some test data", done => {
+    const jsonstring = JSON.stringify({ test: TEST_ID, step: 'No key' });
+    gzip(jsonstring, (err, gzipped) => {
+      expect(err).toEqual(null);
+      testblob = gzipped;
+      done();
+    });
+  });
+
   it('handles gzipped payloads', async () => {
+    expect(testblob).toBeTruthy();
     await fetch(`${PIXY_HOST}/topics/${TOPIC1_NAME}/messages?key=testgzip1&sync`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: gzipSync(JSON.stringify({ test: TEST_ID, step: 'No key' }))
+      body: testblob
     });
     const response = await fetch(`${CACHE1_HOST}/cache/v1/raw/testgzip1`);
     expect(response.ok).toEqual(true);
     expect(response.status).toEqual(200);
-    const buffer = await response.buffer();
-    const json = gunzipSync(buffer);
+    testblobcomingback = await response.buffer();
+  });
 
-    expect(JSON.parse(json)).toEqual({ test: TEST_ID, step: 'No key' });
+  it('is a gunzippable payload with the actual data intact', done => {
+    expect(testblobcomingback).toBeTruthy();
+    gunzip(testblobcomingback, (err, gunzipped) => {
+      expect(err).toEqual(null);
+      expect(JSON.parse(gunzipped)).toEqual({ test: TEST_ID, step: 'No key' });
+      done();
+    });
   });
 
   xit("... so if we key+value streaming we should add another endpoint", async () => {
