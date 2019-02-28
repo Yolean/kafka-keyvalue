@@ -6,8 +6,6 @@ import java.io.IOException;
 
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-
 class UpdateRecordTest {
 
   @Test
@@ -27,6 +25,13 @@ class UpdateRecordTest {
     assertEquals(123, u.getTopicPartition().partition());
     assertEquals("t1-123", u.getTopicPartition().toString());
     assertTrue(u.getTopicPartition() == u.getTopicPartition());
+  }
+
+  @Test
+  void testEquals() {
+    assertTrue(new UpdateRecord("1", 1, 2, "x").equals(new UpdateRecord("1", 1, 2, "x")));
+    assertFalse(new UpdateRecord("1", 1, 2, "x").equals(new UpdateRecord("1", 1, 2, "x2")));
+    assertFalse(new UpdateRecord("1", 1, 2, "x").equals(new UpdateRecord("1", 12, 2, "x")));
   }
 
   @Test

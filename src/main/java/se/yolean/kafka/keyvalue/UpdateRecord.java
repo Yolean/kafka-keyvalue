@@ -58,4 +58,9 @@ public class UpdateRecord {
     return hashCode;
   }
 
+  @Override
+  public boolean equals(Object obj) {
+    return obj != null && obj instanceof UpdateRecord && string.equals(obj.toString());
+  }
+
 }
