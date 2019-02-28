@@ -30,7 +30,7 @@ public class Main {
         pollOnupdate(onupdate);
       } catch (UnrecognizedOnupdateResult e) {
         logger.error("Poll failed", e);
-        logger.info("Shutting down because of {}", e);
+        logger.info("Shutting down because of {}", e.getMessage());
         // There should be shutdown hooks that handle cleanup
         System.exit(1);
       }
