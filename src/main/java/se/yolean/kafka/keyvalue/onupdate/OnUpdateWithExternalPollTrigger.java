@@ -80,7 +80,10 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
     pending.put(update, new TargetsInvocations(update, completion));
   }
 
-  public void checkCompletion() {
+  /**
+   * @throws UnrecognizedOnupdateResult if any onupdate resulted in neither a response nor a recognized error
+   */
+  public void checkCompletion() throws UnrecognizedOnupdateResult {
     Iterator<Entry<UpdateRecord, TargetsInvocations>> allPendingUpdates = pending.entrySet().iterator();
     while (allPendingUpdates.hasNext()) {
       Entry<UpdateRecord, TargetsInvocations> pendingUpdate = allPendingUpdates.next();
@@ -95,8 +98,9 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
 
   /**
    * @return true if all targets have completed for this update
+   * @throws UnrecognizedOnupdateResult if any onupdate resulted in neither a response nor a recognized error
    */
-  boolean checkCompletion(UpdateRecord update, TargetsInvocations targets) {
+  boolean checkCompletion(UpdateRecord update, TargetsInvocations targets) throws UnrecognizedOnupdateResult {
     List<TargetInvocation> unfinishedRequests = targets.invocations;
     if (unfinishedRequests.isEmpty()) throw new IllegalStateException("Pending status should have been removed if there are no pending requests: " + update);
     Iterator<TargetInvocation> allRemainingInvocations = unfinishedRequests.iterator();
@@ -131,7 +135,7 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
         } else {
           // TODO Currently this means that the onupdate will never be marked as completed, I think
           logger.error("Failed to recognize error {} from {}", error, invocation.request);
-          throw new OnupdateResultUnrecognized(error, invocation.invoker);
+          throw new UnrecognizedOnupdateResult(error, invocation.invoker);
         }
         targets.addResult(result);
       }

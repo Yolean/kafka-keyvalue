@@ -8,8 +8,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import javax.ws.rs.client.AsyncInvoker;
 import javax.ws.rs.client.Client;
@@ -75,7 +73,7 @@ class OnUpdateWithExternalPollTriggerTest {
   }
 
   @Test
-  void testSingleSuccessful() throws InterruptedException, ExecutionException {
+  void testSingleSuccessful() throws InterruptedException, ExecutionException, UnrecognizedOnupdateResult {
     HttpTargetRequestInvoker invoker = mock(HttpTargetRequestInvoker.class);
     OnUpdateWithExternalPollTrigger updates = new OnUpdateWithExternalPollTrigger(
         DUMMY_INIT, -1, -1)
@@ -98,7 +96,7 @@ class OnUpdateWithExternalPollTriggerTest {
   }
 
   @Test
-  void testSingleFailure() throws InterruptedException, ExecutionException {
+  void testSingleFailure() throws InterruptedException, ExecutionException, UnrecognizedOnupdateResult {
     HttpTargetRequestInvoker invoker = mock(HttpTargetRequestInvoker.class);
     OnUpdateWithExternalPollTrigger updates = new OnUpdateWithExternalPollTrigger(
         DUMMY_INIT, -1, -1)
@@ -121,7 +119,7 @@ class OnUpdateWithExternalPollTriggerTest {
   }
 
   @Test
-  void testMultipleAllSuccessful() throws InterruptedException, ExecutionException {
+  void testMultipleAllSuccessful() throws InterruptedException, ExecutionException, UnrecognizedOnupdateResult {
     HttpTargetRequestInvoker invoker1 = mock(HttpTargetRequestInvoker.class);
     HttpTargetRequestInvoker invoker2 = mock(HttpTargetRequestInvoker.class);
     OnUpdateWithExternalPollTrigger updates = new OnUpdateWithExternalPollTrigger(
@@ -156,7 +154,7 @@ class OnUpdateWithExternalPollTriggerTest {
   }
 
   @Test
-  void testMultipleOneFailed() throws InterruptedException, ExecutionException {
+  void testMultipleOneFailed() throws InterruptedException, ExecutionException, UnrecognizedOnupdateResult {
     HttpTargetRequestInvoker invoker1 = mock(HttpTargetRequestInvoker.class);
     HttpTargetRequestInvoker invoker2 = mock(HttpTargetRequestInvoker.class);
     OnUpdateWithExternalPollTrigger updates = new OnUpdateWithExternalPollTrigger(

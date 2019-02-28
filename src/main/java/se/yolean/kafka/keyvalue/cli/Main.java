@@ -7,6 +7,7 @@ import se.yolean.kafka.keyvalue.App;
 import se.yolean.kafka.keyvalue.CacheServiceOptions;
 import se.yolean.kafka.keyvalue.Readiness;
 import se.yolean.kafka.keyvalue.onupdate.OnUpdateWithExternalPollTrigger;
+import se.yolean.kafka.keyvalue.onupdate.UnrecognizedOnupdateResult;
 
 public class Main {
 
@@ -25,7 +26,14 @@ public class Main {
 
     OnUpdateWithExternalPollTrigger onupdate = options.getOnUpdateImpl();
     while (true) {
-      pollOnupdate(onupdate);
+      try {
+        pollOnupdate(onupdate);
+      } catch (UnrecognizedOnupdateResult e) {
+        logger.error("Poll failed", e);
+        logger.info("Shutting down because of {}", e);
+        // There should be shutdown hooks that handle cleanup
+        System.exit(1);
+      }
     }
   }
 
@@ -65,8 +73,9 @@ public class Main {
 
   /**
    * For now there's only one thing we need to do after readiness: poll for request completion.
+   * @throws UnrecognizedOnupdateResult if any onupdate resulted in neither a response nor a recognized error
    */
-  private static void pollOnupdate(OnUpdateWithExternalPollTrigger onupdate) {
+  private static void pollOnupdate(OnUpdateWithExternalPollTrigger onupdate) throws UnrecognizedOnupdateResult {
     try {
       // try to poll regularly, 1 second
       Thread.sleep(Math.max(POLL_INTERVAL,
