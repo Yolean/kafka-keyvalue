@@ -40,3 +40,9 @@ Test manually using for example `echo 'mytest={"t":1}' | kafkacat -b localhost:1
 
 Run the nodejs locally using: `cd example-nodejs-client; npm ci; ./node_modules/.bin/jest --runInBand --watch `
 (Note that the mock server for unupdate calls only exists during Jest runs)
+
+## Logging
+
+The distribution bundles log4j2, which we also use as logging API.
+To configure per deployment, provide a file and set `-Dlog4j.configurationFile`.
+For reconfigurability at runtime Kubernets configmaps could be used with [monitorInterval](https://logging.apache.org/log4j/2.x/manual/configuration.html#AutomaticReconfiguration).
