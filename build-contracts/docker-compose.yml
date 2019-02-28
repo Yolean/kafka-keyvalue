@@ -84,6 +84,7 @@ services:
     - --onupdate
     -   http://example-nodejs-client:8080/kafka-keyvalue/v1/updates
     -   http://onupdate-logging:8080/
+    -   http://example-nodejs-client:8082/testpost
     - --starttimeout
     -   '10'
 
@@ -125,6 +126,7 @@ services:
     - com.yolean.build-contract
     expose:
     - "8080"
+    - "8082"
     environment:
     - PIXY_HOST=http://pixy:19090
     - CACHE1_HOST=http://cache1:19081
