@@ -49,6 +49,7 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
     for (String url : onupdateUrls) {
       addTarget(url, requestTimeoutMilliseconds, retries);
     }
+    logger.info("Initialized onupdate for {} target URLs {}", onupdateUrls.size(), onupdateUrls);
   }
 
   /**
@@ -87,6 +88,7 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
       TargetsInvocations targets = pendingUpdate.getValue();
       if (checkCompletion(update, targets)) {
         allPendingUpdates.remove();
+        logger.debug("No pending updates remain for {}", update);
       }
     }
   }
@@ -120,6 +122,9 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
           if (!result) logger.info("Update request failure for {}: {}", invocation, response);
         } else if (error instanceof java.net.ConnectException) {
           logger.info("ConnectException for {}: {}", invocation, error.getMessage());
+        } else {
+          logger.debug("Failed to recognize error {} from {}", error, invocation.request);
+          throw new OnupdateResultUnrecognized(error, invocation.invoker);
         }
         targets.addResult(result);
       }

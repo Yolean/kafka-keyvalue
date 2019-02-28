@@ -22,7 +22,8 @@ import se.yolean.kafka.keyvalue.UpdateRecord;
  */
 public class HttpTargetRequestInvokerJersey implements HttpTargetRequestInvoker {
 
-  private AsyncInvoker async;
+  private final String string;
+  private final AsyncInvoker async;
 
   public HttpTargetRequestInvokerJersey(
       String onupdateTargetUrl,
@@ -35,6 +36,12 @@ public class HttpTargetRequestInvokerJersey implements HttpTargetRequestInvoker 
 
     WebTarget target = client.target(onupdateTargetUrl);
     this.async = target.request().async();
+    this.string = "" + connectTimeoutMilliseconds + ',' + readTimeoutMilliseconds + ',' + onupdateTargetUrl;
+  }
+
+  @Override
+  public String toString() {
+    return string;
   }
 
   @Override
