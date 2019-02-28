@@ -1,5 +1,7 @@
 package se.yolean.kafka.keyvalue;
 
+import java.io.Serializable;
+
 import org.apache.kafka.common.TopicPartition;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -7,7 +9,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 @JsonPropertyOrder({"topic","partition","offset","key"})
-public class UpdateRecord {
+public class UpdateRecord implements Serializable {
+
+  private static final long serialVersionUID = 1L;
 
   private final TopicPartition topicPartition;
   private final long offset;
