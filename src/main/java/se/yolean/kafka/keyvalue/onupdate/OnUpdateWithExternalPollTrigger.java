@@ -120,10 +120,17 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
         if (error == null) {
           result = invocation.criteria.isSuccess(response);
           if (!result) logger.info("Update request failure for {}: {}", invocation, response);
-        } else if (error instanceof java.net.ConnectException) {
-          logger.info("ConnectException for {}: {}", invocation, error.getMessage());
+        } else if (error instanceof javax.ws.rs.ProcessingException) {
+          Throwable httpError = error.getCause();
+          if (httpError instanceof java.net.ConnectException) {
+            // target server not responding ("Connection refused") is considered normal, we should retry etc
+            logger.info("ConnectException for {}: {}", invocation, error.getMessage());
+          } else {
+            logger.warn("Unrecognized HTTP error for {}: {}", invocation, error.getMessage());
+          }
         } else {
-          logger.debug("Failed to recognize error {} from {}", error, invocation.request);
+          // TODO Currently this means that the onupdate will never be marked as completed, I think
+          logger.error("Failed to recognize error {} from {}", error, invocation.request);
           throw new OnupdateResultUnrecognized(error, invocation.invoker);
         }
         targets.addResult(result);
@@ -187,15 +194,22 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
     private HttpTargetRequestInvoker invoker;
     private ResponseSuccessCriteria criteria;
     private Future<Response> request;
+    private final String string;
 
     TargetInvocation(UpdateRecord update, HttpTargetRequestInvoker invoker, ResponseSuccessCriteria criteria) {
       this.invoker = invoker;
       this.criteria = criteria;
       invoke(update);
+      this.string = update.toString() + ',' + invoker;
     }
 
     private void invoke(UpdateRecord update) {
       request = invoker.postUpdate(update);
+    }
+
+    @Override
+    public String toString() {
+      return string;
     }
 
   }
