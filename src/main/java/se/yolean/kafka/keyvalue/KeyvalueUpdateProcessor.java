@@ -203,9 +203,9 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     OnUpdateCompletionLogging(UpdateRecord record, OnUpdateCompletionLogging previous) {
       this.record = record;
       if (previous == null) {
-        logger.info("This is the first on-update for topic {} partition {} at offset {}", record.getTopic(), record.getPartition(), record.getOffset());
+        logger.info("This is the first on-update for {}-{}", record.getTopicPartition(), record.getOffset());
       } else {
-        logger.debug("Got onupdate completion for topic {} partition {} offset {} previous offset {}", record.getTopic(), record.getPartition(), record.getOffset(), previous.record.getOffset());
+        logger.debug("Got onupdate completion for {}-{} previous offset {}", record.getTopicPartition(), record.getOffset(), previous.record.getOffset());
         // sanity checks here and the whole previous tracking can probably be removed once we have decent e2e coverage
         this.previous = previous;
         UpdateRecord p = previous.record;
@@ -226,11 +226,11 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       }
       completed = true;
       if (previous == null) {
-        logger.info("Completed the first on-update for topic {} partition {}", record.getTopic(), record.getPartition());
+        logger.info("Completed the first on-update for {}", record.getTopicPartition());
       } else if (!previous.completed) {
         onUpdateCompletedOutOfOrder.inc();
-        logger.warn("On-update completed out of order, topic {} partition {} offset {} before {}",
-            record.getTopic(), record.getPartition(), record.getOffset(), previous.record.getOffset());
+        logger.warn("On-update completed out of order, {}-{} before {}",
+            record.getTopicPartition(), record.getOffset(), previous.record.getOffset());
       }
       // let it be garbage collected
       previous = null;
@@ -241,15 +241,13 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     @Override
     public void onSuccess() {
       onAny();
-      logger.debug("On-update completed for topic {} partition {} offset {} key {}",
-          record.getTopic(), record.getPartition(), record.getOffset(), record.getKey());
+      logger.debug("On-update completed for {}", record);
     }
 
     @Override
     public void onFailure() {
       onAny();
-      logger.warn("On-update failed for topic {} partition {} offset {} key {}",
-          record.getTopic(), record.getPartition(), record.getOffset(), record.getKey());
+      logger.warn("On-update failed for {}", record);
     }
 
   }

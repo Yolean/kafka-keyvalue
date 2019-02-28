@@ -2,26 +2,38 @@ package se.yolean.kafka.keyvalue;
 
 import org.apache.kafka.common.TopicPartition;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+
+@JsonPropertyOrder({"topic","partition","offset","key"})
 public class UpdateRecord {
 
-  private String topic;
-  private int partition;
-  private long offset;
-  private String key;
+  private final TopicPartition topicPartition;
+  private final long offset;
+  private final String key;
+  private final String string;
+  private final int hashCode;
 
-  public UpdateRecord(String topic, int partition, long offset, String key) {
-    this.topic = topic;
-    this.partition = partition;
+  @JsonCreator
+  public UpdateRecord(
+      @JsonProperty("topic") String topic,
+      @JsonProperty("partition") int partition,
+      @JsonProperty("offset") long offset,
+      @JsonProperty("key") String key) {
+    this.topicPartition = new TopicPartition(topic, partition);
     this.offset = offset;
     this.key = key;
+    this.string = topicPartition.toString() + '-' + offset + '[' + key + ']';
+    this.hashCode = string.hashCode();
   }
 
   public String getTopic() {
-    return topic;
+    return topicPartition.topic();
   }
 
   public int getPartition() {
-    return partition;
+    return topicPartition.partition();
   }
 
   public long getOffset() {
@@ -33,7 +45,17 @@ public class UpdateRecord {
   }
 
   TopicPartition getTopicPartition() {
-    return new TopicPartition(topic, partition);
+    return topicPartition;
+  }
+
+  @Override
+  public String toString() {
+    return string;
+  }
+
+  @Override
+  public int hashCode() {
+    return hashCode;
   }
 
 }
