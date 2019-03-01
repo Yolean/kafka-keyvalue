@@ -32,7 +32,15 @@ group 'se.yolean'
 
 sourceCompatibility = 1.11
 
-jib.from.image = 'gcr.io/distroless/java@sha256:a3ec250f951cf33017843691cc54f8dfb43a3727e095a75d149dc2ada5720d30'
+jib {
+  from {
+    image = 'gcr.io/distroless/java@sha256:31d5dfbf339e09dd31524dc301df29ac066744bad5a89a20ffa582e33d01e998'
+  }
+  to {
+    image = 'yolean/kafka-keyvalue'
+    tags = ['dev']
+  }
+}
 
 dependencies {
   runtime 'com.fasterxml.jackson.core:jackson-databind:2.9.8'
@@ -43,8 +51,8 @@ dependencies {
   compile group: 'javax.inject', name: 'javax.inject', version: '1'
   compile group: 'com.google.inject', name: 'guice', version: '4.2.0'
 
-  compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.1.0'
-  compile group: 'org.apache.kafka', name: 'kafka-streams', version: '2.1.0'
+  compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.1.1'
+  compile group: 'org.apache.kafka', name: 'kafka-streams', version: '2.1.1'
 
   compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.11.2'
   compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.2'
@@ -60,7 +68,7 @@ dependencies {
   testRuntime("org.junit.platform:junit-platform-launcher:1.4.0")
   testCompile group: 'org.mockito', name: 'mockito-core', version: '2.24.0'
 
-  testCompile group: 'org.apache.kafka', name: 'kafka-streams-test-utils', version: '2.1.0'
+  testCompile group: 'org.apache.kafka', name: 'kafka-streams-test-utils', version: '2.1.1'
 
   testCompile group: 'javax.json', name: 'javax.json-api', version: '1.1.2'
 
@@ -69,7 +77,7 @@ dependencies {
   compile group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.14.v20181114'
   compile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.4.14.v20181114'
   compile group: 'org.glassfish.jersey.core', name: 'jersey-common', version: '2.28'
-  compile group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.28'  
+  compile group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.28'
   compile group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet', version: '2.28'
   compile group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version: '2.28'
 
@@ -85,4 +93,3 @@ task copyToLib(type: Copy) {
 }
 
 build.dependsOn(copyToLib)
-

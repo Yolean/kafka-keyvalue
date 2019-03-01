@@ -1,4 +1,8 @@
-const port = 8081,
+
+// Note: this server's port is currently not exposed in the docker-compose test setup,
+// because onpudate-flow.spec.js has its own server
+
+const port = 8082,
   express = require('express'),
   app = express(),
   morgan = require('morgan');

@@ -17,23 +17,27 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 import se.yolean.kafka.keyvalue.CacheServiceOptions;
 import se.yolean.kafka.keyvalue.OnUpdate;
-import se.yolean.kafka.keyvalue.onupdate.OnUpdateFactory;
+import se.yolean.kafka.keyvalue.onupdate.OnUpdateWithExternalPollTrigger;
 
 public class ArgsToOptions implements CacheServiceOptions {
 
-  private OnUpdateFactory onUpdateFactory = null;
+  /**
+   * {@value #DEFAULT_ONUPDATE_TIMEOUT}
+   */
+  public static final int DEFAULT_ONUPDATE_TIMEOUT = 5000;
+
+  /**
+   * {@value #DEFAULT_ONUPDATE_RETRIES}
+   */
+  public static final int DEFAULT_ONUPDATE_RETRIES = 0;
 
   private String topicName = null;
   private Integer port = null;
   private String applicationId;
   private Properties streamsProperties = null;
-  private OnUpdate onUpdate = null;
   private Integer startTimeoutSeconds = null;
 
-  public ArgsToOptions setOnUpdateFactory(OnUpdateFactory factory) {
-    this.onUpdateFactory  = factory;
-    return this;
-  }
+  private OnUpdateWithExternalPollTrigger onupdate;
 
   private ArgumentParser getParser() {
     ArgumentParser parser = ArgumentParsers
@@ -92,11 +96,31 @@ public class ArgsToOptions implements CacheServiceOptions {
         .help("The TCP Port for the HTTP REST Service");
 
     parser.addArgument("--onupdate")
+        .nargs("+")
         .action(store())
         .required(false)
         .type(String.class)
         .metavar("ONUPDATE")
         .help("A URL to POST the key to upon updates (may be debounced)");
+
+    parser.addArgument("--onupdate-timeout")
+        .action(store())
+        .required(false)
+        .type(Integer.class)
+        .metavar("ONUPDATE_TIMEOUT")
+        .setDefault(DEFAULT_ONUPDATE_TIMEOUT)
+        .dest("onupdateTimeout")
+        .help("Milliseconds timeout for onupdate requests");
+
+    parser.addArgument("--onupdate-retries")
+        .action(store())
+        .required(false)
+        .type(Integer.class)
+        .metavar("ONUPDATE_RETRIES")
+        .setDefault(DEFAULT_ONUPDATE_RETRIES)
+        .dest("onupdateRetries")
+        .help("The number of retries per onupdate target per update before failure is signalled to the processor."
+            + " Set to 0 for 1 try. TODO Default is 2, i.e. 3 tries.");
 
     parser.addArgument("--starttimeout")
         .action(store())
@@ -111,12 +135,15 @@ public class ArgsToOptions implements CacheServiceOptions {
     return parser;
   }
 
-  public CacheServiceOptions fromCommandLineArguments(String[] args) {
+  public ArgsToOptions(String[] args) {
 
     @SuppressWarnings("unused") // kept for forward compatibility
     String hostName = null;
-    String onupdateUrl = null;
     Properties props = new Properties();
+
+    List<String> onupdateUrls = null;
+    Integer onupdateTimeout = null;
+    Integer onupdateRetries = null;
 
     ArgumentParser parser = getParser();
 
@@ -129,7 +156,10 @@ public class ArgsToOptions implements CacheServiceOptions {
       applicationId = res.getString("applicationId");
       List<String> streamsProps = res.getList("streamsConfig");
       String streamsConfig = res.getString("streamsConfigFile");
-      onupdateUrl = res.getString("onupdate");
+      onupdateUrls = res.getList("onupdate");
+      onupdateTimeout = res.getInt("onupdateTimeout");
+      onupdateRetries = res.getInt("onupdateRetries");
+
       startTimeoutSeconds = res.getInt("starttimeout");
 
       if (streamsProps == null && streamsConfig == null) {
@@ -159,24 +189,21 @@ public class ArgsToOptions implements CacheServiceOptions {
       if (args.length == 0) {
         parser.printHelp();
         System.exit(0);
-      } else {
-        parser.handleError(e);
-        System.exit(1);
       }
+      parser.handleError(e);
+      System.exit(1);
     } catch (IOException e) {
       throw new RuntimeException("Options failed", e);
     }
 
     this.streamsProperties = props;
 
-    if (onupdateUrl != null) {
-      if (this.onUpdateFactory == null) {
-        throw new IllegalStateException("setOnUpdateFactory must be called first");
-      }
-      this.onUpdate = this.onUpdateFactory.fromUrl(onupdateUrl);
-    }
+    this.onupdate = newOnUpdate(onupdateUrls, onupdateTimeout, onupdateRetries);
+  }
 
-    return this;
+  protected OnUpdateWithExternalPollTrigger newOnUpdate(List<String> onupdateUrls, Integer onupdateTimeout,
+      Integer onupdateRetries) {
+    return new OnUpdateWithExternalPollTrigger(onupdateUrls, onupdateTimeout, onupdateRetries);
   }
 
   @Override
@@ -195,11 +222,6 @@ public class ArgsToOptions implements CacheServiceOptions {
   }
 
   @Override
-  public OnUpdate getOnUpdate() {
-    return onUpdate;
-  }
-
-  @Override
   public String getApplicationId() {
     return applicationId;
   }
@@ -207,6 +229,15 @@ public class ArgsToOptions implements CacheServiceOptions {
   @Override
   public Integer getStartTimeoutSecods() {
     return startTimeoutSeconds;
+  }
+
+  @Override
+  public OnUpdate getOnUpdate() {
+    return this.onupdate;
+  }
+
+  OnUpdateWithExternalPollTrigger getOnUpdateImpl() {
+    return this.onupdate;
   }
 
 }

@@ -16,10 +16,22 @@ import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import io.prometheus.client.Counter;
+import io.prometheus.client.Gauge;
 
 public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String, byte[]> {
+
+  static final Gauge onUpdatePending = Gauge.build()
+      .name("onupdate_pending").help("On-update instances created but not marked completed").register();
+  static final Counter onUpdateCompleted = Counter.build()
+      .name("onupdate_completed").help("Total on-update requests completed").register();
+  static final Counter onUpdateCompletedOutOfOrder = Counter.build()
+      .name("onupdate_completed_outoforder").help("On-update requests completed out of order with previous").register();
+  static final Counter offsetsNotProcessed = Counter.build()
+      .name("offsets_not_processed").help("The processor won't see null key messages, one reason to count gaps in the offset sequence").register();
 
   private static final String SOURCE_NAME = "Source";
   private static final String PROCESSOR_NAME = "KeyvalueUpdate";
@@ -36,15 +48,9 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
 
   private KeyValueStore<String, byte[]> store = null;
 
-  private final Map<TopicPartition,Long> currentOffset = new HashMap<TopicPartition,Long>(1);
+  private final Map<TopicPartition,Long> currentOffset = new HashMap<>(1);
 
-  // Not sure yet if we want to construct these objects for every update
-  private final Runnable onUpdateCompletion = new Runnable() {
-    @Override
-    public void run() {
-      logger.trace("onupdate completion ignored");
-    }
-  };
+  private final Map<TopicPartition,OnUpdateCompletionLogging> latestPending = new HashMap<>(1);
 
   public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate) {
 	  this.sourceTopicPattern = sourceTopic;
@@ -127,7 +133,10 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
 
   private void process(UpdateRecord update, byte[] value) {
     store.put(update.getKey(), value);
-    onUpdate.handle(update, onUpdateCompletion);
+    OnUpdateCompletionLogging previous = latestPending.get(update.getTopicPartition());
+    OnUpdateCompletionLogging completion = new OnUpdateCompletionLogging(update, previous);
+    onUpdate.handle(update, completion);
+    latestPending.put(update.getTopicPartition(), completion);
   }
 
   @Override
@@ -182,6 +191,65 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       }
 
     };
+  }
+
+  private static class OnUpdateCompletionLogging implements OnUpdate.Completion {
+
+    private UpdateRecord record;
+    private OnUpdateCompletionLogging previous;
+
+    private boolean completed = false;
+
+    OnUpdateCompletionLogging(UpdateRecord record, OnUpdateCompletionLogging previous) {
+      this.record = record;
+      if (previous == null) {
+        logger.info("This is the first on-update for {}-{}", record.getTopicPartition(), record.getOffset());
+      } else {
+        logger.debug("Got onupdate completion for {}-{} previous offset {}", record.getTopicPartition(), record.getOffset(), previous.record.getOffset());
+        // sanity checks here and the whole previous tracking can probably be removed once we have decent e2e coverage
+        this.previous = previous;
+        UpdateRecord p = previous.record;
+        if (!record.getTopic().equals(p.getTopic())) throw new IllegalArgumentException("Mismatch with previous, topics: " + record.getTopic() + " != " + p.getTopic());
+        if (record.getPartition() != p.getPartition()) throw new IllegalArgumentException("Mismatch with previous, topic " + record.getTopic() + " partitions: " + record.getPartition() + "!=" + p.getPartition());
+        long offsetoffset = record.getOffset() - p.getOffset();
+        if (offsetoffset == 0) throw new IllegalArgumentException("Duplicate completion logging for topic " + record.getTopic() + " partition " + record.getPartition() + " offset " + p.getOffset());
+        if (offsetoffset < 0) throw new IllegalArgumentException("Completion tracking created in reverse offset order, topic " + record.getTopic() + " partition " + record.getPartition() + ": from " + p.getOffset() + " to " + record.getOffset());
+        // null keys will be ignored so there might be gaps, but we should be able to create these logging instances in offset order
+        if (offsetoffset > 1) offsetsNotProcessed.inc(offsetoffset);
+      }
+      onUpdatePending.inc();
+    }
+
+    void onAny() {
+      if (completed) {
+        throw new IllegalArgumentException("Got on-update completion for already completed " + record);
+      }
+      completed = true;
+      if (previous == null) {
+        logger.info("Completed the first on-update for {}", record.getTopicPartition());
+      } else if (!previous.completed) {
+        onUpdateCompletedOutOfOrder.inc();
+        logger.warn("On-update completed out of order, {}-{} before {}",
+            record.getTopicPartition(), record.getOffset(), previous.record.getOffset());
+      }
+      // let it be garbage collected
+      previous = null;
+      onUpdatePending.dec();
+      onUpdateCompleted.inc();
+    }
+
+    @Override
+    public void onSuccess() {
+      onAny();
+      logger.debug("On-update completed for {}", record);
+    }
+
+    @Override
+    public void onFailure() {
+      onAny();
+      logger.warn("On-update failed for {}", record);
+    }
+
   }
 
 }
