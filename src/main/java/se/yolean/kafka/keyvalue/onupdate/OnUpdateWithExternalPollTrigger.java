@@ -36,7 +36,7 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
       new ResponseSuccessCriteriaStatus200or204();
 
   static final Counter onUpdateRequestErrors = Counter.build()
-      .name("onupdate_request_errors").help("Onupdate failures, counts every attempt during retries")
+      .name("kkv_onupdate_request_errors").help("Onupdate failures, counts every attempt during retries")
       .labelNames("type", "categorization").register();
 
   private List<Target> targets = new LinkedList<>();

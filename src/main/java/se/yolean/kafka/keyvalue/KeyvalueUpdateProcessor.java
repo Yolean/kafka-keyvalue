@@ -25,13 +25,13 @@ import io.prometheus.client.Gauge;
 public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String, byte[]> {
 
   static final Gauge onUpdatePending = Gauge.build()
-      .name("onupdate_pending").help("On-update instances created but not marked completed").register();
+      .name("kkv_onupdate_pending").help("On-update instances created but not marked completed").register();
   static final Counter onUpdateCompleted = Counter.build()
-      .name("onupdate_completed").help("Total on-update requests completed").register();
+      .name("kkv_onupdate_completed").help("Total on-update requests completed").register();
   static final Counter onUpdateCompletedOutOfOrder = Counter.build()
-      .name("onupdate_completed_outoforder").help("On-update requests completed out of order with previous").register();
+      .name("kkv_onupdate_completed_outoforder").help("On-update requests completed out of order with previous").register();
   static final Counter offsetsNotProcessed = Counter.build()
-      .name("offsets_not_processed").help("The processor won't see null key messages, one reason to count gaps in the offset sequence").register();
+      .name("kkv_offsets_not_processed").help("The processor won't see null key messages, one reason to count gaps in the offset sequence").register();
 
   private static final String SOURCE_NAME = "Source";
   private static final String PROCESSOR_NAME = "KeyvalueUpdate";
