@@ -27,7 +27,7 @@ public class App {
 
   /**
    * Start a streams app with REST server and return control to the caller.
-   * @see #doWhateverRegularMaintenance()
+   * @see #getReadiness()
    * @param options well, options
    */
   public App(CacheServiceOptions options) {

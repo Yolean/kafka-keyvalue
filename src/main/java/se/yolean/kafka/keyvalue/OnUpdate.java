@@ -6,11 +6,11 @@ public interface OnUpdate {
    *
    * Transitional strategy for handling downstream errors:
    * - Keep retrying
-   * + don't return success from any subsequent {@link #handle(String, Runnable)}
+   * + don't return success from any subsequent {@link #handle(UpdateRecord, Completion)}
    * + when bailing throw on the next handle
    * = should lead to service restart without commits from the failed offset.
    *
-   * @param key The new value (which may be the old value at a new offset)
+   * @param update The new value (which may be the old value at a new offset)
    * @param completion Handles outcome of the update
    */
   void handle(UpdateRecord update, Completion completion);
