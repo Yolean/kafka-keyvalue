@@ -2,13 +2,13 @@ version: "3.4"
 services:
 
   zookeeper:
-    image: solsson/kafka:2.1.0@sha256:ac3f06d87d45c7be727863f31e79fbfdcb9c610b51ba9cf03c75a95d602f15e1
+    image: solsson/kafka:2.1.1@sha256:8bc8242c649c395ab79d76cc83b1052e63b4efea7f83547bf11eb3ef5ea6f8e1
     entrypoint: ./bin/zookeeper-server-start.sh
     command:
     - ./config/zookeeper.properties
 
   kafka:
-    image: solsson/kafka:2.1.0@sha256:ac3f06d87d45c7be727863f31e79fbfdcb9c610b51ba9cf03c75a95d602f15e1
+    image: solsson/kafka:2.1.1@sha256:8bc8242c649c395ab79d76cc83b1052e63b4efea7f83547bf11eb3ef5ea6f8e1
     links:
     - zookeeper
     entrypoint:
