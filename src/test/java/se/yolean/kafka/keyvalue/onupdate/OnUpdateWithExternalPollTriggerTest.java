@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.AsyncInvoker;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -182,6 +183,55 @@ class OnUpdateWithExternalPollTriggerTest {
     updates.checkCompletion();
     verify(completion, never()).onSuccess();
     verify(completion).onFailure();
+  }
+
+  @Test
+  public void testUnknownHostException() throws UnrecognizedOnupdateResult {
+    HttpTargetRequestInvoker invoker = mock(HttpTargetRequestInvoker.class);
+    OnUpdateWithExternalPollTrigger updates = new OnUpdateWithExternalPollTrigger(
+        DUMMY_INIT, -1, -1)
+        .addTarget(invoker, new MockResponseSuccessCriteria(), 0);
+
+    OnUpdate.Completion completion = mock(OnUpdate.Completion.class);
+    UpdateRecord update = new UpdateRecord("topic1", 0, 15, "key1");
+
+    MockRequest request = new MockRequest();
+    when(invoker.postUpdate(update)).thenReturn(request);
+    updates.handle(update, completion);
+
+    request.setThrow(
+        new java.util.concurrent.ExecutionException(
+            new javax.ws.rs.ProcessingException(
+                new java.net.UnknownHostException("some-service"))));
+
+    updates.checkCompletion();
+    verify(completion, never()).onSuccess();
+  }
+
+  @Test
+  public void testUnreconizedException() {
+    HttpTargetRequestInvoker invoker = mock(HttpTargetRequestInvoker.class);
+    OnUpdateWithExternalPollTrigger updates = new OnUpdateWithExternalPollTrigger(
+        DUMMY_INIT, -1, -1)
+        .addTarget(invoker, new MockResponseSuccessCriteria(), 0);
+
+    OnUpdate.Completion completion = mock(OnUpdate.Completion.class);
+    UpdateRecord update = new UpdateRecord("topic1", 0, 15, "key1");
+
+    MockRequest request = new MockRequest();
+    when(invoker.postUpdate(update)).thenReturn(request);
+    updates.handle(update, completion);
+
+    request.setThrow(
+        new java.util.concurrent.ExecutionException(
+            new Exception("some exception")));
+
+    try {
+      updates.checkCompletion();
+      fail("Should have thrown");
+    } catch (UnrecognizedOnupdateResult e) {
+      assertEquals("some exception", e.getCause().getMessage());
+    }
   }
 
 }

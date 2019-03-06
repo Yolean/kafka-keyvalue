@@ -12,6 +12,7 @@ import org.mockito.Mockito;
 public class MockRequest implements Future<Response> {
 
   private Response response = Mockito.mock(Response.class);
+  private ExecutionException getWillThrow = null;
 
   /**
    * Coupled to {@link MockResponseSuccessCriteria#isSuccess(Response)}.
@@ -39,17 +40,23 @@ public class MockRequest implements Future<Response> {
 
   @Override
   public boolean isDone() {
-    return response.getStatus() == 200 || response.getStatus() == 500;
+    return getWillThrow != null ||
+        response.getStatus() == 200 || response.getStatus() == 500;
   }
 
   @Override
   public Response get() throws InterruptedException, ExecutionException {
+    if (getWillThrow != null) throw getWillThrow;
     return response;
   }
 
   @Override
   public Response get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
     throw new UnsupportedOperationException("Not implemented");
+  }
+
+  public void setThrow(ExecutionException exception) {
+    this.getWillThrow = exception;
   }
 
 }

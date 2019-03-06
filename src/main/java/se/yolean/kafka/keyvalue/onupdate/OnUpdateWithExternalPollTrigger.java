@@ -15,6 +15,7 @@ import javax.ws.rs.core.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.prometheus.client.Counter;
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 
@@ -33,6 +34,10 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
 
   public static final ResponseSuccessCriteria DEFAULT_RESPONSE_SUCCESS_CRITERIA =
       new ResponseSuccessCriteriaStatus200or204();
+
+  static final Counter onUpdateRequestErrors = Counter.build()
+      .name("onupdate_request_errors").help("Onupdate failures, counts every attempt during retries")
+      .labelNames("type", "categorization").register();
 
   private List<Target> targets = new LinkedList<>();
 
@@ -129,12 +134,18 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
           if (httpError instanceof java.net.ConnectException) {
             // target server not responding ("Connection refused") is considered normal, we should retry etc
             logger.info("ConnectException for {}: {}", invocation, error.getMessage());
+            onUpdateRequestErrors.labels("http", "connection").inc();
+          } else if (httpError instanceof java.net.UnknownHostException) {
+            logger.warn("Onupdate hostname lookup failed: " + httpError.getMessage());
+            onUpdateRequestErrors.labels("http", "hostname").inc();
           } else {
             logger.warn("Unrecognized HTTP error for {}: {}", invocation, error.getMessage());
+            onUpdateRequestErrors.labels("http", "connection").inc();
           }
         } else {
           // TODO Currently this means that the onupdate will never be marked as completed, I think
           logger.error("Failed to recognize error {} from {}", error, invocation.request);
+          onUpdateRequestErrors.labels("http", "unknown").inc();
           throw new UnrecognizedOnupdateResult(error, invocation.invoker);
         }
         targets.addResult(result);
