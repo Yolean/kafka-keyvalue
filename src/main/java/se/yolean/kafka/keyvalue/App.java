@@ -1,12 +1,9 @@
 package se.yolean.kafka.keyvalue;
 
-import java.util.Collection;
-
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.Topology;
-import org.apache.kafka.streams.state.StreamsMetadata;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import se.yolean.kafka.keyvalue.healthz.ReadinessImpl;
 import se.yolean.kafka.keyvalue.healthz.StreamsStateListener;
@@ -58,12 +55,6 @@ public class App {
 
     metrics = new StreamsMetrics(streams.metrics());
     logger.info("Will follow metrics through {}", metrics);
-
-    // TODO this is a point-in-time view so to provide a metric of the number of instances we must poll
-    Collection<StreamsMetadata> allMetadata = streams.allMetadata();
-    if (allMetadata.size() > 1) {
-      throw new IllegalStateException("Currently we don't support multiple instances. Might lead to state being a subset. Metadata: " + allMetadata);
-    }
 
     Endpoints endpoints = new Endpoints(keyvalueUpdate);
     logger.info("Starting REST service with endpoints {}", endpoints);
