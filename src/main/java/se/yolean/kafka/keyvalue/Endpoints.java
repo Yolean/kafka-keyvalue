@@ -108,6 +108,7 @@ public class Endpoints implements RestResource {
         while (values.hasNext()) {
           out.write(values.next());
           out.write('\n');
+          out.flush();
         }
       }
     };
