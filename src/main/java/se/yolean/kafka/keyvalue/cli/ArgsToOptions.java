@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.streams.StreamsConfig;
 
 import net.sourceforge.argparse4j.ArgumentParsers;
@@ -180,6 +181,8 @@ public class ArgsToOptions implements CacheServiceOptions {
           props.put(pieces[0], pieces[1]);
         }
       }
+
+      //props.put(StreamsConfig.CONSUMER_PREFIX + ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
       props.put(StreamsConfig.APPLICATION_ID_CONFIG, applicationId);
       // For when we start to deal with metadata and replicas like in https://medium.com/bakdata/queryable-kafka-topics-with-kafka-streams-8d2cca9de33f

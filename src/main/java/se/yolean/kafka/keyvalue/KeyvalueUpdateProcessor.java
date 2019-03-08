@@ -1,5 +1,6 @@
 package se.yolean.kafka.keyvalue;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -12,6 +13,8 @@ import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.processor.PunctuationType;
+import org.apache.kafka.streams.processor.Punctuator;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
@@ -32,6 +35,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       .name("kkv_onupdate_completed_outoforder").help("On-update requests completed out of order with previous").register();
   static final Counter offsetsNotProcessed = Counter.build()
       .name("kkv_offsets_not_processed").help("The processor won't see null key messages, one reason to count gaps in the offset sequence").register();
+  static final Gauge keyCount = Gauge.build()
+      .name("kkv_keys").help("Total number of keys").register();
 
   private static final String SOURCE_NAME = "Source";
   private static final String PROCESSOR_NAME = "KeyvalueUpdate";
@@ -51,6 +56,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   private final Map<TopicPartition,Long> currentOffset = new HashMap<>(1);
 
   private final Map<TopicPartition,OnUpdateCompletionLogging> latestPending = new HashMap<>(1);
+
+  private Maintenance maintenance;
 
   public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate) {
 	  this.sourceTopicPattern = sourceTopic;
@@ -92,6 +99,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     logger.info("Init applicationId={}", context.applicationId());
     keepStateStore(context);
     this.context = context;
+    this.maintenance = new Maintenance();
+    context.schedule(maintenance.getInterval(), PunctuationType.WALL_CLOCK_TIME, maintenance);
   }
 
   @Override
@@ -191,6 +200,21 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       }
 
     };
+  }
+
+  private class Maintenance implements Punctuator {
+
+    final Duration interval = Duration.ofSeconds(10);
+
+    @Override
+    public void punctuate(long timestamp) {
+      keyCount.set(store.approximateNumEntries());
+    }
+
+    public Duration getInterval() {
+      return interval;
+    }
+
   }
 
   private static class OnUpdateCompletionLogging implements OnUpdate.Completion {
