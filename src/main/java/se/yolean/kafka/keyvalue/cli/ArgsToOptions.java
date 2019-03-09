@@ -9,7 +9,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Properties;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.streams.StreamsConfig;
 
 import net.sourceforge.argparse4j.ArgumentParsers;
@@ -37,6 +36,7 @@ public class ArgsToOptions implements CacheServiceOptions {
   private String applicationId;
   private Properties streamsProperties = null;
   private Integer startTimeoutSeconds = null;
+  private boolean standalone = false;
 
   private OnUpdateWithExternalPollTrigger onupdate;
 
@@ -133,6 +133,18 @@ public class ArgsToOptions implements CacheServiceOptions {
             + " Useful because Streams' kafka client has retries but failure conditions like missing source topic don't."
             + " Set to >0 to enable a check after this many seconds.");
 
+    parser.addArgument("--standalone")
+        .action(store())
+        .required(false)
+        .type(Boolean.class)
+        .metavar("STANDALONE")
+        .setDefault(false)
+        .help("Runs in standalone mode, i.e. no sharding:"
+            + " To accomplish this we append hostname + timestamp to the application-id."
+            + " We also disable the use of changelog topic,"
+            + " so the only trace of the application on brokers is a consumer offset."
+            + " (cleaning up from transient instances using kafka-streams-application-reset.sh would be impractical)");
+
     return parser;
   }
 
@@ -162,6 +174,8 @@ public class ArgsToOptions implements CacheServiceOptions {
       onupdateRetries = res.getInt("onupdateRetries");
 
       startTimeoutSeconds = res.getInt("starttimeout");
+
+      standalone = res.getBoolean("standalone");
 
       if (streamsProps == null && streamsConfig == null) {
         throw new ArgumentParserException("Either --streams-props or --streams.config must be specified.", parser);
@@ -239,6 +253,11 @@ public class ArgsToOptions implements CacheServiceOptions {
 
   OnUpdateWithExternalPollTrigger getOnUpdateImpl() {
     return this.onupdate;
+  }
+
+  @Override
+  public boolean getStandalone() {
+    return this.standalone;
   }
 
 }

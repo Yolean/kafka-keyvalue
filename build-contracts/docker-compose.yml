@@ -70,15 +70,14 @@ services:
     ports:
     - 19081:19081
     command:
+    - --standalone
+    - --application-id
+    -   kv-001-
     - --port
     -   '19081'
     - --streams-props
     -   bootstrap.servers=kafka:9092
     -   num.standby.replicas=0
-    - --hostname
-    -   cache1
-    - --application-id
-    -   kv-001
     - --topic
     -   topic1
     - --onupdate
@@ -133,3 +132,53 @@ services:
     command:
     # By design the cache service deals with a single topic, meaning that tests probably can't run concurrently
     - --runInBand
+
+  cache2-01:
+    depends_on:
+    - kafka
+    - topic2-create
+    image: yolean/kafka-keyvalue:dev
+    expose:
+    - '19082'
+    command:
+    - --port
+    -   '19082'
+    - --streams-props
+    -   bootstrap.servers=kafka:9092
+    # Not sure how to do this in docker-compose
+    #-   num.standby.replicas=1
+    - --hostname
+    -   cache2-01
+    - --application-id
+    -   kv-002
+    - --topic
+    -   topic2
+    - --onupdate
+    -   http://onupdate-logging:8080/sharded/01
+    - --starttimeout
+    -   '25'
+
+  cache2-02:
+    depends_on:
+    - kafka
+    - topic2-create
+    image: yolean/kafka-keyvalue:dev
+    expose:
+    - '19083'
+    command:
+    - --port
+    -   '19083'
+    - --streams-props
+    -   bootstrap.servers=kafka:9092
+    # Not sure how to do this in docker-compose
+    #-   num.standby.replicas=1
+    - --hostname
+    -   cache2-02
+    - --application-id
+    -   kv-002
+    - --topic
+    -   topic2
+    - --onupdate
+    -   http://onupdate-logging:8080/sharded/02
+    - --starttimeout
+    -   '25'
