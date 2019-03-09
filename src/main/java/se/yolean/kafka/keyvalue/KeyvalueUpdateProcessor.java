@@ -69,11 +69,17 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   private final Map<TopicPartition,OnUpdateCompletionLogging> latestPending = new HashMap<>(1);
 
   private Maintenance maintenance;
+  private boolean standalone;
 
   public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate) {
-	  this.sourceTopicPattern = sourceTopic;
-	  this.onUpdate = onUpdate;
+	  this(sourceTopic, onUpdate, false);
 	}
+
+  public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate, boolean standalone) {
+    this.sourceTopicPattern = sourceTopic;
+    this.onUpdate = onUpdate;
+    this.standalone = standalone;
+  }
 
   private void configureStateStore(String name) {
     storeBuilder = Stores.keyValueStoreBuilder(
@@ -82,7 +88,12 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       Serdes.ByteArray()
     );
     // investigate https://github.com/Yolean/kafka-keyvalue/issues/24
-    storeBuilder.withLoggingDisabled();
+    if (standalone) {
+      logger.info("Running in standalone mode. Disables changelog, i.e. fault tolerance and stand-by replicas.");
+      storeBuilder.withLoggingDisabled();
+      logger.info("Also disabling \"caching\" because we haven't evaluated its effects");
+      storeBuilder.withCachingDisabled();
+    }
   }
 
 	@Override

@@ -35,8 +35,10 @@ public class App {
 
     KeyvalueUpdate keyvalueUpdate = new KeyvalueUpdateProcessor(
         options.getTopicName(),
-        options.getOnUpdate());
-    logger.info("Processor created");
+        options.getOnUpdate(),
+        options.getStandalone());
+    logger.info("Processor created, standalone={} application-id={} input-topic={}",
+        options.getStandalone(), options.getApplicationId(), options.getTopicName());
 
     Topology topology = keyvalueUpdate.getTopology();
     logger.info("Topology created, starting Streams using {} custom props",
