@@ -30,9 +30,13 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   static final Gauge onUpdatePending = Gauge.build()
       .name("kkv_onupdate_pending").help("On-update instances created but not marked completed").register();
   static final Counter onUpdateCompleted = Counter.build()
-      .name("kkv_onupdate_completed").help("Total on-update requests completed").register();
+      .name("kkv_onupdate_completed").help("Total on-update requests completed (after retries)").register();
   static final Counter onUpdateCompletedOutOfOrder = Counter.build()
       .name("kkv_onupdate_completed_outoforder").help("On-update requests completed out of order with previous").register();
+  static final Counter onUpdateSucceeded = Counter.build()
+      .name("kkv_onupdate_succeeded").help("Total on-update requests succeeded (after retries)").register();
+  static final Counter onUpdateFailed = Counter.build()
+      .name("kkv_onupdate_failed").help("Total on-update requests failed (after retries)").register();
   static final Counter offsetsNotProcessed = Counter.build()
       .name("kkv_offsets_not_processed").help("The processor won't see null key messages, so we count gaps in the offset sequence"
           + ". But note that kafka offsets are not guaranteed to be sequencial: https://stackoverflow.com/a/54637004").register();
@@ -267,12 +271,14 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     public void onSuccess() {
       onAny();
       logger.debug("On-update completed for {}", record);
+      onUpdateSucceeded.inc();
     }
 
     @Override
     public void onFailure() {
       onAny();
       logger.warn("On-update failed for {}", record);
+      onUpdateFailed.inc();
     }
 
   }

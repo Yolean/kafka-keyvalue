@@ -16,7 +16,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.prometheus.client.Counter;
-import se.yolean.kafka.keyvalue.KeyvalueUpdateProcessor;
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 
@@ -35,14 +34,6 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
 
   public static final ResponseSuccessCriteria DEFAULT_RESPONSE_SUCCESS_CRITERIA =
       new ResponseSuccessCriteriaStatus200or204();
-
-  /**
-   * Was meant to complement kkv_onupdate_completed in {@link KeyvalueUpdateProcessor}
-   * but maybe we don't need it now after {@link #onupdateResults} was introduced.
-   */
-  static final Counter onupdateRequestErrors = Counter.build()
-      .name("kkv_onupdate_request_errors").help("Onupdate failures, counts every attempt during retries")
-      .labelNames("type", "categorization").register();
 
   /**
    * The target label here is potentially very long strings, but let's see how that works.
@@ -141,7 +132,6 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
             throw new IllegalStateException("Failed to get response after isDone returned true, no cause given", e);
           }
           error = e.getCause();
-          onupdateResults.labels(invocation.invoker.toString(), "", e.getClass().getSimpleName()).inc();
         }
         boolean result = false;
         if (error == null) {
@@ -149,21 +139,20 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
           if (!result) logger.info("Update request failure for {}: {}", invocation, response);
         } else if (error instanceof javax.ws.rs.ProcessingException) {
           Throwable httpError = error.getCause();
-          if (httpError instanceof java.net.ConnectException) {
+          if (httpError == null) {
+            throw new IllegalStateException("Got JAX-RS processing exception without a cause", error);
+          } else if (httpError instanceof java.net.ConnectException) {
             // target server not responding ("Connection refused") is considered normal, we should retry etc
             logger.info("ConnectException for {}: {}", invocation, error.getMessage());
-            onupdateRequestErrors.labels("http", "connection").inc();
           } else if (httpError instanceof java.net.UnknownHostException) {
             logger.warn("Onupdate hostname lookup failed: " + httpError.getMessage());
-            onupdateRequestErrors.labels("http", "hostname").inc();
           } else {
             logger.warn("Unrecognized HTTP error for {}: {}", invocation, error.getMessage());
-            onupdateRequestErrors.labels("http", "connection").inc();
           }
+          onupdateResults.labels(invocation.invoker.toString(), "", httpError.getClass().getSimpleName()).inc();
         } else {
-          // TODO Currently this means that the onupdate will never be marked as completed, I think
+          // TODO Currently this means that the onupdate will never be marked as completed, maybe
           logger.error("Failed to recognize error {} from {}", error, invocation.request);
-          onupdateRequestErrors.labels("http", "unknown").inc();
           throw new UnrecognizedOnupdateResult(error, invocation.invoker);
         }
         targets.addResult(result);
