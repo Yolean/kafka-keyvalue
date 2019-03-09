@@ -34,7 +34,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   static final Counter onUpdateCompletedOutOfOrder = Counter.build()
       .name("kkv_onupdate_completed_outoforder").help("On-update requests completed out of order with previous").register();
   static final Counter offsetsNotProcessed = Counter.build()
-      .name("kkv_offsets_not_processed").help("The processor won't see null key messages, one reason to count gaps in the offset sequence").register();
+      .name("kkv_offsets_not_processed").help("The processor won't see null key messages, so we count gaps in the offset sequence"
+          + ". But note that kafka offsets are not guaranteed to be sequencial: https://stackoverflow.com/a/54637004").register();
   static final Gauge keyCount = Gauge.build()
       .name("kkv_keys").help("Total number of keys").register();
 
