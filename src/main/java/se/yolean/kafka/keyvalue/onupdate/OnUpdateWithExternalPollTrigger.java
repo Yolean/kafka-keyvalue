@@ -16,6 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.prometheus.client.Counter;
+import se.yolean.kafka.keyvalue.KeyvalueUpdateProcessor;
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 
@@ -35,9 +36,24 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
   public static final ResponseSuccessCriteria DEFAULT_RESPONSE_SUCCESS_CRITERIA =
       new ResponseSuccessCriteriaStatus200or204();
 
-  static final Counter onUpdateRequestErrors = Counter.build()
+  /**
+   * Was meant to complement kkv_onupdate_completed in {@link KeyvalueUpdateProcessor}
+   * but maybe we don't need it now after {@link #onupdateResults} was introduced.
+   */
+  static final Counter onupdateRequestErrors = Counter.build()
       .name("kkv_onupdate_request_errors").help("Onupdate failures, counts every attempt during retries")
       .labelNames("type", "categorization").register();
+
+  /**
+   * The target label here is potentially very long strings, but let's see how that works.
+   * Could probably be shortened while still being recognizable.
+   */
+  static final Counter onupdateResults = Counter.build()
+      .name("kkv_onupdate_results")
+      .labelNames("target", "status", "error")
+      .help("All responses recorded by http status OR java exception, target URL")
+      .register();
+
 
   private List<Target> targets = new LinkedList<>();
 
@@ -117,6 +133,7 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
         Throwable error = null;
         try {
           response = invocation.request.get();
+          onupdateResults.labels(invocation.invoker.toString(), Integer.toString(response.getStatus()), "").inc();
         } catch (InterruptedException e) {
           throw new IllegalStateException("Got interrupted in an operation that should have been synchronous after isDone returned true", e);
         } catch (ExecutionException e) {
@@ -124,6 +141,7 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
             throw new IllegalStateException("Failed to get response after isDone returned true, no cause given", e);
           }
           error = e.getCause();
+          onupdateResults.labels(invocation.invoker.toString(), "", e.getClass().getSimpleName()).inc();
         }
         boolean result = false;
         if (error == null) {
@@ -134,18 +152,18 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
           if (httpError instanceof java.net.ConnectException) {
             // target server not responding ("Connection refused") is considered normal, we should retry etc
             logger.info("ConnectException for {}: {}", invocation, error.getMessage());
-            onUpdateRequestErrors.labels("http", "connection").inc();
+            onupdateRequestErrors.labels("http", "connection").inc();
           } else if (httpError instanceof java.net.UnknownHostException) {
             logger.warn("Onupdate hostname lookup failed: " + httpError.getMessage());
-            onUpdateRequestErrors.labels("http", "hostname").inc();
+            onupdateRequestErrors.labels("http", "hostname").inc();
           } else {
             logger.warn("Unrecognized HTTP error for {}: {}", invocation, error.getMessage());
-            onUpdateRequestErrors.labels("http", "connection").inc();
+            onupdateRequestErrors.labels("http", "connection").inc();
           }
         } else {
           // TODO Currently this means that the onupdate will never be marked as completed, I think
           logger.error("Failed to recognize error {} from {}", error, invocation.request);
-          onUpdateRequestErrors.labels("http", "unknown").inc();
+          onupdateRequestErrors.labels("http", "unknown").inc();
           throw new UnrecognizedOnupdateResult(error, invocation.invoker);
         }
         targets.addResult(result);
