@@ -182,8 +182,6 @@ public class ArgsToOptions implements CacheServiceOptions {
         }
       }
 
-      //props.put(StreamsConfig.CONSUMER_PREFIX + ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-
       props.put(StreamsConfig.APPLICATION_ID_CONFIG, applicationId);
       // For when we start to deal with metadata and replicas like in https://medium.com/bakdata/queryable-kafka-topics-with-kafka-streams-8d2cca9de33f
       //props.put(StreamsConfig.APPLICATION_SERVER_CONFIG, hostName + ":" + port);
