@@ -36,6 +36,9 @@ public class ArgsToOptions implements CacheServiceOptions {
   public static final String STANDALONE_MODE_APPLICATION_ID_TIMESTAMP =
       new TimestampFormatter().format(System.currentTimeMillis());
 
+  public static final String HOSTNAME_ENV = "HOSTNAME";
+  public final String CURRENT_HOSTNAME;
+
   private String topicName = null;
   private Integer port = null;
   private String applicationId;
@@ -90,8 +93,9 @@ public class ArgsToOptions implements CacheServiceOptions {
         .required(false)
         .type(String.class)
         .metavar("HOSTNAME")
-        .setDefault("localhost")
-        .help("Not used at the moment, kept for CLI compatibility with https://github.com/bakdata/kafka-key-value-store");
+        .help("In standalone mode: appended to application ID, otherwise used for instance metadata at sharding"
+            + " i.e. how other instances will find this instance over HTTP."
+            + " Defaults to the value of the HOSTNAME environment variable.");
 
     parser.addArgument("--port")
         .action(store())
@@ -154,9 +158,9 @@ public class ArgsToOptions implements CacheServiceOptions {
   }
 
   public ArgsToOptions(String[] args) {
+    CURRENT_HOSTNAME = System.getenv(HOSTNAME_ENV);
 
-    @SuppressWarnings("unused") // kept for forward compatibility
-    String hostName = null;
+    String hostname = null;
     Properties props = new Properties();
 
     List<String> onupdateUrls = null;
@@ -169,7 +173,7 @@ public class ArgsToOptions implements CacheServiceOptions {
       Namespace res = parser.parseArgs(args);
 
       topicName = res.getString("topic");
-      hostName = res.getString("hostname");
+      hostname = res.getString("hostname");
       port = res.getInt("port");
       applicationId = res.getString("applicationId");
       List<String> streamsProps = res.getList("streamsConfig");
@@ -181,6 +185,11 @@ public class ArgsToOptions implements CacheServiceOptions {
       startTimeoutSeconds = res.getInt("starttimeout");
 
       standalone = res.getBoolean("standalone");
+
+      if (hostname == null) hostname = CURRENT_HOSTNAME;
+      if (hostname == null || hostname.length() == 0) {
+        throw new ArgumentParserException("Hostname is empty, set --hostname or env: " + HOSTNAME_ENV, parser);
+      }
 
       if (streamsProps == null && streamsConfig == null) {
         throw new ArgumentParserException("Either --streams-props or --streams.config must be specified.", parser);
@@ -202,7 +211,7 @@ public class ArgsToOptions implements CacheServiceOptions {
       }
 
       if (standalone) {
-        applicationId = applicationId.concat(hostName).concat("-").concat(STANDALONE_MODE_APPLICATION_ID_TIMESTAMP);
+        applicationId = applicationId.concat(hostname).concat("-").concat(STANDALONE_MODE_APPLICATION_ID_TIMESTAMP);
       }
 
       props.put(StreamsConfig.APPLICATION_ID_CONFIG, applicationId);

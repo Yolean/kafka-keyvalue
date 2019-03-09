@@ -48,6 +48,7 @@ class ArgsToOptionsTest {
   void testOnupdateMany() {
     String args = "--port 19082"
         + " --streams-props bootstrap.servers=localhost:19092"
+        + " --hostname mypod-abcde"
         + " --topic topic2"
         + " --application-id kv-test1-001"
         + " --onupdate http://127.0.0.1:8081/updated http://127.0.0.1:8082/updates"
