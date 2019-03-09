@@ -1,10 +1,10 @@
 package se.yolean.kafka.keyvalue.cli;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -66,6 +66,25 @@ class ArgsToOptionsTest {
       }
     };
     assertNotNull(options.getOnUpdate());
+    assertFalse(options.getStandalone());
+  }
+
+  @Test
+  void testStandalone() {
+    String args = "--standalone"
+        + " --hostname pod-12345678-abcde"
+        + " --application-id kv-"
+        + " --streams-props bootstrap.servers=bootstrap.kafka:9092"
+        + " --topic topic3"
+        + " --onupdate http://myservice/updates";
+    CacheServiceOptions options = new ArgsToOptions(args.split("\\s+"));
+    assertTrue(options.getStandalone());
+    assertTrue(options.getApplicationId().length() > 22,
+        "Standalone mode should append to application id");
+    assertEquals("kv-pod-12345678-abcde-", options.getApplicationId().substring(0, 22),
+        "Standalone mode should append hostname and timestamp to application id");
+    assertTrue(Pattern.matches(".*-abcde-20[0-9]{6}t[0-1][0-9]{5}$", options.getApplicationId()),
+        "Timestamp should be around now, got " + options.getApplicationId());
   }
 
 }

@@ -1,6 +1,7 @@
 package se.yolean.kafka.keyvalue.cli;
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
+import static net.sourceforge.argparse4j.impl.Arguments.storeTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,6 +18,7 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 import se.yolean.kafka.keyvalue.CacheServiceOptions;
 import se.yolean.kafka.keyvalue.OnUpdate;
+import se.yolean.kafka.keyvalue.TimestampFormatter;
 import se.yolean.kafka.keyvalue.onupdate.OnUpdateWithExternalPollTrigger;
 
 public class ArgsToOptions implements CacheServiceOptions {
@@ -30,6 +32,9 @@ public class ArgsToOptions implements CacheServiceOptions {
    * {@value #DEFAULT_ONUPDATE_RETRIES}
    */
   public static final int DEFAULT_ONUPDATE_RETRIES = 0;
+
+  public static final String STANDALONE_MODE_APPLICATION_ID_TIMESTAMP =
+      new TimestampFormatter().format(System.currentTimeMillis());
 
   private String topicName = null;
   private Integer port = null;
@@ -134,7 +139,7 @@ public class ArgsToOptions implements CacheServiceOptions {
             + " Set to >0 to enable a check after this many seconds.");
 
     parser.addArgument("--standalone")
-        .action(store())
+        .action(storeTrue())
         .required(false)
         .type(Boolean.class)
         .metavar("STANDALONE")
@@ -194,6 +199,10 @@ public class ArgsToOptions implements CacheServiceOptions {
             throw new IllegalArgumentException("Invalid property: " + prop);
           props.put(pieces[0], pieces[1]);
         }
+      }
+
+      if (standalone) {
+        applicationId = applicationId.concat(hostName).concat("-").concat(STANDALONE_MODE_APPLICATION_ID_TIMESTAMP);
       }
 
       props.put(StreamsConfig.APPLICATION_ID_CONFIG, applicationId);
