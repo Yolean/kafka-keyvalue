@@ -81,6 +81,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       Serdes.String(),
       Serdes.ByteArray()
     );
+    // investigate https://github.com/Yolean/kafka-keyvalue/issues/24
+    storeBuilder.withLoggingDisabled();
   }
 
 	@Override
