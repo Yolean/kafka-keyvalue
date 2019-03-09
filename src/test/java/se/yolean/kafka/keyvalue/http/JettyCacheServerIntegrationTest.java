@@ -15,6 +15,7 @@ import org.mockito.Mockito;
 
 import se.yolean.kafka.keyvalue.CacheServiceOptions;
 import se.yolean.kafka.keyvalue.KafkaCache;
+import se.yolean.kafka.keyvalue.Readiness;
 
 class JettyCacheServerIntegrationTest {
 
@@ -43,14 +44,14 @@ class JettyCacheServerIntegrationTest {
   void testSameSetupAsInApp() {
     CacheServiceOptions options = Mockito.mock(CacheServiceOptions.class);
     Mockito.when(options.getPort()).thenReturn(port);
-    KafkaCache cache = Mockito.mock(KafkaCache.class);
+    Readiness readiness = Mockito.mock(Readiness.class);
     TestEndpoints endpoints = new TestEndpoints();
     server = new ConfigureRest()
         .createContext(options.getPort(), "/")
         .registerResourceClass(org.glassfish.jersey.jackson.JacksonFeature.class)
         .registerResourceInstance(endpoints)
         .asServlet()
-        .addCustomServlet(new ReadinessServlet(cache), "/ready")
+        .addCustomServlet(new ReadinessServlet(readiness), "/healthz")
         .create();
     server.start();
 
@@ -61,12 +62,12 @@ class JettyCacheServerIntegrationTest {
     Response r2 = client.target(root + "/cache/v1/null").request().get();
     assertEquals(404, r2.getStatus());
 
-    Mockito.when(cache.isReady()).thenReturn(false);
-    Response unready = client.target(root + "/ready").request().get();
-    assertEquals(412, unready.getStatus());
-    Mockito.when(cache.isReady()).thenReturn(true);
-    Response ready = client.target(root + "/ready").request().get();
-    assertEquals(204, ready.getStatus());
+    Mockito.when(readiness.isAppReady()).thenReturn(false);
+    Response unready = client.target(root + "/healthz").request().get();
+    assertEquals(500, unready.getStatus());
+    Mockito.when(readiness.isAppReady()).thenReturn(true);
+    Response ready = client.target(root + "/healthz").request().get();
+    assertEquals(200, ready.getStatus());
   }
 
 }

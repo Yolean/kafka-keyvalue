@@ -67,7 +67,7 @@ public class App {
         .registerResourceInstance(endpoints)
         .asServlet()
         .addCustomServlet(metricsServlet, "/metrics")
-        .addCustomServlet(new ReadinessServlet(keyvalueUpdate), "/ready")
+        .addCustomServlet(new ReadinessServlet(readiness), "/healthz")
         .create();
     logger.info("REST server created {}", server);
 
