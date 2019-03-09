@@ -8,9 +8,14 @@ import javax.servlet.http.HttpServletResponse;
 
 import io.prometheus.client.exporter.MetricsServlet;
 
+/**
+ * {@value #ENDPOINT_PATH}
+ */
 public class PrometheusMetricsServlet extends MetricsServlet {
 
   private static final long serialVersionUID = 1L;
+
+  public static final String ENDPOINT_PATH = "/metrics";
 
   private StreamsMetrics streamsMetrics;
 

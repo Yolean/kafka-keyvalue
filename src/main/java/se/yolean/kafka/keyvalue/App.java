@@ -66,8 +66,8 @@ public class App {
         .registerResourceClass(org.glassfish.jersey.jackson.JacksonFeature.class)
         .registerResourceInstance(endpoints)
         .asServlet()
-        .addCustomServlet(metricsServlet, "/metrics")
-        .addCustomServlet(new ReadinessServlet(readiness), "/healthz")
+        .addCustomServlet(metricsServlet, PrometheusMetricsServlet.ENDPOINT_PATH)
+        .addCustomServlet(new ReadinessServlet(readiness), ReadinessServlet.ENDPOINT_PATH)
         .create();
     logger.info("REST server created {}", server);
 

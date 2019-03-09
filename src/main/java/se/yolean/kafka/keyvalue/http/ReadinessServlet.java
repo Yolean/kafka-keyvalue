@@ -12,8 +12,12 @@ import se.yolean.kafka.keyvalue.Readiness;
 
 /**
  * Based on the example in https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#define-a-liveness-http-request
+ *
+ * Path: {@value #ENDPOINT_PATH}
  */
 public class ReadinessServlet extends HttpServlet {
+
+  public static final String ENDPOINT_PATH = "/healthz";
 
   public static final String READINESS_CONTENT_TYPE = "application/json";
   public static final byte[] READY_JSON = "{\"ready\":true}".getBytes();
