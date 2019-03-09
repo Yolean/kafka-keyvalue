@@ -34,7 +34,7 @@ sourceCompatibility = 1.11
 
 jib {
   from {
-    image = 'gcr.io/distroless/java@sha256:31d5dfbf339e09dd31524dc301df29ac066744bad5a89a20ffa582e33d01e998'
+    image = 'gcr.io/distroless/java@sha256:88fdffe400f1b0087b53f21f4fa28a3f34eeb16605786f77635b713ab7719d79'
   }
   to {
     image = 'yolean/kafka-keyvalue'
