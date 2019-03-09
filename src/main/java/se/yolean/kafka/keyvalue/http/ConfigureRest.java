@@ -34,6 +34,7 @@ public class ConfigureRest {
       public Servlets addCustomServlet(HttpServlet servlet, String pathSpec) {
         ServletHolder holder = new ServletHolder(servlet);
         context.addServlet(holder, pathSpec);
+        logger.info("Added custom servlet with pathSpec {}: {}", pathSpec, servlet);
         return this;
       }
 
@@ -58,7 +59,7 @@ public class ConfigureRest {
         // https://stackoverflow.com/a/50269323
         // https://github.com/eclipse-ee4j/jersey/issues/3700
         resourceConfig.register(component);
-        logger.debug("Registered resource component {}", component);
+        logger.info("Registered resource component {}", component);
         return this;
       }
 
@@ -67,7 +68,7 @@ public class ConfigureRest {
         ServletContainer sc = new ServletContainer(resourceConfig);
         ServletHolder holder = new ServletHolder(sc);
         context.addServlet(holder, RESOURCE_SERVLET_PATHSPEC);
-        logger.debug("Added REST servlet with pathSpec {}", RESOURCE_SERVLET_PATHSPEC);
+        logger.info("Added REST servlet with pathSpec {}", RESOURCE_SERVLET_PATHSPEC);
         return servlets;
       }
 

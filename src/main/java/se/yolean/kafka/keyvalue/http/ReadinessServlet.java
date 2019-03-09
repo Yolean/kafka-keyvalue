@@ -22,41 +22,49 @@ public class ReadinessServlet extends HttpServlet {
   public static final String READINESS_CONTENT_TYPE = "application/json";
   public static final byte[] READY_JSON = "{\"ready\":true}".getBytes();
   public static final byte[] UNREADY_JSON = "{\"ready\":false}".getBytes();
+  public static final byte[] NULL_JSON = "{\"ready\":undefined}".getBytes();
 
   private static final long serialVersionUID = 1L;
 
   private Readiness readiness;
 
-  public ReadinessServlet(Readiness readiness) {
-    this.readiness = readiness;
+  public ReadinessServlet() {
   }
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-    doHead(req, resp);
+    if (readiness == null) {
+      respond(resp, 503, NULL_JSON);
+    } else if (readiness.isAppReady()) {
+      respond(resp, 200, READY_JSON);
+    } else {
+      respond(resp, 500, UNREADY_JSON);
+    }
   }
 
   @Override
   protected void doHead(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
     if (readiness == null) {
-      resp.sendError(503);
-      return;
-    }
-    if (readiness.isAppReady()) {
+      resp.setStatus(503);
+    } else if (readiness.isAppReady()) {
       resp.setStatus(200);
-      resp.setContentLength(READY_JSON.length);
-      resp.setContentType(READINESS_CONTENT_TYPE);
-      ServletOutputStream body = resp.getOutputStream();
-      body.write(READY_JSON);
-      body.close();
     } else {
       resp.setStatus(500);
-      resp.setContentLength(UNREADY_JSON.length);
-      resp.setContentType(READINESS_CONTENT_TYPE);
-      ServletOutputStream body = resp.getOutputStream();
-      body.write(UNREADY_JSON);
-      body.close();
     }
+  }
+
+  private void respond(HttpServletResponse resp, int status, byte[] body) throws IOException {
+    resp.setStatus(status);
+    resp.setContentType(READINESS_CONTENT_TYPE);
+    resp.setContentLength(body.length);
+    ServletOutputStream out = resp.getOutputStream();
+    out.write(body);
+    out.close();
+  }
+
+  public HttpServlet setReadiness(Readiness readiness) {
+    this.readiness = readiness;
+    return this;
   }
 
 }

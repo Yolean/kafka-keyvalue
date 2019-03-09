@@ -51,7 +51,7 @@ class JettyCacheServerIntegrationTest {
         .registerResourceClass(org.glassfish.jersey.jackson.JacksonFeature.class)
         .registerResourceInstance(endpoints)
         .asServlet()
-        .addCustomServlet(new ReadinessServlet(readiness), "/healthz")
+        .addCustomServlet(new ReadinessServlet().setReadiness(readiness), "/healthz")
         .create();
     server.start();
 

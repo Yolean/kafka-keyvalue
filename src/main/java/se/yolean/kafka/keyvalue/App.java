@@ -60,6 +60,7 @@ public class App {
     logger.info("Starting REST service with endpoints {}", endpoints);
 
     PrometheusMetricsServlet metricsServlet = new PrometheusMetricsServlet(metrics);
+    ReadinessServlet readinessServlet = new ReadinessServlet();
 
     CacheServer server = new ConfigureRest()
         .createContext(options.getPort(), "/")
@@ -67,7 +68,7 @@ public class App {
         .registerResourceInstance(endpoints)
         .asServlet()
         .addCustomServlet(metricsServlet, PrometheusMetricsServlet.ENDPOINT_PATH)
-        .addCustomServlet(new ReadinessServlet(readiness), ReadinessServlet.ENDPOINT_PATH)
+        .addCustomServlet(readinessServlet, ReadinessServlet.ENDPOINT_PATH)
         .create();
     logger.info("REST server created {}", server);
 
@@ -87,6 +88,8 @@ public class App {
             logger.error("REST server shutdown failed", e);
           }
         });
+
+    readinessServlet.setReadiness(readiness);
   }
 
   public Readiness getReadiness() {
