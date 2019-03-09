@@ -107,9 +107,9 @@ services:
       curl --ipv4 --retry 5 --retry-connrefused -H 'User-Agent: curl-based-kafka-keyvalue-smoketest' http://onupdate-logging:8080/
       curl --ipv4 --retry 5 --retry-connrefused http://pixy:19090 -I
       curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081 -I
-      curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/healthz -f
       curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/metrics -f | grep consumer_metrics | grep incoming_byte_total
       curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/metrics -f | grep ^kkv_
+      curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/healthz -f
       curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/cache/v1/raw/smoketest1 -I
       curl --ipv4 --retry 5 --retry-connrefused http://pixy:19090/topics -f | grep topic1
       curl --ipv4 -d '{"x":1}' -H 'Content-Type: application/json' 'http://pixy:19090/topics/topic1/messages?key=smoketest1' -f
