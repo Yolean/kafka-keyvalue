@@ -2,8 +2,8 @@ package se.yolean.kafka.keyvalue;
 
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.Topology;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import se.yolean.kafka.keyvalue.healthz.ReadinessImpl;
 import se.yolean.kafka.keyvalue.healthz.StreamsStateListener;
@@ -27,7 +27,7 @@ public class App {
 
   /**
    * Start a streams app with REST server and return control to the caller.
-   * @see #doWhateverRegularMaintenance()
+   * @see #getReadiness()
    * @param options well, options
    */
   public App(CacheServiceOptions options) {

@@ -6,7 +6,7 @@ public interface KafkaCache {
 
   /**
    * @return false if anything on the processor side indicates unreadiness
-   * @see Readiness#isStreamsReady()
+   * @see Readiness#isAppReady()
    */
   boolean isReady();
 

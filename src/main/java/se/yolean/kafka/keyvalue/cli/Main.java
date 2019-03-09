@@ -6,6 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import se.yolean.kafka.keyvalue.App;
 import se.yolean.kafka.keyvalue.CacheServiceOptions;
 import se.yolean.kafka.keyvalue.Readiness;
+import se.yolean.kafka.keyvalue.metrics.MetricsPrint;
 import se.yolean.kafka.keyvalue.onupdate.OnUpdateWithExternalPollTrigger;
 import se.yolean.kafka.keyvalue.onupdate.UnrecognizedOnupdateResult;
 
@@ -16,6 +17,8 @@ public class Main {
   private static final int POLL_INTERVAL = 1000;
 
   private static long prevpollstart = 0;
+
+  private static MetricsPrint metricsPrint = new MetricsPrint();
 
   public static void main(String[] args) {
     ArgsToOptions options = new ArgsToOptions(args);
@@ -55,6 +58,8 @@ public class Main {
       }
       if (options.getStartTimeoutSecods() > 0
           && System.currentTimeMillis() - appStartTime > options.getStartTimeoutSecods() * 1000) {
+        logger.info("Printing metrics, as they're used as basis for the decision to retry.");
+        metricsPrint.printAll(System.out);
         logger.error("No sign of success for app start. Shutting down to retry.");
         app.shutdown();
         return false;

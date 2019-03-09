@@ -1,5 +1,6 @@
 package se.yolean.kafka.keyvalue;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -12,6 +13,8 @@ import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.processor.PunctuationType;
+import org.apache.kafka.streams.processor.Punctuator;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
@@ -24,14 +27,21 @@ import io.prometheus.client.Gauge;
 
 public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String, byte[]> {
 
-  static final Gauge onUpdatePending = Gauge.build()
-      .name("onupdate_pending").help("On-update instances created but not marked completed").register();
-  static final Counter onUpdateCompleted = Counter.build()
-      .name("onupdate_completed").help("Total on-update requests completed").register();
-  static final Counter onUpdateCompletedOutOfOrder = Counter.build()
-      .name("onupdate_completed_outoforder").help("On-update requests completed out of order with previous").register();
+  static final Gauge onupdatePending = Gauge.build()
+      .name("kkv_onupdate_pending").help("On-update instances created but not marked completed").register();
+  static final Counter onupdateCompleted = Counter.build()
+      .name("kkv_onupdate_completed").help("Total on-update requests completed (after retries)").register();
+  static final Counter onupdateCompletedOutOfOrder = Counter.build()
+      .name("kkv_onupdate_completed_outoforder").help("On-update requests completed out of order with previous").register();
+  static final Counter onupdateSucceeded = Counter.build()
+      .name("kkv_onupdate_succeeded").help("Total on-update requests succeeded (after retries)").register();
+  static final Counter onupdateFailed = Counter.build()
+      .name("kkv_onupdate_failed").help("Total on-update requests failed (after retries)").register();
   static final Counter offsetsNotProcessed = Counter.build()
-      .name("offsets_not_processed").help("The processor won't see null key messages, one reason to count gaps in the offset sequence").register();
+      .name("kkv_offsets_not_processed").help("The processor won't see null key messages, so we count gaps in the offset sequence"
+          + ". But note that kafka offsets are not guaranteed to be sequencial: https://stackoverflow.com/a/54637004").register();
+  static final Gauge keyCount = Gauge.build()
+      .name("kkv_keys").help("Total number of keys").register();
 
   private static final String SOURCE_NAME = "Source";
   private static final String PROCESSOR_NAME = "KeyvalueUpdate";
@@ -51,6 +61,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   private final Map<TopicPartition,Long> currentOffset = new HashMap<>(1);
 
   private final Map<TopicPartition,OnUpdateCompletionLogging> latestPending = new HashMap<>(1);
+
+  private Maintenance maintenance;
 
   public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate) {
 	  this.sourceTopicPattern = sourceTopic;
@@ -92,6 +104,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     logger.info("Init applicationId={}", context.applicationId());
     keepStateStore(context);
     this.context = context;
+    this.maintenance = new Maintenance();
+    context.schedule(maintenance.getInterval(), PunctuationType.WALL_CLOCK_TIME, maintenance);
   }
 
   @Override
@@ -193,6 +207,21 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     };
   }
 
+  private class Maintenance implements Punctuator {
+
+    final Duration interval = Duration.ofSeconds(10);
+
+    @Override
+    public void punctuate(long timestamp) {
+      keyCount.set(store.approximateNumEntries());
+    }
+
+    public Duration getInterval() {
+      return interval;
+    }
+
+  }
+
   private static class OnUpdateCompletionLogging implements OnUpdate.Completion {
 
     private UpdateRecord record;
@@ -217,7 +246,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
         // null keys will be ignored so there might be gaps, but we should be able to create these logging instances in offset order
         if (offsetoffset > 1) offsetsNotProcessed.inc(offsetoffset);
       }
-      onUpdatePending.inc();
+      onupdatePending.inc();
     }
 
     void onAny() {
@@ -228,26 +257,28 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       if (previous == null) {
         logger.info("Completed the first on-update for {}", record.getTopicPartition());
       } else if (!previous.completed) {
-        onUpdateCompletedOutOfOrder.inc();
+        onupdateCompletedOutOfOrder.inc();
         logger.warn("On-update completed out of order, {}-{} before {}",
             record.getTopicPartition(), record.getOffset(), previous.record.getOffset());
       }
       // let it be garbage collected
       previous = null;
-      onUpdatePending.dec();
-      onUpdateCompleted.inc();
+      onupdatePending.dec();
+      onupdateCompleted.inc();
     }
 
     @Override
     public void onSuccess() {
       onAny();
       logger.debug("On-update completed for {}", record);
+      onupdateSucceeded.inc();
     }
 
     @Override
     public void onFailure() {
       onAny();
       logger.warn("On-update failed for {}", record);
+      onupdateFailed.inc();
     }
 
   }
