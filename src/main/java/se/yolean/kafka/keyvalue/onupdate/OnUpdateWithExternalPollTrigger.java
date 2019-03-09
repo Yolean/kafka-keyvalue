@@ -39,10 +39,10 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
    * The target label here is potentially very long strings, but let's see how that works.
    * Could probably be shortened while still being recognizable.
    */
-  static final Counter onupdateResults = Counter.build()
-      .name("kkv_onupdate_results")
+  static final Counter onupdateResponses = Counter.build()
+      .name("kkv_onupdate_responses")
       .labelNames("target", "status", "error")
-      .help("All responses recorded by http status OR java exception, target URL")
+      .help("All responses (retries included) recorded by http status OR java exception, target URL")
       .register();
 
 
@@ -124,7 +124,7 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
         Throwable error = null;
         try {
           response = invocation.request.get();
-          onupdateResults.labels(invocation.invoker.toString(), Integer.toString(response.getStatus()), "").inc();
+          onupdateResponses.labels(invocation.invoker.toString(), Integer.toString(response.getStatus()), "").inc();
         } catch (InterruptedException e) {
           throw new IllegalStateException("Got interrupted in an operation that should have been synchronous after isDone returned true", e);
         } catch (ExecutionException e) {
@@ -149,7 +149,7 @@ public class OnUpdateWithExternalPollTrigger implements OnUpdate {
           } else {
             logger.warn("Unrecognized HTTP error for {}: {}", invocation, error.getMessage());
           }
-          onupdateResults.labels(invocation.invoker.toString(), "", httpError.getClass().getSimpleName()).inc();
+          onupdateResponses.labels(invocation.invoker.toString(), "", httpError.getClass().getSimpleName()).inc();
         } else {
           // TODO Currently this means that the onupdate will never be marked as completed, maybe
           logger.error("Failed to recognize error {} from {}", error, invocation.request);
