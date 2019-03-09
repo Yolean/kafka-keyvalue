@@ -299,4 +299,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
 
   }
 
+  void setInitTimestampForOnupdateSuppression(long processorInitTime) {
+    this.processorInitTime = processorInitTime;
+  }
+
 }

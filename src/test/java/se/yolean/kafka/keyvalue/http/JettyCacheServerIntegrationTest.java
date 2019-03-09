@@ -1,6 +1,6 @@
 package se.yolean.kafka.keyvalue.http;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Random;
 
@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import se.yolean.kafka.keyvalue.CacheServiceOptions;
-import se.yolean.kafka.keyvalue.KafkaCache;
 import se.yolean.kafka.keyvalue.Readiness;
 
 class JettyCacheServerIntegrationTest {
