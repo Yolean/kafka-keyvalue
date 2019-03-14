@@ -14,6 +14,14 @@ See [the Node.js example](./example-nodejs-client/cache-update-flow.spec.js).
 
  * Topic keys must be deserializable as [String](https://kafka.apache.org/21/javadoc/org/apache/kafka/common/serialization/Serdes.html#String--) because these strings are used in REST URIs.
 
+## Running
+
+Docker builds are available at [docker.io/kafka/keyvalue](https://hub.docker.com/r/yolean/kafka-keyvalue).
+
+See examples of CLI args in [ArgsToOptionsTest](./src/test/java/se/yolean/kafka/keyvalue/cli/ArgsToOptionsTest.java).
+
+For REST endpoints see `@Path` in [Endpoints](./src/main/java/se/yolean/kafka/keyvalue/Endpoints.java).
+
 ## Development
 
 The [build-contract](https://github.com/Yolean/build-contract/) can be used as dev stack.

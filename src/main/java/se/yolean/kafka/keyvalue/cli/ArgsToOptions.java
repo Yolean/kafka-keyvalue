@@ -1,6 +1,7 @@
 package se.yolean.kafka.keyvalue.cli;
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
+import static net.sourceforge.argparse4j.impl.Arguments.storeTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,7 +10,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Properties;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.streams.StreamsConfig;
 
 import net.sourceforge.argparse4j.ArgumentParsers;
@@ -18,6 +18,7 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 import se.yolean.kafka.keyvalue.CacheServiceOptions;
 import se.yolean.kafka.keyvalue.OnUpdate;
+import se.yolean.kafka.keyvalue.TimestampFormatter;
 import se.yolean.kafka.keyvalue.onupdate.OnUpdateWithExternalPollTrigger;
 
 public class ArgsToOptions implements CacheServiceOptions {
@@ -32,11 +33,18 @@ public class ArgsToOptions implements CacheServiceOptions {
    */
   public static final int DEFAULT_ONUPDATE_RETRIES = 0;
 
+  public static final String STANDALONE_MODE_APPLICATION_ID_TIMESTAMP =
+      new TimestampFormatter().format(System.currentTimeMillis());
+
+  public static final String HOSTNAME_ENV = "HOSTNAME";
+  public final String CURRENT_HOSTNAME;
+
   private String topicName = null;
   private Integer port = null;
   private String applicationId;
   private Properties streamsProperties = null;
   private Integer startTimeoutSeconds = null;
+  private boolean standalone = false;
 
   private OnUpdateWithExternalPollTrigger onupdate;
 
@@ -85,8 +93,9 @@ public class ArgsToOptions implements CacheServiceOptions {
         .required(false)
         .type(String.class)
         .metavar("HOSTNAME")
-        .setDefault("localhost")
-        .help("Not used at the moment, kept for CLI compatibility with https://github.com/bakdata/kafka-key-value-store");
+        .help("In standalone mode: appended to application ID, otherwise used for instance metadata at sharding"
+            + " i.e. how other instances will find this instance over HTTP."
+            + " Defaults to the value of the HOSTNAME environment variable.");
 
     parser.addArgument("--port")
         .action(store())
@@ -133,13 +142,25 @@ public class ArgsToOptions implements CacheServiceOptions {
             + " Useful because Streams' kafka client has retries but failure conditions like missing source topic don't."
             + " Set to >0 to enable a check after this many seconds.");
 
+    parser.addArgument("--standalone")
+        .action(storeTrue())
+        .required(false)
+        .type(Boolean.class)
+        .metavar("STANDALONE")
+        .setDefault(false)
+        .help("Runs in standalone mode, i.e. no sharding:"
+            + " To accomplish this we append hostname + timestamp to the application-id."
+            + " We also disable the use of changelog topic,"
+            + " so the only trace of the application on brokers is a consumer offset."
+            + " (cleaning up from transient instances using kafka-streams-application-reset.sh would be impractical)");
+
     return parser;
   }
 
   public ArgsToOptions(String[] args) {
+    CURRENT_HOSTNAME = System.getenv(HOSTNAME_ENV);
 
-    @SuppressWarnings("unused") // kept for forward compatibility
-    String hostName = null;
+    String hostname = null;
     Properties props = new Properties();
 
     List<String> onupdateUrls = null;
@@ -152,7 +173,7 @@ public class ArgsToOptions implements CacheServiceOptions {
       Namespace res = parser.parseArgs(args);
 
       topicName = res.getString("topic");
-      hostName = res.getString("hostname");
+      hostname = res.getString("hostname");
       port = res.getInt("port");
       applicationId = res.getString("applicationId");
       List<String> streamsProps = res.getList("streamsConfig");
@@ -162,6 +183,13 @@ public class ArgsToOptions implements CacheServiceOptions {
       onupdateRetries = res.getInt("onupdateRetries");
 
       startTimeoutSeconds = res.getInt("starttimeout");
+
+      standalone = res.getBoolean("standalone");
+
+      if (hostname == null) hostname = CURRENT_HOSTNAME;
+      if (hostname == null || hostname.length() == 0) {
+        throw new ArgumentParserException("Hostname is empty, set --hostname or env: " + HOSTNAME_ENV, parser);
+      }
 
       if (streamsProps == null && streamsConfig == null) {
         throw new ArgumentParserException("Either --streams-props or --streams.config must be specified.", parser);
@@ -180,6 +208,10 @@ public class ArgsToOptions implements CacheServiceOptions {
             throw new IllegalArgumentException("Invalid property: " + prop);
           props.put(pieces[0], pieces[1]);
         }
+      }
+
+      if (standalone) {
+        applicationId = applicationId.concat(hostname).concat("-").concat(STANDALONE_MODE_APPLICATION_ID_TIMESTAMP);
       }
 
       props.put(StreamsConfig.APPLICATION_ID_CONFIG, applicationId);
@@ -239,6 +271,11 @@ public class ArgsToOptions implements CacheServiceOptions {
 
   OnUpdateWithExternalPollTrigger getOnUpdateImpl() {
     return this.onupdate;
+  }
+
+  @Override
+  public boolean getStandalone() {
+    return this.standalone;
   }
 
 }

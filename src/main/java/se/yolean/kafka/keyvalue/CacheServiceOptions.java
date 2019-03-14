@@ -21,4 +21,6 @@ public interface CacheServiceOptions {
 
   Integer getStartTimeoutSecods();
 
+  boolean getStandalone();
+
 }

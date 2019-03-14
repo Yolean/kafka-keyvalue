@@ -1,5 +1,6 @@
 package se.yolean.kafka.keyvalue;
 
+import java.text.DateFormat;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -37,6 +38,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       .name("kkv_onupdate_succeeded").help("Total on-update requests succeeded (after retries)").register();
   static final Counter onupdateFailed = Counter.build()
       .name("kkv_onupdate_failed").help("Total on-update requests failed (after retries)").register();
+  static final Counter onupdateSuppressed = Counter.build()
+      .name("kkv_onupdate_suppressed").labelNames("reason").help("Total on-update requests suppressed").register();
   static final Counter offsetsNotProcessed = Counter.build()
       .name("kkv_offsets_not_processed").help("The processor won't see null key messages, so we count gaps in the offset sequence"
           + ". But note that kafka offsets are not guaranteed to be sequencial: https://stackoverflow.com/a/54637004").register();
@@ -48,10 +51,13 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   private static final String STATE_STORE_NAME = "Keyvalue";
 
   public static final Logger logger = LogManager.getLogger(KeyvalueUpdateProcessor.class);
+  private static final DateFormat TIMESTAMP_FORMATTER = new TimestampFormatter();
 
 	private String sourceTopicPattern;
   private OnUpdate onUpdate;
   private ProcessorContext context = null;
+
+  private long processorInitTime = -1;
 
   // We can't use this to build so we keep it for sanity checks
   private StoreBuilder<KeyValueStore<String, byte[]>> storeBuilder = null;
@@ -63,11 +69,17 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   private final Map<TopicPartition,OnUpdateCompletionLogging> latestPending = new HashMap<>(1);
 
   private Maintenance maintenance;
+  private boolean standalone;
 
   public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate) {
-	  this.sourceTopicPattern = sourceTopic;
-	  this.onUpdate = onUpdate;
+	  this(sourceTopic, onUpdate, false);
 	}
+
+  public KeyvalueUpdateProcessor(String sourceTopic, OnUpdate onUpdate, boolean standalone) {
+    this.sourceTopicPattern = sourceTopic;
+    this.onUpdate = onUpdate;
+    this.standalone = standalone;
+  }
 
   private void configureStateStore(String name) {
     storeBuilder = Stores.keyValueStoreBuilder(
@@ -75,6 +87,13 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       Serdes.String(),
       Serdes.ByteArray()
     );
+    // investigate https://github.com/Yolean/kafka-keyvalue/issues/24
+    if (standalone) {
+      logger.info("Running in standalone mode. Disables changelog, i.e. fault tolerance and stand-by replicas.");
+      storeBuilder.withLoggingDisabled();
+      logger.info("Also disabling \"caching\" because we haven't evaluated its effects");
+      storeBuilder.withCachingDisabled();
+    }
   }
 
 	@Override
@@ -106,6 +125,8 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
     this.context = context;
     this.maintenance = new Maintenance();
     context.schedule(maintenance.getInterval(), PunctuationType.WALL_CLOCK_TIME, maintenance);
+    processorInitTime = System.currentTimeMillis();
+    logger.info("Proccessor start time is {} {}", processorInitTime, TIMESTAMP_FORMATTER.format(processorInitTime));
   }
 
   @Override
@@ -132,7 +153,7 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
   @Override
   public void process(String key, byte[] value) {
     logger.trace("Got keyvalue {}={}", key, new String(value));
-    UpdateRecord update = new UpdateRecord(context.topic(), context.partition(), context.offset(), key);
+    UpdateRecord update = new UpdateRecord(context.topic(), context.partition(), context.offset(), key, context.timestamp());
     if (key == null) {
       logger.debug("Ignoring null key at " + update);
       return;
@@ -147,10 +168,18 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
 
   private void process(UpdateRecord update, byte[] value) {
     store.put(update.getKey(), value);
-    OnUpdateCompletionLogging previous = latestPending.get(update.getTopicPartition());
-    OnUpdateCompletionLogging completion = new OnUpdateCompletionLogging(update, previous);
-    onUpdate.handle(update, completion);
-    latestPending.put(update.getTopicPartition(), completion);
+    if (update.getTimestamp() < processorInitTime) {
+      logger.debug("Suppressing onupdate for message {} t={} that predates processor start {}",
+          () -> update.toString(),
+          () -> TIMESTAMP_FORMATTER.format(update.getTimestamp()),
+          () -> TIMESTAMP_FORMATTER.format(processorInitTime));
+      onupdateSuppressed.labels("historic").inc();
+    } else {
+      OnUpdateCompletionLogging previous = latestPending.get(update.getTopicPartition());
+      OnUpdateCompletionLogging completion = new OnUpdateCompletionLogging(update, previous);
+      onUpdate.handle(update, completion);
+      latestPending.put(update.getTopicPartition(), completion);
+    }
   }
 
   @Override
@@ -281,6 +310,10 @@ public class KeyvalueUpdateProcessor implements KeyvalueUpdate, Processor<String
       onupdateFailed.inc();
     }
 
+  }
+
+  void setInitTimestampForOnupdateSuppression(long processorInitTime) {
+    this.processorInitTime = processorInitTime;
   }
 
 }

@@ -48,6 +48,8 @@ class KeyvalueUpdateIntegrationTest {
 
   @Test
   void testBasicFlow() {
+    ((KeyvalueUpdateProcessor) cache).setInitTimestampForOnupdateSuppression(1552134516000L);
+
     assertEquals(null, cache.getValue("k1"));
     assertEquals(null, cache.getCurrentOffset(TOPIC1, 0));
 
@@ -92,6 +94,34 @@ class KeyvalueUpdateIntegrationTest {
     assertTrue(values.hasNext());
     assertEquals("v2", new String(values.next()));
     assertFalse(values.hasNext());
+  }
+
+  @Test
+  void testBasicFlowWithHistoricMessage() {
+    long processorInitTime = 1552134516000L;
+    ((KeyvalueUpdateProcessor) cache).setInitTimestampForOnupdateSuppression(processorInitTime);
+
+    assertEquals(null, cache.getValue("k1"));
+    assertEquals(null, cache.getCurrentOffset(TOPIC1, 0));
+
+    testDriver.pipeInput(recordFactory.create(TOPIC1, "k1", "v1".getBytes(), processorInitTime - 1));
+
+    assertEquals(null, cache.getValue("k0"));
+
+    byte[] v1 = cache.getValue("k1");
+    assertNotNull(v1);
+    assertEquals("v1", new String(v1));
+    assertEquals(0, onUpdate.getAll().size());
+
+    testDriver.pipeInput(recordFactory.create(TOPIC1, "k2", "v2".getBytes(), processorInitTime));
+
+    byte[] v2 = cache.getValue("k2");
+    assertNotNull(v2);
+    assertEquals("v2", new String(v2));
+    assertEquals(1, onUpdate.getAll().size());
+
+    assertEquals(1, cache.getCurrentOffset(TOPIC1, 0));
+    assertEquals(null, cache.getCurrentOffset("othertopic", 0));
   }
 
 }

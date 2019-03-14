@@ -9,7 +9,7 @@ services:
 
   kafka:
     image: solsson/kafka:2.1.1@sha256:8bc8242c649c395ab79d76cc83b1052e63b4efea7f83547bf11eb3ef5ea6f8e1
-    links:
+    depends_on:
     - zookeeper
     entrypoint:
     - ./bin/kafka-server-start.sh
@@ -20,11 +20,6 @@ services:
     -   log.retention.hours=-1
     - --override
     -   log.dirs=/var/lib/kafka/data/topics
-    - --override
-    # Shouldn't be needed for streams, but currently for the test container(s) to produce data
-    -   auto.create.topics.enable=true
-    - --override
-    -   default.replication.factor=1
     - --override
     -   min.insync.replicas=1
     - --override
@@ -52,13 +47,22 @@ services:
     -  0.0.0.0:19090
 
   topic1-create:
-    image: solsson/kafkacat@sha256:b91241b5741fccaef282eb8dbdfb6e5289bb8586274175b1836e57912ffecaef
+    image: solsson/kafka:2.1.1@sha256:8bc8242c649c395ab79d76cc83b1052e63b4efea7f83547bf11eb3ef5ea6f8e1
+    depends_on:
+    - kafka
     entrypoint:
-    - /bin/bash
-    - -c
+    - ./bin/kafka-topics.sh
     command:
-    - |
-      until kafkacat -b kafka:9092 -C -K '=' -t topic1 -e; do sleep 3; done
+    - --zookeeper
+    -   zookeeper:2181
+    - --topic
+    -   topic1
+    - --create
+    - --if-not-exists
+    - --partitions
+    -   '1'
+    - --replication-factor
+    -   '1'
 
   cache1:
     depends_on:
@@ -70,15 +74,14 @@ services:
     ports:
     - 19081:19081
     command:
+    - --standalone
+    - --application-id
+    -   kv-001-
     - --port
     -   '19081'
     - --streams-props
     -   bootstrap.servers=kafka:9092
     -   num.standby.replicas=0
-    - --hostname
-    -   cache1
-    - --application-id
-    -   kv-001
     - --topic
     -   topic1
     - --onupdate
@@ -109,6 +112,8 @@ services:
       curl --ipv4 --retry 5 --retry-connrefused http://pixy:19090 -I
       curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081 -I
       curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/metrics -f | grep consumer_metrics | grep incoming_byte_total
+      curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/metrics -f | grep ^kkv_
+      curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/healthz -f
       curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/cache/v1/raw/smoketest1 -I
       curl --ipv4 --retry 5 --retry-connrefused http://pixy:19090/topics -f | grep topic1
       curl --ipv4 -d '{"x":1}' -H 'Content-Type: application/json' 'http://pixy:19090/topics/topic1/messages?key=smoketest1' -f
@@ -133,3 +138,71 @@ services:
     command:
     # By design the cache service deals with a single topic, meaning that tests probably can't run concurrently
     - --runInBand
+
+  topic2-create:
+    image: solsson/kafka:2.1.1@sha256:8bc8242c649c395ab79d76cc83b1052e63b4efea7f83547bf11eb3ef5ea6f8e1
+    depends_on:
+    - kafka
+    entrypoint:
+    - ./bin/kafka-topics.sh
+    command:
+    - --zookeeper
+    -   zookeeper:2181
+    - --topic
+    -   topic2
+    - --create
+    - --if-not-exists
+    - --partitions
+    -   '12'
+    - --replication-factor
+    -   '1'
+
+  cache2-01:
+    depends_on:
+    - kafka
+    - topic2-create
+    image: yolean/kafka-keyvalue:dev
+    expose:
+    - '19082'
+    command:
+    - --port
+    -   '19082'
+    - --streams-props
+    -   bootstrap.servers=kafka:9092
+    # Not sure how to do this in docker-compose
+    #-   num.standby.replicas=1
+    - --hostname
+    -   cache2-01
+    - --application-id
+    -   kv-002
+    - --topic
+    -   topic2
+    - --onupdate
+    -   http://onupdate-logging:8080/sharded/01
+    - --starttimeout
+    -   '25'
+
+  cache2-02:
+    depends_on:
+    - kafka
+    - topic2-create
+    image: yolean/kafka-keyvalue:dev
+    expose:
+    - '19083'
+    command:
+    - --port
+    -   '19083'
+    - --streams-props
+    -   bootstrap.servers=kafka:9092
+    # Not sure how to do this in docker-compose
+    #-   num.standby.replicas=1
+    - --hostname
+    -   cache2-02
+    - --application-id
+    -   kv-002
+    - --topic
+    -   topic2
+    - --onupdate
+    -   http://onupdate-logging:8080/sharded/02
+    - --starttimeout
+    -   '25'

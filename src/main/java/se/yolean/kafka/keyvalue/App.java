@@ -35,8 +35,10 @@ public class App {
 
     KeyvalueUpdate keyvalueUpdate = new KeyvalueUpdateProcessor(
         options.getTopicName(),
-        options.getOnUpdate());
-    logger.info("Processor created");
+        options.getOnUpdate(),
+        options.getStandalone());
+    logger.info("Processor created, standalone={} application-id={} input-topic={}",
+        options.getStandalone(), options.getApplicationId(), options.getTopicName());
 
     Topology topology = keyvalueUpdate.getTopology();
     logger.info("Topology created, starting Streams using {} custom props",
@@ -60,14 +62,15 @@ public class App {
     logger.info("Starting REST service with endpoints {}", endpoints);
 
     PrometheusMetricsServlet metricsServlet = new PrometheusMetricsServlet(metrics);
+    ReadinessServlet readinessServlet = new ReadinessServlet();
 
     CacheServer server = new ConfigureRest()
         .createContext(options.getPort(), "/")
         .registerResourceClass(org.glassfish.jersey.jackson.JacksonFeature.class)
         .registerResourceInstance(endpoints)
         .asServlet()
-        .addCustomServlet(metricsServlet, "/metrics")
-        .addCustomServlet(new ReadinessServlet(keyvalueUpdate), "/ready")
+        .addCustomServlet(metricsServlet, PrometheusMetricsServlet.ENDPOINT_PATH)
+        .addCustomServlet(readinessServlet, ReadinessServlet.ENDPOINT_PATH)
         .create();
     logger.info("REST server created {}", server);
 
@@ -87,6 +90,8 @@ public class App {
             logger.error("REST server shutdown failed", e);
           }
         });
+
+    readinessServlet.setReadiness(readiness);
   }
 
   public Readiness getReadiness() {
