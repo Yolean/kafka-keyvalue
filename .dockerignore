@@ -1,4 +1,8 @@
 *
-!target/*-runner
-!target/*-runner.jar
-!target/lib/*
+# For ./mvnw package -Pnative -Dnative-image.docker-build=true
+#!target/*-runner
+#!target/*-runner.jar
+#!target/lib/*
+# For docker build .
+!src
+!pom.xml

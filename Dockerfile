@@ -1,0 +1,64 @@
+FROM maven:3.6.0-jdk-8-slim@sha256:c3e480a0180ff76cfd2c4d51672ca9c050009b98eba8f9d6b9e2752c8ef2956b as maven
+
+FROM oracle/graalvm-ce:1.0.0-rc14@sha256:ea22ec502d371af47524ceedbe6573caaa59d5143c2c122a46c8eedf40c961f0 \
+  as maven-build
+
+COPY --from=maven /usr/share/maven /usr/share/maven
+RUN ln -s /usr/share/maven/bin/mvn /usr/bin/mvn
+ENV MAVEN_HOME=/usr/share/maven
+ENV MAVEN_CONFIG=/root/.m2
+
+WORKDIR /workspace
+RUN mvn io.quarkus:quarkus-maven-plugin:0.12.0:create \
+    -DprojectGroupId=org.acme \
+    -DprojectArtifactId=getting-started \
+    -DclassName="org.acme.quickstart.GreetingResource" \
+    -Dpath="/hello"
+COPY pom.xml .
+RUN mvn package && \
+  rm -r src target mvnw* && \
+  ls -la
+COPY . .
+RUN mvn -o package
+
+# Plain java runtime, as workaround for missing snappy support
+# Same base image as Yolean/kubernetes-kafka
+FROM solsson/jdk-opensource:11.0.2@sha256:9088fd8eff0920f6012e422cdcb67a590b2a6edbeae1ff0ca8e213e0d4260cf8 \
+  as runtime-plainjava
+
+WORKDIR /app
+COPY --from=maven-build /workspace/target/lib ./lib
+COPY --from=maven-build /workspace/target/*-runner.jar ./quarkus-kafka.jar
+
+ENTRYPOINT [ "java", "-cp", "./lib/*", "-jar", "./quarkus-kafka.jar" ]
+
+FROM oracle/graalvm-ce:1.0.0-rc14@sha256:ea22ec502d371af47524ceedbe6573caaa59d5143c2c122a46c8eedf40c961f0 \
+  as native-build
+
+WORKDIR /project
+COPY --from=maven-build /workspace/target/lib ./lib
+COPY --from=maven-build /workspace/target/*-runner.jar ./
+
+# from Quarkus' maven plugin mvn package -Pnative -Dnative-image.docker-build=true
+# but CollectionPolicy commented out due to "Error: policy com.oracle.svm.core.genscavenge.CollectionPolicy cannot be instantiated."
+RUN native-image \
+  -J-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
+  #-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
+  -jar kafka-keyvalue-1.0-SNAPSHOT-runner.jar \
+  -J-Djava.util.concurrent.ForkJoinPool.common.parallelism=1 \
+  -H:+PrintAnalysisCallTree \
+  -H:-AddAllCharsets \
+  -H:EnableURLProtocols=http \
+  -H:-SpawnIsolates \
+  -H:-JNI \
+  --no-server \
+  -H:-UseServiceLoaderFeature \
+  -H:+StackTrace
+
+# The rest should be identical to src/main/docker/Dockerfile which is the recommended quarkus build
+FROM cescoffier/native-base@sha256:407e2412c7d15ee951bfc31dcdcbbba806924350734e9b0929a95dd16c7c1b2b
+WORKDIR /work/
+COPY --from=native-build /project/*-runner /work/application
+#RUN chmod 775 /work
+EXPOSE 8080
+CMD ["./application", "-Dquarkus.http.host=0.0.0.0"]
