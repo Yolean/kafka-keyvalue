@@ -1,4 +1,4 @@
-package se.yolean.kafka.keyalue.http;
+package se.yolean.kafka.keyvalue.http;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
