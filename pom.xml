@@ -39,6 +39,12 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>2.25.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <!-- Needed for native build to work with org.apache.kafka.kafka-clients -->
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-kafka-client</artifactId>
