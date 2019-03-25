@@ -12,3 +12,5 @@ gradlew
 out/
 node_modules
 dist
+.mvn
+target
