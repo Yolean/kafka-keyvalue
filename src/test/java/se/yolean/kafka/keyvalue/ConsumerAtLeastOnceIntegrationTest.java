@@ -40,7 +40,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
     // use latest here to allow many test cases to use the same topic (though all test cases keys' will be read to cache)
-    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none");
     return props;
   }
 
@@ -75,13 +75,15 @@ public class ConsumerAtLeastOnceIntegrationTest {
     producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k1", "v1".getBytes())).get();
     producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k2", "v1".getBytes())).get();
 
+    consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest"); // start from scratch even if we're reusing a test topic
     consumer.run();
+    consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none"); // the test should fail if we don't have an offset after the first run
+
     assertEquals(2, consumer.cache.size(), "Should have consumed two records with different key");
     assertTrue(consumer.cache.containsKey("k1"), "Should contain the first key");
     assertEquals("v1", new String(consumer.cache.get("k1")), "Should have the first key's value");
 
     producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k1", "v2".getBytes())).get();
-    producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k2", "v2".getBytes())).get();
     // TODO per-test kafka topic: producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k3", "v2".getBytes())).get();
     assertEquals(2, consumer.cache.size(), "Nothing should happen unless run() is ongoing");
 

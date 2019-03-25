@@ -40,6 +40,9 @@ public class ConsumerAtLeastOnce implements Runnable {
 
   Map<String, byte[]> cache;
 
+  /**
+   * (Re)set all state and consume to cache, cheaper than restarting the whole application.
+   */
   @Override
   public void run() {
 	KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps); 
@@ -48,14 +51,13 @@ public class ConsumerAtLeastOnce implements Runnable {
     } catch (InterruptedException e) {
       throw new IllegalStateException("No error handling for this error", e);
     } finally {
-      consumer.close(); 	
+      logger.info("Closing consumer");
+      consumer.close();
     }
   }
 
   void runThatThrows(final KafkaConsumer<String, byte[]> consumer, final long polls) throws InterruptedException {
     logger.info("Running");
-
-    final Map<TopicPartition, Long> nextUncommitted = new HashMap<>(1);
 
     TopicCheck topicCheck = new TopicCheck(new Create() {
       @Override
@@ -70,6 +72,8 @@ public class ConsumerAtLeastOnce implements Runnable {
 	  Thread.sleep(metadataTimeout.toMillis());
 	}
     logger.info("Topic {} found", topics);
+
+    final Map<TopicPartition, Long> nextUncommitted = new HashMap<>(1);
     
     consumer.subscribe(topics, new ConsumerRebalanceListener() {
 
@@ -113,7 +117,17 @@ public class ConsumerAtLeastOnce implements Runnable {
       Iterator<ConsumerRecord<String, byte[]>> records = polled.iterator();
       while (records.hasNext()) {
         ConsumerRecord<String, byte[]> record = records.next();
+        UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
         cache.put(record.key(), record.value());
+		Long start = nextUncommitted.get(update.getTopicPartition());
+        if (start == null) {
+          throw new IllegalStateException("There's no start offset for " + update.getTopicPartition() + ", at consumed offset " + update.getOffset() + " key " + update.getKey());
+        }
+        if (record.offset() >= start) {
+          onupdate.handle(update, /*TODO*/ null);
+        } else {
+          logger.info("Suppressing onupdate for {} because start offset is {}", update, start);
+        }
       }
       
     }
