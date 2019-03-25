@@ -86,10 +86,12 @@ public class ConsumerAtLeastOnceIntegrationTest {
     producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k1", "v2".getBytes())).get();
     // TODO per-test kafka topic: producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k3", "v2".getBytes())).get();
     assertEquals(2, consumer.cache.size(), "Nothing should happen unless run() is ongoing");
-
+    
     consumer.run();
     // TODO per-test kafka topic: assertEquals(3, consumer.cache.size(), "Should have got the additional key from the last batch");
     assertEquals("v2", new String(consumer.cache.get("k1")), "Value should come from the latest record");
+
+    Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 0, 2, "k1"), null);
 
     producer.close();
   }

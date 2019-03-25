@@ -128,8 +128,14 @@ public class ConsumerAtLeastOnce implements Runnable {
         } else {
           logger.info("Suppressing onupdate for {} because start offset is {}", update, start);
         }
+        // TODO deduplicate onupdate within the same poll/batch, by key
       }
       
+      // TODO upon onupdate completion, but if ANY onpdate failed we should somehow abort the rest
+      // and only commit to the last non-failing onupdate (using the Map arg call)
+      consumer.commitSync();
+
+      // Next poll ...
     }
     
   }
