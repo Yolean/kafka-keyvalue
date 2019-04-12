@@ -109,10 +109,10 @@ public class ConsumerAtLeastOnce implements Runnable {
 
       if (nextUncommitted.isEmpty()) {
     	if (count > 0) throw new IllegalStateException("Received " + count + " records prior to an assigned partitions event");
-	    logger.info("Waiting for topic assignments");
-	    Thread.sleep(metadataTimeout.toMillis());
-	    continue;
-	  }
+        logger.info("Waiting for topic assignments");
+        Thread.sleep(metadataTimeout.toMillis());
+        continue;
+      }
 
       Iterator<ConsumerRecord<String, byte[]>> records = polled.iterator();
       while (records.hasNext()) {
@@ -139,7 +139,5 @@ public class ConsumerAtLeastOnce implements Runnable {
     }
 
   }
-
-
 
 }
