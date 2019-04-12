@@ -77,13 +77,20 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- With its RegisterExtension this kafka-junit lib looks more convenient -->
+    <dependency>
+      <groupId>com.salesforce.kafka.test</groupId>
+      <artifactId>kafka-junit5</artifactId>
+      <version>3.1.1</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka_2.12</artifactId>
       <version>2.2.0</version>
       <scope>test</scope>
     </dependency>
-    <!-- something overrides kafka-junit's zookeeper version with a 3.4.x, causing java.lang.NoSuchFieldError: configFileStr -->
+    <!-- something overrides kafka-junit's zookeeper version with a 3.4.x, causing java.lang.NoSuchFieldError: configFileStr
     <dependency>
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
@@ -95,7 +102,7 @@
           <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
+    </dependency> -->
   </dependencies>
   <build>
     <plugins>
