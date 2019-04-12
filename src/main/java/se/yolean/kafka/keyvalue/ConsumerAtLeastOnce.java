@@ -45,7 +45,7 @@ public class ConsumerAtLeastOnce implements Runnable {
    */
   @Override
   public void run() {
-	KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps); 
+	KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps);
     try {
       runThatThrows(consumer, maxPolls);
     } catch (InterruptedException e) {
@@ -67,14 +67,14 @@ public class ConsumerAtLeastOnce implements Runnable {
     }, new ArrayList<>(topics), metadataTimeout);
 
     while (!topicCheck.sourceTopicsExist()) {
-	  topicCheck.run();
-	  logger.info("Waiting for topic existence {} ({})", topicCheck, topics);
-	  Thread.sleep(metadataTimeout.toMillis());
-	}
+      topicCheck.run();
+      logger.info("Waiting for topic existence {} ({})", topicCheck, topics);
+      Thread.sleep(metadataTimeout.toMillis());
+    }
     logger.info("Topic {} found", topics);
 
     final Map<TopicPartition, Long> nextUncommitted = new HashMap<>(1);
-    
+
     consumer.subscribe(topics, new ConsumerRebalanceListener() {
 
       @Override
@@ -94,32 +94,32 @@ public class ConsumerAtLeastOnce implements Runnable {
       }
 
     });
-    
+
     consumer.poll(Duration.ofNanos(1)); // Do we need one poll for subscribe to happen?
 
     for (long n = 0; polls > 0 && n < polls; n++) {
-    	
+
       // According to "Detecting Consumer Failures" in https://kafka.apache.org/21/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html
       // there seems to be need for a pause between polls (?)
       Thread.sleep(pollDuration.toMillis());
-      
+
       ConsumerRecords<String, byte[]> polled = consumer.poll(pollDuration);
       int count = polled.count();
       logger.info("Polled {} records", count);
-      
+
       if (nextUncommitted.isEmpty()) {
     	if (count > 0) throw new IllegalStateException("Received " + count + " records prior to an assigned partitions event");
 	    logger.info("Waiting for topic assignments");
 	    Thread.sleep(metadataTimeout.toMillis());
 	    continue;
 	  }
-      
+
       Iterator<ConsumerRecord<String, byte[]>> records = polled.iterator();
       while (records.hasNext()) {
         ConsumerRecord<String, byte[]> record = records.next();
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
         cache.put(record.key(), record.value());
-		Long start = nextUncommitted.get(update.getTopicPartition());
+		    Long start = nextUncommitted.get(update.getTopicPartition());
         if (start == null) {
           throw new IllegalStateException("There's no start offset for " + update.getTopicPartition() + ", at consumed offset " + update.getOffset() + " key " + update.getKey());
         }
@@ -130,14 +130,14 @@ public class ConsumerAtLeastOnce implements Runnable {
         }
         // TODO deduplicate onupdate within the same poll/batch, by key
       }
-      
+
       // TODO upon onupdate completion, but if ANY onpdate failed we should somehow abort the rest
       // and only commit to the last non-failing onupdate (using the Map arg call)
       consumer.commitSync();
 
       // Next poll ...
     }
-    
+
   }
 
 
