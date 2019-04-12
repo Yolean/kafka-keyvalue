@@ -1,6 +1,6 @@
 FROM maven:3.6.0-jdk-8-slim@sha256:c3e480a0180ff76cfd2c4d51672ca9c050009b98eba8f9d6b9e2752c8ef2956b as maven
 
-FROM oracle/graalvm-ce:1.0.0-rc14@sha256:ea22ec502d371af47524ceedbe6573caaa59d5143c2c122a46c8eedf40c961f0 \
+FROM oracle/graalvm-ce:1.0.0-rc15@sha256:9a6bb7ee16b0fb7e6ac7c1b4f874080eef60110070a3c8fd01fa045790b21ed2 \
   as maven-build
 
 COPY --from=maven /usr/share/maven /usr/share/maven
@@ -32,7 +32,7 @@ COPY --from=maven-build /workspace/target/*-runner.jar ./quarkus-kafka.jar
 
 ENTRYPOINT [ "java", "-cp", "./lib/*", "-jar", "./quarkus-kafka.jar" ]
 
-FROM oracle/graalvm-ce:1.0.0-rc14@sha256:ea22ec502d371af47524ceedbe6573caaa59d5143c2c122a46c8eedf40c961f0 \
+FROM oracle/graalvm-ce:1.0.0-rc15@sha256:9a6bb7ee16b0fb7e6ac7c1b4f874080eef60110070a3c8fd01fa045790b21ed2 \
   as native-build
 
 WORKDIR /project
