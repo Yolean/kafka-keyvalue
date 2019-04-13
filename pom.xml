@@ -66,19 +66,6 @@
       <version>2.2.0</version>
     </dependency>
     <dependency>
-      <groupId>com.github.charithe</groupId>
-      <artifactId>kafka-junit</artifactId>
-      <version>4.1.4</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>junit</groupId>
-          <artifactId>junit</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <!-- With its RegisterExtension this kafka-junit lib looks more convenient -->
-    <dependency>
       <groupId>com.salesforce.kafka.test</groupId>
       <artifactId>kafka-junit5</artifactId>
       <version>3.1.1</version>
@@ -90,19 +77,6 @@
       <version>2.2.0</version>
       <scope>test</scope>
     </dependency>
-    <!-- something overrides kafka-junit's zookeeper version with a 3.4.x, causing java.lang.NoSuchFieldError: configFileStr
-    <dependency>
-      <groupId>org.apache.zookeeper</groupId>
-      <artifactId>zookeeper</artifactId>
-      <version>3.5.4-beta</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency> -->
   </dependencies>
   <build>
     <plugins>

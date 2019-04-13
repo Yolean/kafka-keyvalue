@@ -3,11 +3,6 @@ package se.yolean.kafka.keyvalue;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
-import com.github.charithe.kafka.KafkaHelper;
-import com.github.charithe.kafka.KafkaJunitExtension;
-import com.github.charithe.kafka.KafkaJunitExtensionConfig;
-import com.github.charithe.kafka.StartupMode;
-
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -18,8 +13,10 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.Mockito;
+
+import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -28,9 +25,10 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 
-//@ExtendWith(KafkaJunitExtension.class)
-//@KafkaJunitExtensionConfig(startupMode = StartupMode.WAIT_FOR_STARTUP)
 public class ConsumerAtLeastOnceIntegrationTest {
+
+  @RegisterExtension
+  static final SharedKafkaTestResource kafka = new SharedKafkaTestResource().withBrokers(2);
 
   Properties getConsumerProperties(String bootstrap, String groupId) {
     Properties props = new Properties();
@@ -54,14 +52,14 @@ public class ConsumerAtLeastOnceIntegrationTest {
   }
 
   @Test
-  //void testSingleRun(KafkaHelper kafkaHelper) throws InterruptedException, ExecutionException {
   void testSingleRun() throws InterruptedException, ExecutionException {
-    KafkaHelper kafkaHelper = Mockito.mock(KafkaHelper.class);
-    Mockito.when(kafkaHelper.kafkaPort()).thenReturn(19092); // build-contracts/docker-compose.yml
+
     ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
     final String TOPIC = "topic1";
     final String GROUP = this.getClass().getSimpleName() + "_testSingleRun_" + System.currentTimeMillis();
-    final String BOOTSTRAP = "localhost:" + kafkaHelper.kafkaPort();
+    final String BOOTSTRAP = kafka.getKafkaConnectString();
+    kafka.getKafkaTestUtils().createTopic("topic1", 1, (short) 1);
+
     consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
     consumer.onupdate = Mockito.mock(OnUpdate.class);
     consumer.cache = new HashMap<>();
