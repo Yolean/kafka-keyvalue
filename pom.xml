@@ -9,7 +9,7 @@
     <surefire-plugin.version>2.22.0</surefire-plugin.version>
     <maven.compiler.target>1.8</maven.compiler.target>
     <maven.compiler.source>1.8</maven.compiler.source>
-    <quarkus.version>0.12.0</quarkus.version>
+    <quarkus.version>0.13.1</quarkus.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
   <dependencyManagement>
@@ -75,7 +75,7 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka_2.12</artifactId>
-      <version>2.1.1</version>
+      <version>2.2.0</version>
       <scope>test</scope>
     </dependency>
     <!-- something overrides kafka-junit's zookeeper version with a 3.4.x, causing java.lang.NoSuchFieldError: configFileStr -->
