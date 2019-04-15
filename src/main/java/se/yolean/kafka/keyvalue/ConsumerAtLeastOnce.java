@@ -16,6 +16,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,9 @@ public class ConsumerAtLeastOnce implements Runnable {
   OnUpdate onupdate;
 
   Map<String, byte[]> cache;
+
+  @ConfigProperty(name="dummy")
+  String dummy;
 
   void start(@Observes StartupEvent ev) {
     logger.info("Started");
