@@ -34,6 +34,7 @@ class UpdateRecordTest {
     assertFalse(new UpdateRecord("1", 1, 2, "x").equals(new UpdateRecord("1", 12, 2, "x")));
   }
 
+  /* We no longer exchange these objects over HTTP so jackson annotations were removed
   @Test
   void testJSON() throws IOException {
     com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -46,5 +47,6 @@ class UpdateRecordTest {
     assertEquals(432, u.getOffset());
     assertEquals("my other key", u.getKey());
   }
+  */
 
 }

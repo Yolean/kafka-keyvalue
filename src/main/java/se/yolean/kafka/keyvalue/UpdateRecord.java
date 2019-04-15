@@ -4,12 +4,6 @@ import java.io.Serializable;
 
 import org.apache.kafka.common.TopicPartition;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-@JsonPropertyOrder({"topic","partition","offset","key"})
 public class UpdateRecord implements Serializable {
 
   private static final long serialVersionUID = 1L;
@@ -24,12 +18,11 @@ public class UpdateRecord implements Serializable {
 
   private long timestamp = NO_TIMESTAMP;
 
-  @JsonCreator
   public UpdateRecord(
-      @JsonProperty("topic") String topic,
-      @JsonProperty("partition") int partition,
-      @JsonProperty("offset") long offset,
-      @JsonProperty("key") String key) {
+      String topic,
+      int partition,
+      long offset,
+      String key) {
     this.topicPartition = new TopicPartition(topic, partition);
     this.offset = offset;
     this.key = key;
@@ -66,7 +59,6 @@ public class UpdateRecord implements Serializable {
    * Timestamp is just a value we carry during processing, not serialized to clients
    * (at least not until we have a convincing use case for including it in onupdate).
    */
-  @JsonIgnore
   public long getTimestamp() {
     if (timestamp == NO_TIMESTAMP) {
       throw new IllegalStateException("The optional timestamp was requested when not set, for " + this);
