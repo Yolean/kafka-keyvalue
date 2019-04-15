@@ -8,6 +8,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.inject.Singleton;
 
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
@@ -39,6 +41,16 @@ public class ConsumerAtLeastOnce implements Runnable {
   OnUpdate onupdate;
 
   Map<String, byte[]> cache;
+
+  @PostConstruct
+  public void start() {
+    logger.info("Started");
+  }
+
+  @PreDestroy
+  public void stop() {
+    logger.info("Stopped");
+  }
 
   /**
    * (Re)set all state and consume to cache, cheaper than restarting the whole application.
