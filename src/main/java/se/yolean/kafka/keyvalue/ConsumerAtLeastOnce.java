@@ -8,8 +8,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
+import javax.enterprise.event.Observes;
 import javax.inject.Singleton;
 
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
@@ -20,6 +19,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.quarkus.runtime.ShutdownEvent;
+import io.quarkus.runtime.StartupEvent;
 import se.yolean.kafka.tasks.Create;
 import se.yolean.kafka.tasks.TopicCheck;
 
@@ -42,14 +43,12 @@ public class ConsumerAtLeastOnce implements Runnable {
 
   Map<String, byte[]> cache;
 
-  @PostConstruct
-  public void start() {
+  void start(@Observes StartupEvent ev) {
     logger.info("Started");
   }
 
-  @PreDestroy
-  public void stop() {
-    logger.info("Stopped");
+  public void stop(@Observes ShutdownEvent ev) {
+    logger.info("Stopping");
   }
 
   /**
