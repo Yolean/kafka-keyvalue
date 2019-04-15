@@ -8,6 +8,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.inject.Singleton;
+
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -19,9 +21,7 @@ import org.slf4j.LoggerFactory;
 import se.yolean.kafka.tasks.Create;
 import se.yolean.kafka.tasks.TopicCheck;
 
-/**
- *
- */
+@Singleton
 public class ConsumerAtLeastOnce implements Runnable {
 
   static final Logger logger = LoggerFactory.getLogger(ConsumerAtLeastOnce.class);
@@ -138,6 +138,10 @@ public class ConsumerAtLeastOnce implements Runnable {
       // Next poll ...
     }
 
+  }
+
+  public boolean isReady() {
+    return false;
   }
 
 }
