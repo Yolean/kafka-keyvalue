@@ -1,33 +1,46 @@
 package se.yolean.kafka.keyvalue.config;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.microprofile.config.spi.ConfigSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * Experimental yaml-in-yaml config, a single env value for {@value #ENV_NAME}.
+ */
 public class EnvConfigSource implements ConfigSource {
+
+  final Logger logger = LoggerFactory.getLogger(EnvConfigSource.class);
 
   public static final String ENV_NAME = "APP_CONFIG";
 
   public EnvConfigSource() {
     String config = System.getenv(ENV_NAME);
-    if (config == null || config.length() == 0) throw new IllegalStateException("Missing configuration env " + ENV_NAME);
-    // TODO YAML with |+ in k8s manifests and docker-compose.yml
-    // TODO hot reload? https://github.com/quarkusio/quarkus/issues/1772
+    if (config == null) {
+      logger.info("Env {} not set", ENV_NAME);
+      return;
+    }
+    if (config.length() == 0) {
+      throw new IllegalStateException("Env " + ENV_NAME + " exists but is empty");
+    }
+    logger.error("Env {} exists but this config source isn't implemented yet", ENV_NAME);
   }
 
   @Override
   public Map<String, String> getProperties() {
-    throw new UnsupportedOperationException("not implemented");
+    return new HashMap<>(0);
   }
 
   @Override
   public String getValue(String propertyName) {
-    throw new UnsupportedOperationException("not implemented");
+    return null;
   }
 
   @Override
   public String getName() {
-    throw new UnsupportedOperationException("not implemented");
+    return "Env config source " + ENV_NAME;
   }
 
 }
