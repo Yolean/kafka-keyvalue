@@ -34,6 +34,7 @@ public class ConsumerAtLeastOnce implements Runnable {
 
   Collection<String> topics;
 
+  @ConfigProperty(name="metadata_timeout", defaultValue="30s")
   Duration metadataTimeout;
 
   Duration pollDuration;
@@ -43,9 +44,6 @@ public class ConsumerAtLeastOnce implements Runnable {
   OnUpdate onupdate;
 
   Map<String, byte[]> cache;
-
-  @ConfigProperty(name="dummy")
-  String dummy;
 
   void start(@Observes StartupEvent ev) {
     logger.info("Started");
