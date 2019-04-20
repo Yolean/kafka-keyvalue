@@ -35,8 +35,11 @@ public class ConsumerAtLeastOnce implements Runnable {
   Collection<String> topics;
 
   @ConfigProperty(name="metadata_timeout", defaultValue="30s")
+  String   metadataTimeoutConf;
   Duration metadataTimeout;
 
+  @ConfigProperty(name="poll_duration", defaultValue="5s")
+  String   pollDurationConf;
   Duration pollDuration;
 
   long maxPolls = 0;
@@ -46,6 +49,10 @@ public class ConsumerAtLeastOnce implements Runnable {
   Map<String, byte[]> cache;
 
   void start(@Observes StartupEvent ev) {
+    // workaround for Converter not working
+    metadataTimeout = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(metadataTimeoutConf);
+    pollDuration = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(pollDurationConf);
+    // end workaround
     logger.info("Started");
   }
 
