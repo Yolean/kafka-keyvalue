@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -32,7 +33,8 @@ public class ConsumerAtLeastOnce implements Runnable {
 
   Properties consumerProps;
 
-  Collection<String> topics;
+  @ConfigProperty(name="topics")
+  List<String> topics;
 
   @ConfigProperty(name="metadata_timeout", defaultValue="30s")
   String   metadataTimeoutConf;
@@ -53,7 +55,7 @@ public class ConsumerAtLeastOnce implements Runnable {
     metadataTimeout = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(metadataTimeoutConf);
     pollDuration = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(pollDurationConf);
     // end workaround
-    logger.info("Started");
+    logger.info("Started. Topics: {}", topics);
   }
 
   public void stop(@Observes ShutdownEvent ev) {
