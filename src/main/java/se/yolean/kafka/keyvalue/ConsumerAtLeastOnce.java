@@ -129,7 +129,7 @@ public class ConsumerAtLeastOnce implements Runnable {
 
     consumer.poll(Duration.ofNanos(1)); // Do we need one poll for subscribe to happen?
 
-    for (long n = 0; polls > 0 && n < polls; n++) {
+    for (long n = 0; polls == 0 || n < polls; n++) {
 
       // According to "Detecting Consumer Failures" in https://kafka.apache.org/21/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html
       // there seems to be need for a pause between polls (?)
