@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Properties;
 
 import javax.enterprise.event.Observes;
+import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
@@ -31,7 +33,9 @@ public class ConsumerAtLeastOnce implements Runnable {
 
   static final Logger logger = LoggerFactory.getLogger(ConsumerAtLeastOnce.class);
 
-  Properties consumerProps;
+  // TODO make named, in case we need other props
+  @Inject
+  Provider<Properties> consumerPropsP;
 
   @ConfigProperty(name="topics")
   List<String> topics;
@@ -44,11 +48,14 @@ public class ConsumerAtLeastOnce implements Runnable {
   String   pollDurationConf;
   Duration pollDuration;
 
+  @ConfigProperty(name="max_polls", defaultValue="0")
   long maxPolls = 0;
 
-  OnUpdate onupdate;
+  @Inject
+  Provider<Map<String, byte[]>> cacheP;
 
-  Map<String, byte[]> cache;
+  @Inject
+  Provider<OnUpdate> onupdateP;
 
   void start(@Observes StartupEvent ev) {
     // workaround for Converter not working
@@ -56,6 +63,7 @@ public class ConsumerAtLeastOnce implements Runnable {
     pollDuration = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(pollDurationConf);
     // end workaround
     logger.info("Started. Topics: {}", topics);
+    run();
   }
 
   public void stop(@Observes ShutdownEvent ev) {
@@ -67,9 +75,11 @@ public class ConsumerAtLeastOnce implements Runnable {
    */
   @Override
   public void run() {
-	KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps);
+    Properties consumerProps = consumerPropsP.get();
+    KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps);
+    Map<String, byte[]> cache = cacheP.get();
     try {
-      runThatThrows(consumer, maxPolls);
+      runThatThrows(consumer, cache, maxPolls);
     } catch (InterruptedException e) {
       throw new IllegalStateException("No error handling for this error", e);
     } finally {
@@ -78,7 +88,7 @@ public class ConsumerAtLeastOnce implements Runnable {
     }
   }
 
-  void runThatThrows(final KafkaConsumer<String, byte[]> consumer, final long polls) throws InterruptedException {
+  void runThatThrows(final KafkaConsumer<String, byte[]> consumer, final Map<String, byte[]> cache, final long polls) throws InterruptedException {
     logger.info("Running");
 
     TopicCheck topicCheck = new TopicCheck(new Create() {
@@ -130,11 +140,13 @@ public class ConsumerAtLeastOnce implements Runnable {
       logger.info("Polled {} records", count);
 
       if (nextUncommitted.isEmpty()) {
-    	if (count > 0) throw new IllegalStateException("Received " + count + " records prior to an assigned partitions event");
+        if (count > 0) throw new IllegalStateException("Received " + count + " records prior to an assigned partitions event");
         logger.info("Waiting for topic assignments");
         Thread.sleep(metadataTimeout.toMillis());
         continue;
       }
+
+      OnUpdate onupdate = onupdateP.get();
 
       Iterator<ConsumerRecord<String, byte[]>> records = polled.iterator();
       while (records.hasNext()) {
