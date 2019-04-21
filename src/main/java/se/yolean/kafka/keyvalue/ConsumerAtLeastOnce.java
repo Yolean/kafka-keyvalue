@@ -11,8 +11,6 @@ import java.util.Properties;
 
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
@@ -32,11 +30,7 @@ import se.yolean.kafka.tasks.TopicCheck;
 @Singleton
 public class ConsumerAtLeastOnce implements Runnable {
 
-  static final Logger logger = LoggerFactory.getLogger(ConsumerAtLeastOnce.class);
-
-  // TODO make named, in case we need other props
-  @Inject
-  Provider<Properties> consumerPropsP;
+  final Logger logger = LoggerFactory.getLogger(this.getClass());
 
   @ConfigProperty(name="topics")
   List<String> topics;
@@ -53,14 +47,15 @@ public class ConsumerAtLeastOnce implements Runnable {
   long maxPolls = 0;
 
   @Inject
-  @Named("cache")
+  @javax.inject.Named("consumer")
+  Properties consumerProps;
+
+  @Inject
+  @javax.inject.Named("cache")
   Map<String, byte[]> cache;
 
   @Inject
-  Provider<Map<String, byte[]>> cacheP;
-
-  @Inject
-  Provider<OnUpdate> onupdateP;
+  OnUpdate onupdate;
 
   void start(@Observes StartupEvent ev) {
     // workaround for Converter not working
@@ -69,11 +64,8 @@ public class ConsumerAtLeastOnce implements Runnable {
     logger.info("Poll duration: {}", pollDuration);
     // end workaround
     logger.info("Started. Topics: {}", topics);
-    logger.info("Cache provider: {}", cacheP);
-    logger.info("Consumer props provider: {}", consumerPropsP);
-    logger.info("OnUpdate provider: {}", onupdateP);
     logger.info("Cache: {}", cache);
-    //run();
+    run();
   }
 
   public void stop(@Observes ShutdownEvent ev) {
@@ -85,9 +77,7 @@ public class ConsumerAtLeastOnce implements Runnable {
    */
   @Override
   public void run() {
-    Properties consumerProps = consumerPropsP.get();
     KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps);
-    Map<String, byte[]> cache = cacheP.get();
     try {
       runThatThrows(consumer, cache, maxPolls);
     } catch (InterruptedException e) {
@@ -155,8 +145,6 @@ public class ConsumerAtLeastOnce implements Runnable {
         Thread.sleep(metadataTimeout.toMillis());
         continue;
       }
-
-      OnUpdate onupdate = onupdateP.get();
 
       Iterator<ConsumerRecord<String, byte[]>> records = polled.iterator();
       while (records.hasNext()) {

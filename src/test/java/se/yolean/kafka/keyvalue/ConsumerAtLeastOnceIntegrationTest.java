@@ -1,5 +1,11 @@
 package se.yolean.kafka.keyvalue;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.time.Duration;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
@@ -17,15 +23,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.Mockito;
 
 import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
-
-import se.yolean.kafka.keyvalue.config.Provide;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.time.Duration;
-import java.util.Collections;
-import java.util.HashMap;
 
 public class ConsumerAtLeastOnceIntegrationTest {
 
@@ -62,9 +59,9 @@ public class ConsumerAtLeastOnceIntegrationTest {
     final String BOOTSTRAP = kafka.getKafkaConnectString();
     kafka.getKafkaTestUtils().createTopic("topic1", 1, (short) 1);
 
-    consumer.consumerPropsP = new Provide<>(getConsumerProperties(BOOTSTRAP, GROUP));
-    consumer.onupdateP = new Provide<>(Mockito.mock(OnUpdate.class));
-    consumer.cacheP = new Provide<>(new HashMap<>());
+    consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
+    consumer.onupdate = Mockito.mock(OnUpdate.class);
+    consumer.cache = new HashMap<>();
     consumer.topics = Collections.singletonList(TOPIC);
 
     consumer.maxPolls = 5;
@@ -75,23 +72,23 @@ public class ConsumerAtLeastOnceIntegrationTest {
     producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k1", "v1".getBytes())).get();
     producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k2", "v1".getBytes())).get();
 
-    consumer.consumerPropsP.get().put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest"); // start from scratch even if we're reusing a test topic
+    consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest"); // start from scratch even if we're reusing a test topic
     consumer.run();
-    consumer.consumerPropsP.get().put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none"); // the test should fail if we don't have an offset after the first run
+    consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none"); // the test should fail if we don't have an offset after the first run
 
-    assertEquals(2, consumer.cacheP.get().size(), "Should have consumed two records with different key");
-    assertTrue(consumer.cacheP.get().containsKey("k1"), "Should contain the first key");
-    assertEquals("v1", new String(consumer.cacheP.get().get("k1")), "Should have the first key's value");
+    assertEquals(2, consumer.cache.size(), "Should have consumed two records with different key");
+    assertTrue(consumer.cache.containsKey("k1"), "Should contain the first key");
+    assertEquals("v1", new String(consumer.cache.get("k1")), "Should have the first key's value");
 
     producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k1", "v2".getBytes())).get();
     // TODO per-test kafka topic: producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k3", "v2".getBytes())).get();
-    assertEquals(2, consumer.cacheP.get().size(), "Nothing should happen unless run() is ongoing");
+    assertEquals(2, consumer.cache.size(), "Nothing should happen unless run() is ongoing");
 
     consumer.run();
     // TODO per-test kafka topic: assertEquals(3, consumer.cache.size(), "Should have got the additional key from the last batch");
-    assertEquals("v2", new String(consumer.cacheP.get().get("k1")), "Value should come from the latest record");
+    assertEquals("v2", new String(consumer.cache.get("k1")), "Value should come from the latest record");
 
-    Mockito.verify(consumer.onupdateP.get()).handle(new UpdateRecord(TOPIC, 0, 2, "k1"), null);
+    Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 0, 2, "k1"), null);
 
     producer.close();
   }
