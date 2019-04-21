@@ -11,6 +11,7 @@ import java.util.Properties;
 
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
@@ -45,11 +46,15 @@ public class ConsumerAtLeastOnce implements Runnable {
   Duration metadataTimeout;
 
   @ConfigProperty(name="poll_duration", defaultValue="5s")
-  String   pollDurationConf;
+  javax.inject.Provider<String>   pollDurationConf;
   Duration pollDuration;
 
   @ConfigProperty(name="max_polls", defaultValue="0")
   long maxPolls = 0;
+
+  @Inject
+  @Named("cache")
+  Map<String, byte[]> cache;
 
   @Inject
   Provider<Map<String, byte[]>> cacheP;
@@ -60,10 +65,15 @@ public class ConsumerAtLeastOnce implements Runnable {
   void start(@Observes StartupEvent ev) {
     // workaround for Converter not working
     metadataTimeout = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(metadataTimeoutConf);
-    pollDuration = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(pollDurationConf);
+    pollDuration = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(pollDurationConf.get());
+    logger.info("Poll duration: {}", pollDuration);
     // end workaround
     logger.info("Started. Topics: {}", topics);
-    run();
+    logger.info("Cache provider: {}", cacheP);
+    logger.info("Consumer props provider: {}", consumerPropsP);
+    logger.info("OnUpdate provider: {}", onupdateP);
+    logger.info("Cache: {}", cache);
+    //run();
   }
 
   public void stop(@Observes ShutdownEvent ev) {
