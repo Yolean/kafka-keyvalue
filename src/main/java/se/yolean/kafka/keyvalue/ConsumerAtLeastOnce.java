@@ -57,6 +57,12 @@ public class ConsumerAtLeastOnce implements Runnable {
   @Inject
   OnUpdate onupdate;
 
+  final Thread runner;
+
+  public ConsumerAtLeastOnce() {
+    runner = new Thread(this, "kafkaclient");
+  }
+
   void start(@Observes StartupEvent ev) {
     // workaround for Converter not working
     metadataTimeout = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(metadataTimeoutConf);
@@ -65,7 +71,7 @@ public class ConsumerAtLeastOnce implements Runnable {
     // end workaround
     logger.info("Started. Topics: {}", topics);
     logger.info("Cache: {}", cache);
-    run();
+    runner.start();
   }
 
   public void stop(@Observes ShutdownEvent ev) {
