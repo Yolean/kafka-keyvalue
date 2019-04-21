@@ -2,31 +2,23 @@ package se.yolean.kafka.keyvalue;
 
 public interface OnUpdate {
 
+  void pollStart();
+
   /**
-   *
-   * Transitional strategy for handling downstream errors:
-   * - Keep retrying
-   * + don't return success from any subsequent {@link #handle(UpdateRecord, Completion)}
-   * + when bailing throw on the next handle
-   * = should lead to service restart without commits from the failed offset.
-   *
    * @param update The new value (which may be the old value at a new offset)
-   * @param completion Handles outcome of the update
    */
-  void handle(UpdateRecord update, Completion completion);
+  void handle(UpdateRecord update);
 
-  public interface Completion {
-
-    /**
-     * Called if the hooks succeed (after retries, if applicable)
-     */
-    void onSuccess();
-
-    /**
-     * Calledf any of the hooks fail (after retries, if applicable)
-     */
-    void onFailure();
-
-  }
+  /**
+   * For consistency the only update result that counts is that
+   * all targets have acknowledged all updates.
+   *
+   * Retries are thus implied, and targets may deduplicate requests on topic+partition+offset.
+   *
+   * @throws RuntimeException on failure to get ack from onupdate targets,
+   *   _suppressing_ consumer commit and triggering application exit/restart
+   *   TODO or given that we run consumer in a thread, would we rather return a boolean false?
+   */
+  void pollEndBlockingUntilTargetsAck();
 
 }

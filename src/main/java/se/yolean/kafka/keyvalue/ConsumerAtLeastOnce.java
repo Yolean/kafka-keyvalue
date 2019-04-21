@@ -139,7 +139,9 @@ public class ConsumerAtLeastOnce implements Runnable {
 
       // According to "Detecting Consumer Failures" in https://kafka.apache.org/21/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html
       // there seems to be need for a pause between polls (?)
-      Thread.sleep(pollDuration.toMillis());
+      Thread.sleep(pollDuration.toMillis()); // TODO make smaller?
+
+      onupdate.pollStart();
 
       ConsumerRecords<String, byte[]> polled = consumer.poll(pollDuration);
       int count = polled.count();
@@ -162,15 +164,19 @@ public class ConsumerAtLeastOnce implements Runnable {
           throw new IllegalStateException("There's no start offset for " + update.getTopicPartition() + ", at consumed offset " + update.getOffset() + " key " + update.getKey());
         }
         if (record.offset() >= start) {
-          onupdate.handle(update, /*TODO*/ null);
+          onupdate.handle(update);
         } else {
           logger.info("Suppressing onupdate for {} because start offset is {}", update, start);
         }
-        // TODO deduplicate onupdate within the same poll/batch, by key
       }
 
-      // TODO upon onupdate completion, but if ANY onpdate failed we should somehow abort the rest
-      // and only commit to the last non-failing onupdate (using the Map arg call)
+      try {
+        onupdate.pollEndBlockingUntilTargetsAck();
+      } catch (RuntimeException e) {
+        logger.error("Failed onupdate ack. App should exit.", e);
+        throw e;
+      }
+
       consumer.commitSync();
 
       // Next poll ...

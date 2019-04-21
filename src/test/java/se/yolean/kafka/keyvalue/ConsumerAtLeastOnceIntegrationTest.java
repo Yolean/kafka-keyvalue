@@ -88,7 +88,11 @@ public class ConsumerAtLeastOnceIntegrationTest {
     // TODO per-test kafka topic: assertEquals(3, consumer.cache.size(), "Should have got the additional key from the last batch");
     assertEquals("v2", new String(consumer.cache.get("k1")), "Value should come from the latest record");
 
-    Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 0, 2, "k1"), null);
+    Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 0, 2, "k1"));
+
+    // API extended after this test was written. We should probably verify order too.
+    Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollStart();
+    Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollEndBlockingUntilTargetsAck();
 
     producer.close();
   }
