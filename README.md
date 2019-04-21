@@ -28,10 +28,14 @@ The [build-contract](https://github.com/Yolean/build-contract/) can be used as d
 
 ```
 alias compose='docker-compose -f build-contracts/docker-compose.yml'
-gradle jibDockerBuild --image=yolean/kafka-keyvalue:dev
-compose up -d cache1
-compose up smoketest
-compose up --build example-nodejs-client
+compose up -d kafka
+topics=topic1 kafka_bootstrap=localhost:19092 kafka_group_id=dev1 kafka_offset_reset=latest mvn compile quarkus:dev
+# in a different terminal
+echo "k1=v1" | kafkacat -b localhost:19092 -P -t topic1
+echo "k1=v1" | kafkacat -b localhost:19092 -P -t topic1
+# The rest is pending rewrite for quarkus-style config
+#compose up smoketest
+#compose up --build example-nodejs-client
 compose down
 ```
 
