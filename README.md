@@ -26,32 +26,33 @@ For REST endpoints see `@Path` in [Endpoints](./src/main/java/se/yolean/kafka/ke
 
 The [build-contract](https://github.com/Yolean/build-contract/) can be used as dev stack.
 
-```
+### Running locally
+
+Note that compatiblity with [changes are automatically reflected](https://quarkus.io/guides/maven-tooling#development-mode) is yet to be verified.
+
+```bash
 alias compose='docker-compose -f build-contracts/docker-compose.yml'
-compose up -d kafka
+compose up -d kafka pixy
 topics=topic1 kafka_bootstrap=localhost:19092 kafka_group_id=dev1 kafka_offset_reset=latest mvn compile quarkus:dev
 # in a different terminal
+curl http://localhost:8080/healthz
+curl http://localhost:8080/ready
 echo "k1=v1" | kafkacat -b localhost:19092 -P -t topic1
 echo "k1=v1" | kafkacat -b localhost:19092 -P -t topic1
-# The rest is pending rewrite for quarkus-style config
-#compose up smoketest
-#compose up --build example-nodejs-client
-compose down
 ```
-
-Note: `build-contract` (see [build-and-push.sh](./build-and-push.sh)) sometimes fails due to timing issues. Try re-running.
-
-During development of the cache itself or the example nodejs client
-it's more convenient to start only `kafka` and `pixy` through docker.
-
-The main class is `se.yolean.kafka.keyvalue.cli.Main`.
-
-Run the cache service from your IDE with args like: `--port 18081 --streams-props bootstrap.servers=localhost:19092 num.standby.replicas=0 --hostname localhost --topic topic1 --application-id kv-test1-local-001 --onupdate http://127.0.0.1:8081/kafka-keyvalue/v1/updates`
-
-Test manually using for example `echo 'mytest={"t":1}' | kafkacat -b localhost:19092 -P -t topic1 -K '='; curl http://localhost:19081/cache/v1/raw/mytest`.
 
 Run the nodejs locally using: `cd example-nodejs-client; npm ci; ./node_modules/.bin/jest --runInBand --watch `
 (Note that the mock server for unupdate calls only exists during Jest runs)
+
+### With docker-compose
+
+```bash
+alias compose='docker-compose -f build-contracts/docker-compose.yml'
+compose up --build -d cache1
+compose up smoketest
+compose up --build example-nodejs-client
+compose down
+```
 
 ## Logging
 

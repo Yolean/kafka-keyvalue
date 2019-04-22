@@ -47,7 +47,7 @@ services:
     -  0.0.0.0:19090
 
   topic1-create:
-    image: solsson/kafka:2.1.1@sha256:8bc8242c649c395ab79d76cc83b1052e63b4efea7f83547bf11eb3ef5ea6f8e1
+    image: solsson/kafka:2.2.0@sha256:cf048d6211b6b48f1783f97cb41add511386e2f0a5f5c62fa0eee9564dcd3e9a
     depends_on:
     - kafka
     entrypoint:
@@ -68,28 +68,19 @@ services:
     depends_on:
     - kafka
     - topic1-create
-    image: yolean/kafka-keyvalue:dev
+    image: yolean/kafka-keyvalue:latest
+    build:
+      context: ../
     labels:
     - com.yolean.build-target
     ports:
-    - 19081:19081
-    command:
-    - --standalone
-    - --application-id
-    -   kv-001-
-    - --port
-    -   '19081'
-    - --streams-props
-    -   bootstrap.servers=kafka:9092
-    -   num.standby.replicas=0
-    - --topic
-    -   topic1
-    - --onupdate
-    -   http://example-nodejs-client:8081/kafka-keyvalue/v1/updates
-    -   http://onupdate-logging:8080/
-    -   http://example-nodejs-client:8082/testpost
-    - --starttimeout
-    -   '10'
+    - 19081:8080
+    environment:
+    - kafka_bootstrap=kafka:19092
+    - kafka_group_id=cache1
+    - kafka_offset_reset=latest
+    - topics=topic1
+    #- update_targets=http://example-nodejs-client:8081/kafka-keyvalue/v1/updates,http://onupdate-logging:8080/,http://example-nodejs-client:8082/testpost
 
   onupdate-logging:
     image: solsson/httpstatus-random:access-logging@sha256:5330b2e84457e65ae9552acb00b26e8b7b2a878bcafb3baabddc13c1f840cd90
@@ -138,71 +129,3 @@ services:
     command:
     # By design the cache service deals with a single topic, meaning that tests probably can't run concurrently
     - --runInBand
-
-  topic2-create:
-    image: solsson/kafka:2.1.1@sha256:8bc8242c649c395ab79d76cc83b1052e63b4efea7f83547bf11eb3ef5ea6f8e1
-    depends_on:
-    - kafka
-    entrypoint:
-    - ./bin/kafka-topics.sh
-    command:
-    - --zookeeper
-    -   zookeeper:2181
-    - --topic
-    -   topic2
-    - --create
-    - --if-not-exists
-    - --partitions
-    -   '12'
-    - --replication-factor
-    -   '1'
-
-  cache2-01:
-    depends_on:
-    - kafka
-    - topic2-create
-    image: yolean/kafka-keyvalue:dev
-    expose:
-    - '19082'
-    command:
-    - --port
-    -   '19082'
-    - --streams-props
-    -   bootstrap.servers=kafka:9092
-    # Not sure how to do this in docker-compose
-    #-   num.standby.replicas=1
-    - --hostname
-    -   cache2-01
-    - --application-id
-    -   kv-002
-    - --topic
-    -   topic2
-    - --onupdate
-    -   http://onupdate-logging:8080/sharded/01
-    - --starttimeout
-    -   '25'
-
-  cache2-02:
-    depends_on:
-    - kafka
-    - topic2-create
-    image: yolean/kafka-keyvalue:dev
-    expose:
-    - '19083'
-    command:
-    - --port
-    -   '19083'
-    - --streams-props
-    -   bootstrap.servers=kafka:9092
-    # Not sure how to do this in docker-compose
-    #-   num.standby.replicas=1
-    - --hostname
-    -   cache2-02
-    - --application-id
-    -   kv-002
-    - --topic
-    -   topic2
-    - --onupdate
-    -   http://onupdate-logging:8080/sharded/02
-    - --starttimeout
-    -   '25'
