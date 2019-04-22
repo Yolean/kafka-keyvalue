@@ -1,4 +1,4 @@
-FROM maven:3.6.0-jdk-8-slim@sha256:c3e480a0180ff76cfd2c4d51672ca9c050009b98eba8f9d6b9e2752c8ef2956b as maven
+FROM maven:3.6.1-jdk-8-slim@sha256:dce33cc7a4702cc5f3ea3a6deb4ea840c17001895ffe169d96e1fd9d7041eb15 as maven
 
 FROM oracle/graalvm-ce:1.0.0-rc15@sha256:9a6bb7ee16b0fb7e6ac7c1b4f874080eef60110070a3c8fd01fa045790b21ed2 \
   as maven-build
@@ -9,7 +9,7 @@ ENV MAVEN_HOME=/usr/share/maven
 ENV MAVEN_CONFIG=/root/.m2
 
 WORKDIR /workspace
-RUN mvn io.quarkus:quarkus-maven-plugin:0.12.0:create \
+RUN mvn io.quarkus:quarkus-maven-plugin:0.13.3:create \
     -DprojectGroupId=org.acme \
     -DprojectArtifactId=getting-started \
     -DclassName="org.acme.quickstart.GreetingResource" \
