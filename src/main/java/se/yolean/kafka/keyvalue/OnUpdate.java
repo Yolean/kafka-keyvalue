@@ -2,7 +2,7 @@ package se.yolean.kafka.keyvalue;
 
 public interface OnUpdate {
 
-  void pollStart();
+  void pollStart(Iterable<String> topics);
 
   /**
    * @param update The new value (which may be the old value at a new offset)

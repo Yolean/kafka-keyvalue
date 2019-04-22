@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Experimental yaml-in-yaml config, a single env value for {@value #ENV_NAME}.
+ * WIP Experimental yaml-in-yaml config, a single env value for {@value #ENV_NAME}.
  */
 public class EnvConfigSource implements ConfigSource {
 

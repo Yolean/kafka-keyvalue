@@ -91,7 +91,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
     Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 0, 2, "k1"));
 
     // API extended after this test was written. We should probably verify order too.
-    Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollStart();
+    Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollStart(Collections.singletonList(TOPIC));
     Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollEndBlockingUntilTargetsAck();
 
     producer.close();

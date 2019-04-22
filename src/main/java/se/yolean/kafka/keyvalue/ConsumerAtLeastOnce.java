@@ -141,7 +141,7 @@ public class ConsumerAtLeastOnce implements Runnable {
       // there seems to be need for a pause between polls (?)
       Thread.sleep(pollDuration.toMillis()); // TODO make smaller?
 
-      onupdate.pollStart();
+      onupdate.pollStart(topics);
 
       ConsumerRecords<String, byte[]> polled = consumer.poll(pollDuration);
       int count = polled.count();
