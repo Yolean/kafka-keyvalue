@@ -30,7 +30,7 @@ public class ConfigureCache implements Provider<Map<String, byte[]>> {
   String cacheType;
 
   @Produces
-  @javax.inject.Named("cache")
+  //@javax.inject.Named("cache")
   @Override
   public Map<String, byte[]> get() {
     if (CACHE_TYPE_INMEMORY.equals(cacheType)) {

@@ -47,7 +47,7 @@ public class ConfigureKafkaClient implements Provider<Properties> {
   }
 
   @Produces
-  @javax.inject.Named("consumer")
+  //@javax.inject.Named("consumer")
   @Override
   public Properties get() {
     Properties props = getConsumerProperties();

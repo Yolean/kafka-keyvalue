@@ -47,11 +47,11 @@ public class ConsumerAtLeastOnce implements Runnable {
   long maxPolls = 0;
 
   @Inject
-  @javax.inject.Named("consumer")
+  //@javax.inject.Named("consumer")
   Properties consumerProps;
 
   @Inject
-  @javax.inject.Named("cache")
+  //@javax.inject.Named("cache")
   Map<String, byte[]> cache;
 
   @Inject
