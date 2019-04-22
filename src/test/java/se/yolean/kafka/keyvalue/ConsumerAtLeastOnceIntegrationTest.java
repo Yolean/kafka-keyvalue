@@ -65,7 +65,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
     consumer.topics = Collections.singletonList(TOPIC);
 
     consumer.maxPolls = 5;
-    consumer.metadataTimeout = Duration.ofSeconds(10);
+    consumer.metadataTimeout = Duration.ofSeconds(10); // TODO tests fail on an assertion further down if this is too short, there's no produce error
     consumer.pollDuration = Duration.ofMillis(100);
 
     KafkaProducer<String, byte[]> producer = new KafkaProducer<>(getTestProducerProperties(BOOTSTRAP));
