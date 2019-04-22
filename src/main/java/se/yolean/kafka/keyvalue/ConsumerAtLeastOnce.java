@@ -43,6 +43,10 @@ public class ConsumerAtLeastOnce implements Runnable {
   javax.inject.Provider<String>   pollDurationConf;
   Duration pollDuration;
 
+  @ConfigProperty(name="min_pause_between_polls", defaultValue="1s")
+  javax.inject.Provider<String>   minPauseBetweenPollsConf;
+  Duration minPauseBetweenPolls;
+
   @ConfigProperty(name="max_polls", defaultValue="0")
   long maxPolls = 0;
 
@@ -67,6 +71,7 @@ public class ConsumerAtLeastOnce implements Runnable {
     // workaround for Converter not working
     metadataTimeout = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(metadataTimeoutConf);
     pollDuration = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(pollDurationConf.get());
+    minPauseBetweenPolls = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(minPauseBetweenPollsConf.get());
     logger.info("Poll duration: {}", pollDuration);
     // end workaround
     logger.info("Started. Topics: {}", topics);
@@ -134,16 +139,19 @@ public class ConsumerAtLeastOnce implements Runnable {
     });
 
     consumer.poll(Duration.ofNanos(1)); // Do we need one poll for subscribe to happen?
+    long pollEndTime = System.currentTimeMillis();
 
     for (long n = 0; polls == 0 || n < polls; n++) {
 
-      // According to "Detecting Consumer Failures" in https://kafka.apache.org/21/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html
+      // According to "Detecting Consumer Failures" in https://kafka.apache.org/22/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html
       // there seems to be need for a pause between polls (?)
-      Thread.sleep(pollDuration.toMillis()); // TODO make smaller?
+      long wait = pollEndTime - System.currentTimeMillis() + minPauseBetweenPolls.toMillis();
+      if (wait > 0) Thread.sleep(wait);
 
       onupdate.pollStart(topics);
 
       ConsumerRecords<String, byte[]> polled = consumer.poll(pollDuration);
+      pollEndTime = System.currentTimeMillis();
       int count = polled.count();
       logger.info("Polled {} records", count);
 
