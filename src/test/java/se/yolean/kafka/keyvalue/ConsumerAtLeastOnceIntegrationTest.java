@@ -77,6 +77,8 @@ public class ConsumerAtLeastOnceIntegrationTest {
     consumer.run();
     consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none"); // the test should fail if we don't have an offset after the first run
 
+    assertEquals(null, consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"));
+
     assertEquals(2, consumer.cache.size(), "Should have consumed two records with different key");
     assertTrue(consumer.cache.containsKey("k1"), "Should contain the first key");
     assertEquals("v1", new String(consumer.cache.get("k1")), "Should have the first key's value");
@@ -91,11 +93,40 @@ public class ConsumerAtLeastOnceIntegrationTest {
 
     Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 0, 2, "k1"));
 
+    assertEquals(null, consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"));
+
     // API extended after this test was written. We should probably verify order too.
     Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollStart(Collections.singletonList(TOPIC));
     Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollEndBlockingUntilTargetsAck();
 
     producer.close();
+
+    assertEquals(null, consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"));
+  }
+
+  @Test
+  void testMetadataTimeout() throws InterruptedException, ExecutionException {
+
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
+    final String TOPIC = "topic1";
+    final String GROUP = this.getClass().getSimpleName() + "_testSingleRun_" + System.currentTimeMillis();
+    final String BOOTSTRAP = kafka.getKafkaConnectString();
+    kafka.getKafkaTestUtils().createTopic("topic1", 1, (short) 1);
+
+    consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
+    consumer.onupdate = Mockito.mock(OnUpdate.class);
+    consumer.cache = new HashMap<>();
+    consumer.topics = Collections.singletonList(TOPIC);
+
+    consumer.maxPolls = 5;
+    consumer.metadataTimeout = Duration.ofMillis(10);
+    consumer.pollDuration = Duration.ofMillis(100);
+    consumer.minPauseBetweenPolls = Duration.ofMillis(100);
+
+    consumer.run();
+
+    assertEquals("", consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"),
+        "Should have thrown when metadata failed");
   }
 
 }

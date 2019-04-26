@@ -21,6 +21,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
+import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +68,8 @@ public class ConsumerAtLeastOnce implements Runnable,
 
   final Thread runner;
 
+  Throwable consumeLoopExit = null;
+
   public ConsumerAtLeastOnce() {
     runner = new Thread(this, "kafkaclient");
   }
@@ -76,7 +79,17 @@ public class ConsumerAtLeastOnce implements Runnable,
    */
   @Override
   public HealthCheckResponse call() {
-    return HealthCheckResponse.named("consume-loop").up().build();
+    HealthCheckResponseBuilder response = HealthCheckResponse.named("consume-loop");
+    if (consumeLoopExit != null) {
+      return response.down()
+          .withData("error-type", consumeLoopExit.getClass().getName())
+          .withData("error-message", consumeLoopExit.getMessage())
+          .build();
+    }
+    if (!runner.isAlive()) {
+      return response.down().build();
+    }
+    return response.up().build();
   }
 
   /**
@@ -104,7 +117,10 @@ public class ConsumerAtLeastOnce implements Runnable,
 
   /**
    * (Re)set all state and consume to cache, cheaper than restarting the whole application.
+   *
    * Should catch all exceptions, so we don't need to rely on .setUncaughtExceptionHandler.
+   *
+   * No thread management should happen within this loop (except maybe in outbound HTTP requests).
    */
   @Override
   public void run() {
@@ -112,7 +128,11 @@ public class ConsumerAtLeastOnce implements Runnable,
     try {
       runThatThrows(consumer, cache, maxPolls);
     } catch (InterruptedException e) {
-      throw new IllegalStateException("No error handling for this error", e);
+      consumeLoopExit = e;
+      logger.error("Consume loop got interrupted somewhere. Probe /health to terminate in such cases.", e);
+    } catch (RuntimeException e) {
+      consumeLoopExit = e;
+      logger.error("Consume loop ran into an error. Probe /health to terminate in such cases.", e);
     } finally {
       logger.info("Closing consumer");
       consumer.close();
