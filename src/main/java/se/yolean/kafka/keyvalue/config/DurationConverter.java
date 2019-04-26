@@ -21,7 +21,7 @@ public class DurationConverter implements Converter<Duration> {
   public Duration convert(String value) {
     Matcher matcher = pattern.matcher(value);
     if (!matcher.matches()) {
-      throw new IllegalArgumentException("Failed to parse durtion value " + value);
+      throw new IllegalArgumentException("Failed to parse duration value " + value);
     }
     int n = Integer.parseInt(matcher.group(1));
     String unit = matcher.group(2);
