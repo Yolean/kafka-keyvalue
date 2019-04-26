@@ -29,6 +29,12 @@ public class TopicCheck implements Runnable {
     this.timeout = listTopicsTimeout;
   }
 
+  /**
+   * @throws org.apache.kafka.common.errors.TimeoutException if the topic metadata could not be fetched before
+   *             expiration of the passed timeout
+   * @throws org.apache.kafka.common.KafkaException for any other unrecoverable errors
+   * @see KafkaConsumer#listTopics(Duration)
+   */
   @Override
   public void run() {
     this.sourceTopicsExist = consumerSeesTopics(create.getConsumer(), sourceTopics, timeout );
@@ -37,8 +43,7 @@ public class TopicCheck implements Runnable {
   boolean consumerSeesTopics(KafkaConsumer<? extends Object, ? extends Object> consumer, Collection<String> sourceTopics, Duration timeout) {
     Map<String, List<PartitionInfo>> topics = consumer.listTopics(timeout);
     if (topics == null) {
-      logger.warn("Got null topics list from consumer");
-      return false;
+      throw new IllegalStateException("Got null topics list from consumer. Expected a throw.");
     }
     if (topics.size() == 0) {
       logger.info("Zero topics found on the consumer side");

@@ -1,7 +1,6 @@
 package se.yolean.kafka.keyvalue;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -40,9 +39,12 @@ public class ConsumerAtLeastOnce implements Runnable,
   @ConfigProperty(name="topics")
   List<String> topics;
 
-  @ConfigProperty(name="metadata_timeout", defaultValue="30s")
+  @ConfigProperty(name="metadata_timeout", defaultValue="5s")
   String   metadataTimeoutConf;
   Duration metadataTimeout;
+
+  @ConfigProperty(name="topic_check_retries", defaultValue="12")
+  int topicCheckRetries;
 
   @ConfigProperty(name="poll_duration", defaultValue="5s")
   javax.inject.Provider<String>   pollDurationConf;
@@ -142,16 +144,26 @@ public class ConsumerAtLeastOnce implements Runnable,
   void runThatThrows(final KafkaConsumer<String, byte[]> consumer, final Map<String, byte[]> cache, final long polls) throws InterruptedException {
     logger.info("Running");
 
-    TopicCheck topicCheck = new TopicCheck(new Create() {
-      @Override
-      public KafkaConsumer<? extends Object, ? extends Object> getConsumer() {
-        return consumer;
-      }
-    }, new ArrayList<>(topics), metadataTimeout);
+    // This way of setting a consumer is because we've reused TopicCheck from kafka-topics-copy
+    TopicCheck topicCheck = new TopicCheck(new Create(consumer), topics, metadataTimeout);
 
+    int retries = 0;
     while (!topicCheck.sourceTopicsExist()) {
-      topicCheck.run();
       logger.info("Waiting for topic existence {} ({})", topicCheck, topics);
+      try {
+        topicCheck.run();
+      } catch (org.apache.kafka.common.errors.TimeoutException timeout) {
+        if (retries == topicCheckRetries) {
+          throw timeout;
+        }
+        logger.warn("Kafka listTopics timed out, but as topic check is our initial use of the consumer we'll retry.");
+      } catch (org.apache.kafka.common.KafkaException unrecoverable) {
+        logger.error("Topic check failed unrecoverably", unrecoverable);
+        throw unrecoverable;
+      }
+      if (retries++ > topicCheckRetries) {
+        throw new RuntimeException("Gave up waiting for topic existence after " + topicCheckRetries + " retries with " + metadataTimeout.getSeconds() + "s timeout");
+      }
       Thread.sleep(metadataTimeout.toMillis());
     }
     logger.info("Topic {} found", topics);
@@ -178,7 +190,7 @@ public class ConsumerAtLeastOnce implements Runnable,
 
     });
 
-    consumer.poll(Duration.ofNanos(1)); // Do we need one poll for subscribe to happen?
+    consumer.poll(Duration.ofMillis(1)); // Do we need one poll for subscribe to happen?
     long pollEndTime = System.currentTimeMillis();
 
     for (long n = 0; polls == 0 || n < polls; n++) {

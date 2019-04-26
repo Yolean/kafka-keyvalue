@@ -65,7 +65,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
     consumer.topics = Collections.singletonList(TOPIC);
 
     consumer.maxPolls = 5;
-    consumer.metadataTimeout = Duration.ofSeconds(30); // TODO tests fail on an assertion further down if this is too short, there's no produce error
+    consumer.metadataTimeout = Duration.ofSeconds(10); // TODO tests fail on an assertion further down if this is too short, there's no produce error
     consumer.pollDuration = Duration.ofMillis(100);
     consumer.minPauseBetweenPolls = Duration.ofMillis(100);
 
@@ -120,12 +120,46 @@ public class ConsumerAtLeastOnceIntegrationTest {
 
     consumer.maxPolls = 5;
     consumer.metadataTimeout = Duration.ofMillis(10);
-    consumer.pollDuration = Duration.ofMillis(100);
-    consumer.minPauseBetweenPolls = Duration.ofMillis(100);
+    consumer.topicCheckRetries = 0; // With >0 retries we're likely to succeed
+    consumer.pollDuration = Duration.ofMillis(1000);
+    consumer.minPauseBetweenPolls = Duration.ofMillis(500);
 
+    long t1 = System.currentTimeMillis();
     consumer.run();
+    assertTrue(System.currentTimeMillis() - t1 > 20, "Should have spent time waiting for metadata timeout twice");
+    assertTrue(System.currentTimeMillis() - t1 < 500, "Should have exited after metadata timeout, not waited for other things");
 
-    assertEquals("", consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"),
+    assertEquals("Timeout expired while fetching topic metadata",
+        consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"),
+        "Should have thrown when metadata failed");
+  }
+
+  @Test
+  void testTopicNonexistent() throws InterruptedException, ExecutionException {
+
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
+    final String TOPIC = "topic0";
+    final String GROUP = this.getClass().getSimpleName() + "_testSingleRun_" + System.currentTimeMillis();
+    final String BOOTSTRAP = kafka.getKafkaConnectString();
+
+    consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
+    consumer.onupdate = Mockito.mock(OnUpdate.class);
+    consumer.cache = new HashMap<>();
+    consumer.topics = Collections.singletonList(TOPIC);
+
+    consumer.maxPolls = 5;
+    consumer.metadataTimeout = Duration.ofMillis(10);
+    consumer.topicCheckRetries = 5;
+    consumer.pollDuration = Duration.ofMillis(1000);
+    consumer.minPauseBetweenPolls = Duration.ofMillis(500);
+
+    long t1 = System.currentTimeMillis();
+    consumer.run();
+    assertTrue(System.currentTimeMillis() - t1 > 50, "Should have spent time waiting for topic existence x5");
+    assertTrue(System.currentTimeMillis() - t1 < 500, "Should have exited after these retries, not waited for other things");
+
+    assertEquals("Gave up waiting for topic existence after 5 retries with 0s timeout",
+        consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"),
         "Should have thrown when metadata failed");
   }
 

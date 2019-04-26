@@ -5,8 +5,16 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 /**
  * Stub Create, to be able to reuse TopicCheck from kafka-topics-copy
  */
-public abstract class Create {
+public class Create {
 
-  public abstract KafkaConsumer<? extends Object, ? extends Object> getConsumer();
+  private KafkaConsumer<? extends Object, ? extends Object> consumer;
+
+  public Create(KafkaConsumer<? extends Object, ? extends Object> alreadyCreated) {
+    this.consumer = alreadyCreated;
+  }
+
+  public KafkaConsumer<? extends Object, ? extends Object> getConsumer() {
+    return this.consumer;
+  }
 
 }
