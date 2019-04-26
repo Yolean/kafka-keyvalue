@@ -46,6 +46,7 @@ RUN native-image \
   #-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
   -jar kafka-keyvalue-1.0-SNAPSHOT-runner.jar \
   -J-Djava.util.concurrent.ForkJoinPool.common.parallelism=1 \
+  -H:FallbackThreshold=0 \
   -H:+PrintAnalysisCallTree \
   -H:-AddAllCharsets \
   -H:EnableURLProtocols=http \
