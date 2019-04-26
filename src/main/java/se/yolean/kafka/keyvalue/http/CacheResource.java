@@ -11,13 +11,13 @@ import se.yolean.kafka.keyvalue.ConsumerAtLeastOnce;
 @Path("/kafka-keyvalue")
 public class CacheResource {
 
-	@Inject
-	ConsumerAtLeastOnce consumer;
+  @Inject
+  ConsumerAtLeastOnce consumer;
 
-	@GET
-	@Produces(MediaType.TEXT_PLAIN)
-	public String hello() {
-		return "hello" + consumer;
-	}
+  @GET
+  @Produces(MediaType.TEXT_PLAIN)
+  public String hello() {
+    return "hello" + consumer;
+  }
 
 }
