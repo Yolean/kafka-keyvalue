@@ -27,7 +27,7 @@ import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
 public class ConsumerAtLeastOnceIntegrationTest {
 
   @RegisterExtension
-  static final SharedKafkaTestResource kafka = new SharedKafkaTestResource().withBrokers(2);
+  static final SharedKafkaTestResource kafka = new SharedKafkaTestResource().withBrokers(1);
 
   Properties getConsumerProperties(String bootstrap, String groupId) {
     Properties props = new Properties();
