@@ -16,4 +16,20 @@ class DurationConverterTest {
     assertEquals(5, converter.convert("5s").getSeconds());
   }
 
+  @Test
+  void testConvertMs() {
+    Converter<Duration> converter = new DurationConverter();
+    assertEquals(30000000, converter.convert("30ms").getNano());
+    assertEquals(5000000, converter.convert("5ms").getNano());
+  }
+
+  /**
+   * Needed because with Quarkus 0.14.0 mvn runs would crash with Failed to parse duration value PT1S even when no value was set
+   */
+  @Test
+  void testConvertISO() {
+    Converter<Duration> converter = new DurationConverter();
+    assertEquals(1, converter.convert("PT1S").getSeconds());
+  }
+
 }

@@ -21,6 +21,11 @@ public class DurationConverter implements Converter<Duration> {
   public Duration convert(String value) {
     Matcher matcher = pattern.matcher(value);
     if (!matcher.matches()) {
+      try {
+        return Duration.parse(value);
+      } catch (java.time.format.DateTimeParseException e) {
+        // not the Java ISO format either
+      }
       throw new IllegalArgumentException("Failed to parse duration value " + value);
     }
     int n = Integer.parseInt(matcher.group(1));
