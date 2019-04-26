@@ -35,7 +35,7 @@ alias compose='docker-compose -f build-contracts/docker-compose.yml'
 compose up -d kafka pixy
 topics=topic1 kafka_bootstrap=localhost:19092 kafka_group_id=dev1 kafka_offset_reset=latest mvn compile quarkus:dev
 # in a different terminal
-curl http://localhost:8080/healthz
+curl http://localhost:8080/health
 curl http://localhost:8080/ready
 echo "k1=v1" | kafkacat -b localhost:19092 -P -t topic1
 echo "k1=v1" | kafkacat -b localhost:19092 -P -t topic1

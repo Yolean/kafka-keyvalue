@@ -19,6 +19,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.health.HealthCheck;
+import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +30,9 @@ import se.yolean.kafka.tasks.Create;
 import se.yolean.kafka.tasks.TopicCheck;
 
 @Singleton
-public class ConsumerAtLeastOnce implements Runnable {
+public class ConsumerAtLeastOnce implements Runnable,
+    // Note that this class is a dependency, not a service, so @Health must be on the CacheResource (contrary to https://quarkus.io/guides/health-guide)
+    HealthCheck {
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -67,6 +71,21 @@ public class ConsumerAtLeastOnce implements Runnable {
     runner = new Thread(this, "kafkaclient");
   }
 
+  /**
+   * https://github.com/eclipse/microprofile-health to trigger termination
+   */
+  @Override
+  public HealthCheckResponse call() {
+    return HealthCheckResponse.named("consume-loop").up().build();
+  }
+
+  /**
+   * @return true if cache appears up-to-date
+   */
+  public boolean isReady() {
+    return true;
+  }
+
   void start(@Observes StartupEvent ev) {
     // workaround for Converter not working
     metadataTimeout = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(metadataTimeoutConf);
@@ -85,6 +104,7 @@ public class ConsumerAtLeastOnce implements Runnable {
 
   /**
    * (Re)set all state and consume to cache, cheaper than restarting the whole application.
+   * Should catch all exceptions, so we don't need to rely on .setUncaughtExceptionHandler.
    */
   @Override
   public void run() {
@@ -190,10 +210,6 @@ public class ConsumerAtLeastOnce implements Runnable {
       // Next poll ...
     }
 
-  }
-
-  public boolean isReady() {
-    return false;
   }
 
 }
