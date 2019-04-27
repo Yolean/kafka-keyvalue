@@ -205,12 +205,11 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       ConsumerRecords<String, byte[]> polled = consumer.poll(pollDuration);
       pollEndTime = System.currentTimeMillis();
       int count = polled.count();
-      logger.info("Polled {} records", count);
+      logger.debug("Polled {} records", count);
 
       if (nextUncommitted.isEmpty()) {
         if (count > 0) throw new IllegalStateException("Received " + count + " records prior to an assigned partitions event");
-        logger.info("Waiting for topic assignments");
-        Thread.sleep(metadataTimeout.toMillis());
+        logger.info("Haven't got partition assignments yet (metadata timeout {}s)", metadataTimeout.getSeconds());
         continue;
       }
 
