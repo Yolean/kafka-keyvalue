@@ -32,7 +32,8 @@ spec:
           tail -f /dev/null
       - name: kkv-testtopic
         image: yolean/kafka-keyvalue:plainjava
-        # Built locally, for example docker-compose + ./kind
+        # Built locally, for example with the compose alias and compose up -d k8s-kind (non-native builds are faster):
+        # compose build kkv-plainjava && compose exec k8s-kind kind load docker-image yolean/kafka-keyvalue:plainjava --name=kkv
         imagePullPolicy: Never
         env:
         - name: kafka_bootstrap
