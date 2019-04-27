@@ -2,6 +2,9 @@ package se.yolean.kafka.keyvalue;
 
 public interface OnUpdate {
 
+  /**
+   * @deprecated This call complicates matters, as we don't know if a poll is real (for example we might be waiting for partition assignments)
+   */
   void pollStart(Iterable<String> topics);
 
   /**

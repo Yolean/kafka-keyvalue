@@ -75,11 +75,14 @@ public class ConsumerAtLeastOnceIntegrationTest {
     producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k1", "v1".getBytes())).get();
     producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k2", "v1".getBytes())).get();
 
+    // TODO assertFalse(consumer.isReady(), "Shouldn't be ready before subscribed to a topic(s)");
+
     consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest"); // start from scratch even if we're reusing a test topic
     consumer.run();
     consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none"); // the test should fail if we don't have an offset after the first run
 
     assertEquals(null, consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"));
+    // TODO assertTrue(consumer.isReady(), "Should be ready now, after reading");
 
     assertEquals(2, consumer.cache.size(), "Should have consumed two records with different key");
     assertTrue(consumer.cache.containsKey("k1"), "Should contain the first key");
@@ -183,6 +186,12 @@ public class ConsumerAtLeastOnceIntegrationTest {
     assertEquals("Gave up waiting for topic existence after 5 retries with 0s timeout",
         consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"),
         "Should have thrown when metadata failed");
+  }
+
+  // TODO
+  //@Test
+  void testNoOffsetReset() {
+    // auto.offset.reset=none should be the default and we should have good error handling for it
   }
 
 }
