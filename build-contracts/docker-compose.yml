@@ -129,3 +129,36 @@ services:
     command:
     # By design the cache service deals with a single topic, meaning that tests probably can't run concurrently
     - --runInBand
+
+  # compose build && compose up -d k8s-kind && compose logs -f k8s-kind
+  # compose exec k8s-kind cat /root/.kube/kind-config-kkv > ./kubeconfig-kkv-kind
+  # export KUBECONFIG=$(pwd)/kubeconfig-kkv-kind
+  # kubectl apply -f kontrakt/
+  k8s-kind:
+    build:
+      context: ../kontrakt/kind
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:rw
+    network_mode: host
+    environment:
+    - KIND_NAME=kkv
+    - KUBECONFIG=/root/.kube/kind-config-kkv
+    command:
+    - /bin/sh
+    - -cex
+    - |
+      kind delete cluster --name=$$KIND_NAME || echo "Found no prior cluster"
+      kind create cluster --name=$$KIND_NAME
+      kind get kubeconfig-path --name=$$KIND_NAME
+      kubectl cluster-info
+
+      cd kubernetes-kafka
+      kubectl apply -f 00-namespace.yml
+      kubectl apply -f rbac-namespace-default/
+      kubectl apply -k variants/scale-1-ephemeral/
+      kubectl apply -f pixy/
+
+      # Load images built by docker-compose
+      kind load docker-image yolean/kafka-keyvalue:latest --name=$$KIND_NAME
+
+      tail -f /dev/null

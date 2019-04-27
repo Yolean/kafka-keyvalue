@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kkvdemo-testtopic
+  labels: &labels
+    app: kkvdemo
+    topic: testtopic
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *labels
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      containers:
+      - name: curl
+        image: solsson/curl@sha256:92ebf15ac57bea360484480336ed5d9fa16d38d773fd00f7e9fb2cae94baf25a
+        command:
+        - /bin/bash
+        - -cex
+        - |
+          curl --ipv4 --retry 5 --retry-connrefused http://pixy.kafka -I
+          curl --ipv4 --retry 5 --retry-connrefused http://localhost:8080/health
+          curl --ipv4 --retry 5 --retry-connrefused http://localhost:8080/ready -I
+          curl --ipv4 --retry 5 --retry-connrefused http://localhost:8080/ready
+          # readiness isn't implemented yet so instead we'll guess that kafka is operational after
+          sleep 30
+          curl --ipv4 -d '{"x":1}' -H 'Content-Type: application/json' 'http://pixy.kafka/topics/testtopic/messages?key=smoketest1' -f
+          curl --ipv4 -d '{"y":1}' -H 'Content-Type: application/json' 'http://pixy.kafka/topics/testtopic/messages?key=smoketest2' -f
+          curl --ipv4 -d '{"x":2}' -H 'Content-Type: application/json' 'http://pixy.kafka/topics/testtopic/messages?key=smoketest1' -f
+          tail -f /dev/null
+      - name: kkv-testtopic
+        image: yolean/kafka-keyvalue:latest
+        # Built locally, for example docker-compose + ./kind
+        imagePullPolicy: Never
+        env:
+        - name: kafka_bootstrap
+          value: bootstrap.kafka:9092
+        - name: kafka_group_id
+          value: kkvdemo-testtopic
+        - name: topics
+          value: testtopic
