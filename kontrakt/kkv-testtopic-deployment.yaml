@@ -31,7 +31,7 @@ spec:
           curl --ipv4 -d '{"x":2}' -H 'Content-Type: application/json' 'http://pixy.kafka/topics/testtopic/messages?key=smoketest1' -f
           tail -f /dev/null
       - name: kkv-testtopic
-        image: yolean/kafka-keyvalue:latest
+        image: yolean/kafka-keyvalue:plainjava
         # Built locally, for example docker-compose + ./kind
         imagePullPolicy: Never
         env:
@@ -41,3 +41,5 @@ spec:
           value: kkvdemo-testtopic
         - name: topics
           value: testtopic
+        - name: kafka_offset_reset
+          value: latest
