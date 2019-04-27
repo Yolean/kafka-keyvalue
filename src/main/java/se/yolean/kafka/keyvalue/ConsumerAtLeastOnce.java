@@ -210,6 +210,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       if (nextUncommitted.isEmpty()) {
         if (count > 0) throw new IllegalStateException("Received " + count + " records prior to an assigned partitions event");
         logger.info("Haven't got partition assignments yet (metadata timeout {}s)", metadataTimeout.getSeconds());
+        Thread.sleep(metadataTimeout.toMillis());
         continue;
       }
 
