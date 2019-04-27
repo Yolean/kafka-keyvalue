@@ -30,7 +30,7 @@ import se.yolean.kafka.tasks.Create;
 import se.yolean.kafka.tasks.TopicCheck;
 
 @Singleton
-public class ConsumerAtLeastOnce implements Runnable,
+public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     // Note that this class is a dependency, not a service, so @Health must be on the CacheResource (contrary to https://quarkus.io/guides/health-guide)
     HealthCheck {
 
@@ -179,7 +179,7 @@ public class ConsumerAtLeastOnce implements Runnable,
 
       @Override
       public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
-    	logger.info("Got partition assignment");
+        logger.info("Got partition assignments");
         partitions.forEach(p -> {
           long next = consumer.position(p, metadataTimeout);
           nextUncommitted.put(p, next);
@@ -242,6 +242,26 @@ public class ConsumerAtLeastOnce implements Runnable,
       // Next poll ...
     }
 
+  }
+
+  @Override
+  public Long getCurrentOffset(String topicName, int partition) {
+    throw new UnsupportedOperationException("TODO implement");
+  }
+
+  @Override
+  public byte[] getValue(String key) {
+    return cache.get(key);
+  }
+
+  @Override
+  public Iterator<String> getKeys() {
+    return cache.keySet().iterator();
+  }
+
+  @Override
+  public Iterator<byte[]> getValues() {
+    return cache.values().iterator();
   }
 
 }

@@ -1,11 +1,13 @@
 package se.yolean.kafka.keyvalue;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
@@ -102,6 +104,26 @@ public class ConsumerAtLeastOnceIntegrationTest {
     producer.close();
 
     assertEquals(null, consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"));
+
+    // verify KafkaCache interface methods, as the REST resource uses that API
+    KafkaCache cache = (KafkaCache) consumer;
+    assertEquals("v1", new String(cache.getValue("k1")));
+
+    // TODO assertEquals(1, cache.getCurrentOffset(TOPIC, 0));
+    // TODO assertEquals(null, cache.getCurrentOffset(TOPIC, 1));
+
+    // We originally required a deterministic iteration order but now it's upp to the map impl
+    Iterator<String> keys = cache.getKeys();
+    assertTrue(keys.hasNext());
+    assertEquals("k1", keys.next());
+    assertTrue(keys.hasNext());
+    assertEquals("k2", keys.next());
+    assertFalse(keys.hasNext());
+
+    Iterator<byte[]> values = cache.getValues();
+    assertTrue(values.hasNext());
+    assertEquals("v2", new String(values.next()));
+    assertFalse(values.hasNext());
   }
 
   @Test
