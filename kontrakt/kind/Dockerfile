@@ -14,11 +14,8 @@ RUN set -e; \
   apk add --no-cache curl git; \
   go get sigs.k8s.io/kind@0.2.1
 
-RUN git clone --branch kustomize https://github.com/Yolean/kubernetes-kafka
+RUN git clone --branch 2f7b60d https://github.com/Yolean/kubernetes-kafka
 
-# Issue with sample scale-1 in
 RUN set -e; \
   cd kubernetes-kafka; \
-  sed -i 's/default.replication.factor=3/default.replication.factor=1/' kafka/10broker-config.yml; \
-  sed -i 's/min.insync.replicas=2/min.insync.replicas=1/'               kafka/10broker-config.yml; \
   git --no-pager diff
