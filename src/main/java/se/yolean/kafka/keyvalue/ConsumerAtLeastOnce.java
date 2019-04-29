@@ -204,13 +204,15 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
           nextUncommitted.put(p, next);
           logger.info("Got an initial offset {}-{}-{} to start onupdate from", p.topic(), p.partition(), next);
         });
+        // TODO stage + handle: if (nextUncommitted.isEmpty()) {
         consumer.seekToBeginning(partitions);
       }
 
     });
 
-    consumer.poll(pollDuration); // Do we need one poll for subscribe to happen?
+    //consumer.poll(Duration.ofMillis(1)); // Do we really need a poll for subscribe to happen?
     long pollEndTime = System.currentTimeMillis();
+    long partitionsWaitStarted = 0;
 
     for (long n = 0; polls == 0 || n < polls; n++) {
 
@@ -220,9 +222,20 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       if (wait > 0) Thread.sleep(wait);
 
       if (nextUncommitted.isEmpty()) {
-        logger.info("Not having any partition assignments. Waiting a between-polls interval ({}s) before actually polling.", minPauseBetweenPolls.getSeconds());
+        if (partitionsWaitStarted == 0) {
+          logger.info("No partition assignments now. Waiting up to {}ms.", metadataTimeout.toMillis());
+          partitionsWaitStarted = System.currentTimeMillis();
+        } else if (System.currentTimeMillis() - partitionsWaitStarted > metadataTimeout.toMillis()) {
+          logger.error("Gave up waiting for partition assignments after {}ms. Exiting.", System.currentTimeMillis() - partitionsWaitStarted);
+          throw new PartitionAssignmentsTookToLongException();
+        } else {
+          logger.debug("Still waiting for parition assignments");
+        }
+        n--; // Don't count this as a poll run
         continue;
       }
+      partitionsWaitStarted = 0;
+
       stage = Stage.Polling;
 
       onupdate.pollStart(topics);
