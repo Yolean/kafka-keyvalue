@@ -176,7 +176,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     // This way of setting a consumer is because we've reused TopicCheck from kafka-topics-copy
     stage = Stage.WaitingForKafkaConnection; // we'd need to set this inside TopicCheck, but instead we'll probably refactor
 
-    Map<String, List<PartitionInfo>> allTopics = consumer.listTopics();
+    Map<String, List<PartitionInfo>> allTopics = consumer.listTopics(metadataTimeout);
     if (allTopics == null) throw new IllegalStateException("Got null topics list from consumer. Expected a throw.");
     stage = Stage.WaitingForTopics; // We don't really use this stage, it implies retrying listTopics until all topics show up
     if (allTopics.size() == 0) throw new NoMatchingTopicsException(topics, allTopics);
@@ -188,6 +188,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
     final Map<TopicPartition, Long> nextUncommitted = new HashMap<>(1);
 
+    stage = Stage.WaitingForPartitionAssignments;
     consumer.subscribe(topics, new ConsumerRebalanceListener() {
 
       @Override
@@ -208,9 +209,8 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
     });
 
-    consumer.poll(Duration.ofMillis(1)); // Do we need one poll for subscribe to happen?
+    consumer.poll(pollDuration); // Do we need one poll for subscribe to happen?
     long pollEndTime = System.currentTimeMillis();
-    stage = Stage.Polling;
 
     for (long n = 0; polls == 0 || n < polls; n++) {
 
@@ -219,19 +219,18 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       long wait = pollEndTime - System.currentTimeMillis() + minPauseBetweenPolls.toMillis();
       if (wait > 0) Thread.sleep(wait);
 
+      if (nextUncommitted.isEmpty()) {
+        logger.info("Not having any partition assignments. Waiting a between-polls interval ({}s) before actually polling.", minPauseBetweenPolls.getSeconds());
+        continue;
+      }
+      stage = Stage.Polling;
+
       onupdate.pollStart(topics);
 
       ConsumerRecords<String, byte[]> polled = consumer.poll(pollDuration);
       pollEndTime = System.currentTimeMillis();
       int count = polled.count();
       logger.debug("Polled {} records", count);
-
-      if (nextUncommitted.isEmpty()) {
-        if (count > 0) throw new IllegalStateException("Received " + count + " records prior to an assigned partitions event");
-        logger.info("Haven't got partition assignments yet (metadata timeout {}s)", metadataTimeout.getSeconds());
-        Thread.sleep(metadataTimeout.toMillis());
-        continue;
-      }
 
       Iterator<ConsumerRecord<String, byte[]>> records = polled.iterator();
       while (records.hasNext()) {
