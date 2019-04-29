@@ -3,6 +3,7 @@ package se.yolean.kafka.keyvalue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -20,6 +21,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.Mockito;
@@ -81,8 +83,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
     consumer.run();
     consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none"); // the test should fail if we don't have an offset after the first run
 
-    assertEquals(null, consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"));
-    // TODO assertTrue(consumer.isReady(), "Should be ready now, after reading");
+    assertEquals(HealthCheckResponse.State.UP, consumer.call().getState());
 
     assertEquals(2, consumer.cache.size(), "Should have consumed two records with different key");
     assertTrue(consumer.cache.containsKey("k1"), "Should contain the first key");
@@ -98,7 +99,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
 
     Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 0, 2, "k1"));
 
-    assertEquals(null, consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"));
+    assertEquals(HealthCheckResponse.State.UP, consumer.call().getState());
 
     // API extended after this test was written. We should probably verify order too.
     Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollStart(Collections.singletonList(TOPIC));
@@ -151,13 +152,20 @@ public class ConsumerAtLeastOnceIntegrationTest {
     consumer.minPauseBetweenPolls = Duration.ofMillis(500);
 
     long t1 = System.currentTimeMillis();
-    consumer.run();
+    try {
+      consumer.run();
+      fail("Should have thrown");
+    } catch (RuntimeException e) {
+      assertEquals("Timeout expired while fetching topic metadata", e.getMessage());
+      assertEquals(org.apache.kafka.common.errors.TimeoutException.class, e.getClass());
+    }
     assertTrue(System.currentTimeMillis() - t1 > 20, "Should have spent time waiting for metadata timeout twice");
     assertTrue(System.currentTimeMillis() - t1 < 500, "Should have exited after metadata timeout, not waited for other things");
 
-    assertEquals("Timeout expired while fetching topic metadata",
-        consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"),
-        "Should have thrown when metadata failed");
+    assertFalse(consumer.isReady(),
+        "Should have stopped at an exception (tests don't use a thread so this is probably a dummy assertion)");
+    assertEquals(ConsumerAtLeastOnce.Stage.WaitingForKafkaConnection, consumer.stage,
+        "Should have exited at the initial kafka connection stage");
   }
 
   @Test
@@ -180,13 +188,14 @@ public class ConsumerAtLeastOnceIntegrationTest {
     consumer.minPauseBetweenPolls = Duration.ofMillis(500);
 
     long t1 = System.currentTimeMillis();
-    consumer.run();
+    try {
+      consumer.run();
+      fail("Should have thrown when the topic doesn't show up");
+    } catch (RuntimeException e) {
+      assertEquals("Gave up waiting for topic existence after 5 retries with 0s timeout", e.getMessage());
+    }
     assertTrue(System.currentTimeMillis() - t1 > 50, "Should have spent time waiting for topic existence x5");
     assertTrue(System.currentTimeMillis() - t1 < 500, "Should have exited after these retries, not waited for other things");
-
-    assertEquals("Gave up waiting for topic existence after 5 retries with 0s timeout",
-        consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"),
-        "Should have thrown when metadata failed");
   }
 
   // TODO

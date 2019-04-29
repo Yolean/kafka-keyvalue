@@ -34,7 +34,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     // Note that this class is a dependency, not a service, so @Health must be on the CacheResource (contrary to https://quarkus.io/guides/health-guide)
     HealthCheck {
 
-  public enum Status {
+  public enum Stage {
+    Created,
+    CreatingConsumer,
     Initializing,
     WaitingForKafkaConnection,
     WaitingForTopics,
@@ -78,13 +80,11 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   final Thread runner;
 
-  Status status = Status.Initializing;
+  Stage stage = Stage.Created;
 
   HealthCheckResponseBuilder health = HealthCheckResponse
       .named("consume-loop")
       .up();
-
-  Throwable consumeLoopExit = null;
 
   public ConsumerAtLeastOnce() {
     runner = new Thread(this, "kafkaclient");
@@ -95,26 +95,20 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
    */
   @Override
   public HealthCheckResponse call() {
-    // Experimenting with the response api as state. If state is preserved We might want a thread uncaught exception handler instead of the field for exceptions.
-    if (Status.Polling.equals(status)) {
-      health = health.up();
-    }
-    if (consumeLoopExit != null) {
-      health = health.down()
-          .withData("error-type", consumeLoopExit.getClass().getName())
-          .withData("error-message", consumeLoopExit.getMessage());
-    }
     if (!runner.isAlive()) {
       health = health.down();
     }
-    return health.withData("status", status.toString()).build();
+    return health.withData("stage", stage.toString()).build();
   }
 
   /**
+   * TODO the essential criteria here is that we've consumed everything up to our start offset
+   * so that the cache is consistent.
+   *
    * @return true if cache appears up-to-date
    */
   public boolean isReady() {
-    return true;
+    return runner.isAlive();
   }
 
   void start(@Observes StartupEvent ev) {
@@ -134,33 +128,47 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   }
 
   /**
-   * (Re)set all state and consume to cache, cheaper than restarting the whole application.
+   * (Re)set all state and consume to cache, cheaper than restarting the whole application,
+   * and good for integration testing.
    *
-   * Should catch all exceptions, so we don't need to rely on .setUncaughtExceptionHandler.
+   * Should log exceptions with a meaningful message, and re-throw for {@link Thread#setUncaughtExceptionHandler(java.lang.Thread.UncaughtExceptionHandler)}.
    *
    * No thread management should happen within this loop (except maybe in outbound HTTP requests).
    */
   @Override
   public void run() {
+    stage = Stage.CreatingConsumer;
     KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps);
     try {
-      runThatThrows(consumer, cache, maxPolls);
+      run(consumer, cache, maxPolls);
     } catch (InterruptedException e) {
-      consumeLoopExit = e;
-      logger.error("Consume loop got interrupted somewhere. Probe /health to terminate in such cases.", e);
+      logger.error("Consume loop got interrupted at stage {}", stage, e);
+      throw new RuntimeException("Exited due to error", e);
+    } catch (org.apache.kafka.common.errors.TimeoutException e) {
+      logger.error("A Kafka timeout occured at stage {}", stage, e);
+      throw e;
+    } catch (org.apache.kafka.common.KafkaException e) {
+      logger.error("Unrecoverable kafka error at stage {}", stage, e);
+      throw e;
     } catch (RuntimeException e) {
-      consumeLoopExit = e;
-      logger.error("Consume loop ran into an error. Probe /health to terminate in such cases.", e);
+      logger.error("Unrecognized error at stage {}", stage, e);
+      throw e;
     } finally {
-      logger.info("Closing consumer");
+      logger.info("Closing consumer ...");
       consumer.close();
+      logger.info("Consumer closed at stage {}; Use liveness probes with /health for app termination", stage);
     }
   }
 
-  void runThatThrows(final KafkaConsumer<String, byte[]> consumer, final Map<String, byte[]> cache, final long polls) throws InterruptedException {
-    logger.info("Running");
+  void run(final KafkaConsumer<String, byte[]> consumer, final Map<String, byte[]> cache, final long polls) throws
+      InterruptedException,
+      org.apache.kafka.common.errors.TimeoutException,
+      org.apache.kafka.common.KafkaException {
+    stage = Stage.Initializing;
+    logger.info("At stage {} before {} polls with consumer {}", stage, polls == 0 ? "infinite" : polls, consumer);
 
     // This way of setting a consumer is because we've reused TopicCheck from kafka-topics-copy
+    stage = Stage.WaitingForKafkaConnection; // we'd need to set this inside TopicCheck, but instead we'll probably refactor
     TopicCheck topicCheck = new TopicCheck(new Create(consumer), topics, metadataTimeout);
 
     int retries = 0;
