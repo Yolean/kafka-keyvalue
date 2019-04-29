@@ -34,6 +34,14 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     // Note that this class is a dependency, not a service, so @Health must be on the CacheResource (contrary to https://quarkus.io/guides/health-guide)
     HealthCheck {
 
+  public enum Status {
+    Initializing,
+    WaitingForKafkaConnection,
+    WaitingForTopics,
+    WaitingForPartitionAssignments,
+    Polling
+  }
+
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
   @ConfigProperty(name="topics")
@@ -70,6 +78,12 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   final Thread runner;
 
+  Status status = Status.Initializing;
+
+  HealthCheckResponseBuilder health = HealthCheckResponse
+      .named("consume-loop")
+      .up();
+
   Throwable consumeLoopExit = null;
 
   public ConsumerAtLeastOnce() {
@@ -81,17 +95,19 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
    */
   @Override
   public HealthCheckResponse call() {
-    HealthCheckResponseBuilder response = HealthCheckResponse.named("consume-loop");
+    // Experimenting with the response api as state. If state is preserved We might want a thread uncaught exception handler instead of the field for exceptions.
+    if (Status.Polling.equals(status)) {
+      health = health.up();
+    }
     if (consumeLoopExit != null) {
-      return response.down()
+      health = health.down()
           .withData("error-type", consumeLoopExit.getClass().getName())
-          .withData("error-message", consumeLoopExit.getMessage())
-          .build();
+          .withData("error-message", consumeLoopExit.getMessage());
     }
     if (!runner.isAlive()) {
-      return response.down().build();
+      health = health.down();
     }
-    return response.up().build();
+    return health.withData("status", status.toString()).build();
   }
 
   /**
