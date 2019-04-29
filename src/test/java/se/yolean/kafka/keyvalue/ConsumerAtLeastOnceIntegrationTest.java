@@ -21,12 +21,13 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.Mockito;
 
 import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
+
+import se.yolean.kafka.keyvalue.ConsumerAtLeastOnce.Stage;
 
 public class ConsumerAtLeastOnceIntegrationTest {
 
@@ -83,7 +84,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
     consumer.run();
     consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none"); // the test should fail if we don't have an offset after the first run
 
-    assertEquals(HealthCheckResponse.State.UP, consumer.call().getState());
+    assertEquals(Stage.Polling, consumer.stage); // To be able to see where we exited we're not resetting stage at the end of runs
 
     assertEquals(2, consumer.cache.size(), "Should have consumed two records with different key");
     assertTrue(consumer.cache.containsKey("k1"), "Should contain the first key");
@@ -98,8 +99,6 @@ public class ConsumerAtLeastOnceIntegrationTest {
     assertEquals("v2", new String(consumer.cache.get("k1")), "Value should come from the latest record");
 
     Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 0, 2, "k1"));
-
-    assertEquals(HealthCheckResponse.State.UP, consumer.call().getState());
 
     // API extended after this test was written. We should probably verify order too.
     Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollStart(Collections.singletonList(TOPIC));
@@ -164,7 +163,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
 
     assertFalse(consumer.isReady(),
         "Should have stopped at an exception (tests don't use a thread so this is probably a dummy assertion)");
-    assertEquals(ConsumerAtLeastOnce.Stage.WaitingForKafkaConnection, consumer.stage,
+    assertEquals(Stage.WaitingForKafkaConnection, consumer.stage,
         "Should have exited at the initial kafka connection stage");
   }
 

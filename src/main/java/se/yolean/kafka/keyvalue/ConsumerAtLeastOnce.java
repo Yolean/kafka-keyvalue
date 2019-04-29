@@ -223,6 +223,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
     consumer.poll(Duration.ofMillis(1)); // Do we need one poll for subscribe to happen?
     long pollEndTime = System.currentTimeMillis();
+    stage = Stage.Polling;
 
     for (long n = 0; polls == 0 || n < polls; n++) {
 
