@@ -136,7 +136,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
 
     ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
     final String TOPIC = "topic1";
-    final String GROUP = this.getClass().getSimpleName() + "_testSingleRun_" + System.currentTimeMillis();
+    final String GROUP = this.getClass().getSimpleName() + "_testMetadataTimeout_" + System.currentTimeMillis();
     final String BOOTSTRAP = kafka.getKafkaConnectString();
     kafka.getKafkaTestUtils().createTopic("topic1", 1, (short) 1);
 
@@ -173,7 +173,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
 
     ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
     final String TOPIC = "topic0";
-    final String GROUP = this.getClass().getSimpleName() + "_testSingleRun_" + System.currentTimeMillis();
+    final String GROUP = this.getClass().getSimpleName() + "_testTopicNonexistent_" + System.currentTimeMillis();
     final String BOOTSTRAP = kafka.getKafkaConnectString();
 
     consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
@@ -196,12 +196,37 @@ public class ConsumerAtLeastOnceIntegrationTest {
     }
     assertTrue(System.currentTimeMillis() - t1 > 50, "Should have spent time waiting for topic existence x5");
     assertTrue(System.currentTimeMillis() - t1 < 500, "Should have exited after these retries, not waited for other things");
+
   }
 
-  // TODO
-  //@Test
+  @Test
   void testNoOffsetReset() {
-    // auto.offset.reset=none should be the default and we should have good error handling for it
+
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
+    final String TOPIC = "topic1";
+    final String GROUP = this.getClass().getSimpleName() + "_testNoOffsetReset_" + System.currentTimeMillis();
+    final String BOOTSTRAP = kafka.getKafkaConnectString();
+    kafka.getKafkaTestUtils().createTopic("topic1", 1, (short) 1);
+
+    consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
+    consumer.onupdate = Mockito.mock(OnUpdate.class);
+    consumer.cache = new HashMap<>();
+    consumer.topics = Collections.singletonList(TOPIC);
+
+    consumer.maxPolls = 5;
+    consumer.metadataTimeout = Duration.ofSeconds(10);
+    consumer.pollDuration = Duration.ofMillis(100);
+    consumer.minPauseBetweenPolls = Duration.ofMillis(100);
+
+    consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none");
+    try {
+      consumer.run();
+      fail("Should have thrown when there's no recorded offset and reset config is 'none'");
+    } catch (RuntimeException e) {
+      assertEquals("Undefined offset with no reset policy for partitions: [topic1-0]", e.getMessage());
+      assertEquals(org.apache.kafka.clients.consumer.NoOffsetForPartitionException.class, e.getClass());
+    }
+
   }
 
 }

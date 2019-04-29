@@ -147,6 +147,12 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     } catch (org.apache.kafka.common.errors.TimeoutException e) {
       logger.error("A Kafka timeout occured at stage {}", stage, e);
       throw e;
+    } catch (org.apache.kafka.clients.consumer.NoOffsetForPartitionException e) {
+      logger.error("Offset strategy is '{}' and a partition had no offset for group id: {}",
+          consumerProps.get(org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG),
+          consumerProps.get(org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG),
+          e);
+      throw e;
     } catch (org.apache.kafka.common.KafkaException e) {
       logger.error("Unrecoverable kafka error at stage {}", stage, e);
       throw e;
@@ -163,6 +169,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   void run(final KafkaConsumer<String, byte[]> consumer, final Map<String, byte[]> cache, final long polls) throws
       InterruptedException,
       org.apache.kafka.common.errors.TimeoutException,
+      org.apache.kafka.clients.consumer.NoOffsetForPartitionException,
       org.apache.kafka.common.KafkaException {
     stage = Stage.Initializing;
     logger.info("At stage {} before {} polls with consumer {}", stage, polls == 0 ? "infinite" : polls, consumer);
