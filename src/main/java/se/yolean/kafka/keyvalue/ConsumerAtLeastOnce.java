@@ -16,6 +16,7 @@ import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheck;
@@ -26,8 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
-import se.yolean.kafka.tasks.Create;
-import se.yolean.kafka.tasks.TopicCheck;
 
 @Singleton
 public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
@@ -176,27 +175,15 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
     // This way of setting a consumer is because we've reused TopicCheck from kafka-topics-copy
     stage = Stage.WaitingForKafkaConnection; // we'd need to set this inside TopicCheck, but instead we'll probably refactor
-    TopicCheck topicCheck = new TopicCheck(new Create(consumer), topics, metadataTimeout);
 
-    int retries = 0;
-    while (!topicCheck.sourceTopicsExist()) {
-      logger.info("Waiting for topic existence {} ({})", topicCheck, topics);
-      try {
-        topicCheck.run();
-      } catch (org.apache.kafka.common.errors.TimeoutException timeout) {
-        if (retries == topicCheckRetries) {
-          throw timeout;
-        }
-        logger.warn("Kafka listTopics timed out, but as topic check is our initial use of the consumer we'll retry.");
-      } catch (org.apache.kafka.common.KafkaException unrecoverable) {
-        logger.error("Topic check failed unrecoverably", unrecoverable);
-        throw unrecoverable;
-      }
-      if (retries++ > topicCheckRetries) {
-        throw new RuntimeException("Gave up waiting for topic existence after " + topicCheckRetries + " retries with " + metadataTimeout.getSeconds() + "s timeout");
-      }
-      Thread.sleep(metadataTimeout.toMillis());
+    Map<String, List<PartitionInfo>> allTopics = consumer.listTopics();
+    if (allTopics == null) throw new IllegalStateException("Got null topics list from consumer. Expected a throw.");
+    stage = Stage.WaitingForTopics; // We don't really use this stage, it implies retrying listTopics until all topics show up
+    if (allTopics.size() == 0) throw new NoMatchingTopicsException(topics, allTopics);
+    for (String t : topics) {
+      if (!allTopics.containsKey(t)) throw new NoMatchingTopicsException(topics, allTopics);
     }
+
     logger.info("Topic {} found", topics);
 
     final Map<TopicPartition, Long> nextUncommitted = new HashMap<>(1);
