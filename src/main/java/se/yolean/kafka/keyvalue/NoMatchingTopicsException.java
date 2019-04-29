@@ -10,9 +10,9 @@ public class NoMatchingTopicsException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
   public NoMatchingTopicsException(List<String> wasLookingFor, Map<String, List<PartitionInfo>> butFound) {
-    super(butFound.size() == 0 ?
-      "Looks like there are no topics at all on the broker side" :
-      "Broker returned " + butFound.size() + " topic names but that didn't include all of " + wasLookingFor);
+    super("Broker returned " + (butFound.size() == 0 ?
+      "an empty topic list" :
+      butFound.size() + " topic names but the list didn't include all of " + wasLookingFor));
   }
 
 }

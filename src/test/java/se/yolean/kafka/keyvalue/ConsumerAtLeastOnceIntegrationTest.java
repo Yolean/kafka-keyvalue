@@ -190,11 +190,13 @@ public class ConsumerAtLeastOnceIntegrationTest {
     try {
       consumer.run();
       fail("Should have thrown when the topic doesn't show up");
-    } catch (RuntimeException e) {
-      assertEquals("Gave up waiting for topic existence after 5 retries with 0s timeout", e.getMessage());
+    } catch (NoMatchingTopicsException e) {
+      // Tests reuse the kafka setup so 0+ topics might exist already
+      assertEquals("Broker", e.getMessage().substring(0, 6));
     }
-    assertTrue(System.currentTimeMillis() - t1 > 50, "Should have spent time waiting for topic existence x5");
-    assertTrue(System.currentTimeMillis() - t1 < 500, "Should have exited after these retries, not waited for other things");
+
+    long waited = System.currentTimeMillis() - t1;
+    assertTrue(waited < 500, "Shouldn't have done any polls, but run took: " + waited);
 
   }
 

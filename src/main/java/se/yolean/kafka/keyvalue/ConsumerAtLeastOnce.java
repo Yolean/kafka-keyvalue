@@ -1,9 +1,9 @@
 package se.yolean.kafka.keyvalue;
 
 import java.time.Duration;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -12,7 +12,6 @@ import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
-import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -38,9 +37,10 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     CreatingConsumer,
     Initializing,
     WaitingForKafkaConnection,
-    WaitingForTopics,
-    WaitingForPartitionAssignments,
-    Polling
+    Assigning,
+    Resetting,
+    StartingPoll,
+    Polling,
   }
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -170,49 +170,41 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       org.apache.kafka.common.errors.TimeoutException,
       org.apache.kafka.clients.consumer.NoOffsetForPartitionException,
       org.apache.kafka.common.KafkaException {
+
     stage = Stage.Initializing;
     logger.info("At stage {} before {} polls with consumer {}", stage, polls == 0 ? "infinite" : polls, consumer);
 
-    // This way of setting a consumer is because we've reused TopicCheck from kafka-topics-copy
-    stage = Stage.WaitingForKafkaConnection; // we'd need to set this inside TopicCheck, but instead we'll probably refactor
-
+    stage = Stage.WaitingForKafkaConnection;
     Map<String, List<PartitionInfo>> allTopics = consumer.listTopics(metadataTimeout);
     if (allTopics == null) throw new IllegalStateException("Got null topics list from consumer. Expected a throw.");
-    stage = Stage.WaitingForTopics; // We don't really use this stage, it implies retrying listTopics until all topics show up
+
+    // We might want this to cause retries instead of crashloop, if a full restart is too frequent, expensive or slow
     if (allTopics.size() == 0) throw new NoMatchingTopicsException(topics, allTopics);
+
+    stage = Stage.Assigning;
+    List<TopicPartition> assign = new LinkedList<>();
     for (String t : topics) {
       if (!allTopics.containsKey(t)) throw new NoMatchingTopicsException(topics, allTopics);
+      for (PartitionInfo p : allTopics.get(t)) {
+        assign.add(new TopicPartition(t, p.partition()));
+      }
     }
-
-    logger.info("Topic {} found", topics);
+    logger.info("Topics {} found with partitions {}", topics, assign);
+    consumer.assign(assign);
 
     final Map<TopicPartition, Long> nextUncommitted = new HashMap<>(1);
 
-    stage = Stage.WaitingForPartitionAssignments;
-    consumer.subscribe(topics, new ConsumerRebalanceListener() {
+    stage = Stage.Resetting;
+    for (TopicPartition tp : assign) {
+      long next = consumer.position(tp, metadataTimeout);
+      logger.info("Next offset for {} is {}", tp, next);
+      nextUncommitted.put(tp, next);
+    }
+    consumer.seekToBeginning(assign);
 
-      @Override
-      public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
-        logger.info("Got revoked {}", partitions);
-      }
+    stage = Stage.StartingPoll;
 
-      @Override
-      public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
-        logger.info("Got partition assignments");
-        partitions.forEach(p -> {
-          long next = consumer.position(p, metadataTimeout);
-          nextUncommitted.put(p, next);
-          logger.info("Got an initial offset {}-{}-{} to start onupdate from", p.topic(), p.partition(), next);
-        });
-        // TODO stage + handle: if (nextUncommitted.isEmpty()) {
-        consumer.seekToBeginning(partitions);
-      }
-
-    });
-
-    //consumer.poll(Duration.ofMillis(1)); // Do we really need a poll for subscribe to happen?
     long pollEndTime = System.currentTimeMillis();
-    long partitionsWaitStarted = 0;
 
     for (long n = 0; polls == 0 || n < polls; n++) {
 
@@ -220,21 +212,6 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       // there seems to be need for a pause between polls (?)
       long wait = pollEndTime - System.currentTimeMillis() + minPauseBetweenPolls.toMillis();
       if (wait > 0) Thread.sleep(wait);
-
-      if (nextUncommitted.isEmpty()) {
-        if (partitionsWaitStarted == 0) {
-          logger.info("No partition assignments now. Waiting up to {}ms.", metadataTimeout.toMillis());
-          partitionsWaitStarted = System.currentTimeMillis();
-        } else if (System.currentTimeMillis() - partitionsWaitStarted > metadataTimeout.toMillis()) {
-          logger.error("Gave up waiting for partition assignments after {}ms. Exiting.", System.currentTimeMillis() - partitionsWaitStarted);
-          throw new PartitionAssignmentsTookToLongException();
-        } else {
-          logger.debug("Still waiting for parition assignments");
-        }
-        n--; // Don't count this as a poll run
-        continue;
-      }
-      partitionsWaitStarted = 0;
 
       stage = Stage.Polling;
 
