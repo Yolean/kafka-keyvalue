@@ -52,9 +52,6 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   String   metadataTimeoutConf;
   Duration metadataTimeout;
 
-  @ConfigProperty(name="topic_check_retries", defaultValue="12")
-  int topicCheckRetries;
-
   @ConfigProperty(name="poll_duration", defaultValue="5s")
   javax.inject.Provider<String>   pollDurationConf;
   Duration pollDuration;
@@ -203,13 +200,14 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     consumer.seekToBeginning(assign);
 
     stage = Stage.StartingPoll;
-
     long pollEndTime = System.currentTimeMillis();
 
     for (long n = 0; polls == 0 || n < polls; n++) {
 
       // According to "Detecting Consumer Failures" in https://kafka.apache.org/22/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html
       // there seems to be need for a pause between polls (?)
+      // - But there is no such pause in any examples
+      // - Anyway let's keep it because we'll do onupdate HTTP requests
       long wait = pollEndTime - System.currentTimeMillis() + minPauseBetweenPolls.toMillis();
       if (wait > 0) Thread.sleep(wait);
 
@@ -219,8 +217,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
       ConsumerRecords<String, byte[]> polled = consumer.poll(pollDuration);
       pollEndTime = System.currentTimeMillis();
-      int count = polled.count();
-      logger.debug("Polled {} records", count);
+      logger.debug("Polled {} records", polled.count());
 
       Iterator<ConsumerRecord<String, byte[]>> records = polled.iterator();
       while (records.hasNext()) {

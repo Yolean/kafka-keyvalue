@@ -146,7 +146,6 @@ public class ConsumerAtLeastOnceIntegrationTest {
 
     consumer.maxPolls = 5;
     consumer.metadataTimeout = Duration.ofMillis(10);
-    consumer.topicCheckRetries = 0; // With >0 retries we're likely to succeed
     consumer.pollDuration = Duration.ofMillis(1000);
     consumer.minPauseBetweenPolls = Duration.ofMillis(500);
 
@@ -182,7 +181,6 @@ public class ConsumerAtLeastOnceIntegrationTest {
 
     consumer.maxPolls = 5;
     consumer.metadataTimeout = Duration.ofMillis(10);
-    consumer.topicCheckRetries = 5;
     consumer.pollDuration = Duration.ofMillis(1000);
     consumer.minPauseBetweenPolls = Duration.ofMillis(500);
 
