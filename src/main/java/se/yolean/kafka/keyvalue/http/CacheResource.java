@@ -18,28 +18,13 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
 
-import org.eclipse.microprofile.health.Health;
-import org.eclipse.microprofile.health.HealthCheck;
-import org.eclipse.microprofile.health.HealthCheckResponse;
-
-import se.yolean.kafka.keyvalue.ConsumerAtLeastOnce;
 import se.yolean.kafka.keyvalue.KafkaCache;
 
-@Health
 @Path("/cache/v1")
-public class CacheResource implements HealthCheck {
+public class CacheResource {
 
   @Inject
-  ConsumerAtLeastOnce consumer;
-
-  @Override
-  public HealthCheckResponse call() {
-    return consumer.call();
-  }
-
-  KafkaCache cache() {
-    return consumer;
-  }
+  KafkaCache cache;
 
   /**
    * Will eventually contain logic for reading values from other replicas in
@@ -58,7 +43,7 @@ public class CacheResource implements HealthCheck {
     if (key == "") {
       throw new javax.ws.rs.BadRequestException("Request key can not be empty");
     }
-    final byte[] value = cache().getValue(key);
+    final byte[] value = cache.getValue(key);
     if (value == null) {
       throw new NotFoundException();
     }
@@ -85,7 +70,7 @@ public class CacheResource implements HealthCheck {
     if (partition == null) {
       throw new BadRequestException("Partition can not be null");
     }
-    return cache().getCurrentOffset(topic, partition);
+    return cache.getCurrentOffset(topic, partition);
   }
 
   /**
@@ -95,7 +80,7 @@ public class CacheResource implements HealthCheck {
   @Path("/keys")
   @Produces(MediaType.APPLICATION_JSON)
   public Iterator<String> keys() {
-    Iterator<String> all = cache().getKeys();
+    Iterator<String> all = cache.getKeys();
 
     return all;
   }
@@ -107,7 +92,7 @@ public class CacheResource implements HealthCheck {
   @Path("/values")
   @Produces(MediaType.TEXT_PLAIN)
   public Response values() {
-    Iterator<byte[]> values = cache().getValues();
+    Iterator<byte[]> values = cache.getValues();
 
     StreamingOutput stream = new StreamingOutput() {
       @Override

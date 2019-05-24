@@ -1,6 +1,5 @@
 package se.yolean.kafka.keyvalue.http;
 
-import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -8,7 +7,6 @@ import javax.ws.rs.core.Response;
 
 import se.yolean.kafka.keyvalue.ConsumerAtLeastOnce;
 
-@ApplicationScoped
 @Path("/ready")
 public class ReadinessResource {
 
@@ -26,7 +24,7 @@ public class ReadinessResource {
       return Response.status(503).type(READINESS_CONTENT_TYPE).entity(NULL_JSON).build();
     }
     if (consumer.isReady()) {
-      return Response.ok(NULL_JSON, READINESS_CONTENT_TYPE).build();
+      return Response.ok(READY_JSON, READINESS_CONTENT_TYPE).build();
     }
     return Response.status(503).type(READINESS_CONTENT_TYPE).entity(UNREADY_JSON).build();
   }

@@ -27,9 +27,9 @@ import org.slf4j.LoggerFactory;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 
+//@org.eclipse.microprofile.health.Health // See HealthProxy
 @Singleton
 public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
-    // Note that this class is a dependency, not a service, so @Health must be on the CacheResource (contrary to https://quarkus.io/guides/health-guide)
     HealthCheck {
 
   public enum Stage {
