@@ -62,7 +62,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
     final String TOPIC = "topic1";
     final String GROUP = this.getClass().getSimpleName() + "_testSingleRun_" + System.currentTimeMillis();
     final String BOOTSTRAP = kafka.getKafkaConnectString();
-    kafka.getKafkaTestUtils().createTopic("topic1", 1, (short) 1);
+    kafka.getKafkaTestUtils().createTopic("topic1", 3, (short) 1);
 
     consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
     consumer.onupdate = Mockito.mock(OnUpdate.class);
