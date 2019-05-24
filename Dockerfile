@@ -1,6 +1,6 @@
 FROM maven:3.6.1-jdk-8-slim@sha256:dce33cc7a4702cc5f3ea3a6deb4ea840c17001895ffe169d96e1fd9d7041eb15 as maven
 
-FROM oracle/graalvm-ce:1.0.0-rc15@sha256:9a6bb7ee16b0fb7e6ac7c1b4f874080eef60110070a3c8fd01fa045790b21ed2 \
+FROM oracle/graalvm-ce:1.0.0-rc16@sha256:aa8b12e0bf15ffec6581f1a9feb42bf4c4f67d7c57d5739cca5fdc6c25fe4c54 \
   as maven-build
 
 COPY --from=maven /usr/share/maven /usr/share/maven
@@ -34,7 +34,11 @@ COPY --from=maven-build /workspace/target/*-runner.jar ./quarkus-kafka.jar
 
 ENTRYPOINT [ "java", "-cp", "./lib/*", "-jar", "./quarkus-kafka.jar" ]
 
-FROM oracle/graalvm-ce:1.0.0-rc15@sha256:9a6bb7ee16b0fb7e6ac7c1b4f874080eef60110070a3c8fd01fa045790b21ed2 \
+# https://github.com/quarkusio/quarkus/issues/2412#issuecomment-494933951
+#FROM oracle/graalvm-ce:19.0.0@sha256:71d4990f47e9b2300c57775e1306af477232019b624376c8f120d910caedb4b4 \
+#  as native-build
+#RUN gu install native-image
+FROM oracle/graalvm-ce:1.0.0-rc16@sha256:aa8b12e0bf15ffec6581f1a9feb42bf4c4f67d7c57d5739cca5fdc6c25fe4c54 \
   as native-build
 
 WORKDIR /project
