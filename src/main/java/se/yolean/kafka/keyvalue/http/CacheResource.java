@@ -5,6 +5,8 @@ import java.io.OutputStream;
 import java.util.Iterator;
 
 import javax.inject.Inject;
+import javax.json.Json;
+import javax.json.stream.JsonGenerator;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
@@ -74,15 +76,48 @@ public class CacheResource {
   }
 
   /**
+   * All keys in this instance (none from the partitions not represented here),
+   * newline separated.
+   */
+  @GET()
+  @Path("/keys")
+  public Response keys() {
+    Iterator<String> all = cache.getKeys();
+
+    StreamingOutput stream = new StreamingOutput() {
+      @Override
+      public void write(OutputStream out) throws IOException, WebApplicationException {
+        while (all.hasNext()) {
+          out.write(all.next().getBytes());
+          out.write('\n');
+        }
+      }
+    };
+    return Response.ok(stream).build();
+  }
+
+  /**
    * All keys in this instance (none from the partitions not represented here).
    */
   @GET()
   @Path("/keys")
   @Produces(MediaType.APPLICATION_JSON)
-  public Iterator<String> keys() {
+  public Response keysJson() {
     Iterator<String> all = cache.getKeys();
 
-    return all;
+    StreamingOutput stream = new StreamingOutput() {
+      @Override
+      public void write(OutputStream out) throws IOException, WebApplicationException {
+        JsonGenerator json = Json.createGenerator(out);
+        JsonGenerator list = json.writeStartArray();
+        while (all.hasNext()) {
+          list.write(all.next());
+        }
+        list.writeEnd();
+        json.close();
+      }
+    };
+    return Response.ok(stream).build();
   }
 
   /**
