@@ -14,21 +14,22 @@ public class OnUpdateNOP implements OnUpdate {
 
   public OnUpdateNOP(String message) {
     this.message = message;
+    logger.info("OnUpdate is NOP: {}", message);
   }
 
   @Override
   public void pollStart(Iterable<String> topics) {
-    logger.warn("OnUpdate is NOP: {}", message);
-  }
-
-  @Override
-  public void handle(UpdateRecord update) {
     logger.debug("OnUpdate is NOP: {}", message);
   }
 
   @Override
+  public void handle(UpdateRecord update) {
+    logger.trace("OnUpdate is NOP: {}", message);
+  }
+
+  @Override
   public void pollEndBlockingUntilTargetsAck() {
-    logger.warn("OnUpdate is NOP, ack is implied");
+    logger.debug("OnUpdate is NOP, ack is implied");
   }
 
 }
