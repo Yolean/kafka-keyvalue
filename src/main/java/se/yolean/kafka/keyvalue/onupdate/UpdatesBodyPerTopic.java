@@ -2,13 +2,9 @@ package se.yolean.kafka.keyvalue.onupdate;
 
 import java.io.OutputStream;
 
-import se.yolean.kafka.keyvalue.UpdateRecord;
-
-public interface UpdatesBodyPerTopic {
+public interface UpdatesBodyPerTopic extends UpdatesHandler {
 
   String getContentType();
-
-  void handle(UpdateRecord update);
 
   int getContentLength();
 
