@@ -12,23 +12,23 @@ class UpdatesBodyPerTopicJSONTest {
 
   @Test
   void testEmpty() throws UnsupportedEncodingException {
-    UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON();
-    assertEquals("{\"v\":1,\"offsets\":{},\"updates\":{}}", body.getContent());
+    UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t");
+    assertEquals("{\"v\":1,\"topic\":\"t\",\"offsets\":{},\"updates\":{}}", body.getContent());
   }
 
   @Test
   void test1() throws UnsupportedEncodingException {
-    UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON();
+    UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t1");
     body.handle(new UpdateRecord("t", 1, 3, "k1"));
-    assertEquals("{\"v\":1,\"offsets\":{\"1\":3},\"updates\":{\"k1\":{}}}", body.getContent());
+    assertEquals("{\"v\":1,\"topic\":\"t1\",\"offsets\":{\"1\":3},\"updates\":{\"k1\":{}}}", body.getContent());
   }
 
   @Test
   void test2() throws UnsupportedEncodingException {
-    UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON();
+    UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t2");
     body.handle(new UpdateRecord("t", 0, 10, "k1"));
     body.handle(new UpdateRecord("t", 0, 11, "k2"));
-    assertEquals("{\"v\":1,\"offsets\":{\"0\":11},\"updates\":{\"k1\":{},\"k2\":{}}}", body.getContent());
+    assertEquals("{\"v\":1,\"topic\":\"t2\",\"offsets\":{\"0\":11},\"updates\":{\"k1\":{},\"k2\":{}}}", body.getContent());
   }
 
 }

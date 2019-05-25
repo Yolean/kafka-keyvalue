@@ -13,6 +13,7 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
   public static final String CONTENT_TYPE = "application/json";
 
   public static final String VERSION_KEY = "v";
+  public static final String TOPIC_KEY   = "topic";
   public static final String OFFSETS_KEY = "offsets";
   public static final String UPDATES_KEY = "updates";
 
@@ -21,11 +22,11 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
   private JsonObjectBuilder updates;
   private JsonObjectBuilder json;
 
-  public UpdatesBodyPerTopicJSON() {
+  public UpdatesBodyPerTopicJSON(String topicName) {
     builder = Json.createObjectBuilder();
     offsets = Json.createObjectBuilder();
     updates = Json.createObjectBuilder();
-    json = builder.add(VERSION_KEY, 1);
+    json = builder.add(VERSION_KEY, 1).add(TOPIC_KEY, topicName);
   }
 
   JsonObject getCurrent() {
