@@ -13,4 +13,4 @@ build:
     #    dest: .
 deploy:
   kustomize:
-    path: ./test-k
+    path: ./kontrakt
