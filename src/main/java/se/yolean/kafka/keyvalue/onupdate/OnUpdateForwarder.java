@@ -24,9 +24,11 @@ public class OnUpdateForwarder implements OnUpdate {
 
   static final Logger logger = LoggerFactory.getLogger(OnUpdateForwarder.class);
 
+  public static final String TARGETS_CONFIG_SEPARATOR_REGEX = ",";
+
   public static final String TARGETS_CONFIG_KEY = "update_targets";
   @ConfigProperty(name=TARGETS_CONFIG_KEY)
-  java.util.Optional<List<String>> targetsConfig;
+  java.util.Optional<String> targetsConfig;
 
   @Inject
   DispatcherConfig dispatcherConfig;
@@ -94,7 +96,7 @@ public class OnUpdateForwarder implements OnUpdate {
       dispatchers = Collections.emptyList();
       return;
     }
-    List<String> conf = targetsConfig.orElse(Collections.emptyList());
+    List<String> conf = getTargetsConfig();
     if (conf.size() == 0) {
       logger.warn(TARGETS_CONFIG_KEY + " was provided but has zero entries");
       dispatchers = Collections.emptyList();
@@ -107,6 +109,10 @@ public class OnUpdateForwarder implements OnUpdate {
       logger.info("Target {} gets dispatcher type {} which calls itself: {}", target, dispatcher.getClass(), dispatcher);
     }
     logger.info("The list of {} update targets is ready", dispatchers);
+  }
+
+  private List<String> getTargetsConfig() {
+    return java.util.Arrays.asList(targetsConfig.orElse("").split(TARGETS_CONFIG_SEPARATOR_REGEX));
   }
 
   void stopDispatcher(UpdatesDispatcher dispatcher) {
