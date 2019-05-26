@@ -1,8 +1,10 @@
-package se.yolean.kafka.keyvalue.onupdate;
+package se.yolean.kafka.keyvalue.onupdate.hc;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
+
+import se.yolean.kafka.keyvalue.onupdate.hc.UpdateTarget;
 
 class UpdateTargetTest {
 

@@ -6,7 +6,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
@@ -14,9 +15,8 @@ import org.slf4j.LoggerFactory;
 
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.UpdateRecord;
-import se.yolean.kafka.keyvalue.onupdate.hc.UpdatesDispatcherHttp;
 
-@ApplicationScoped
+@Singleton
 public class OnUpdateForwarder implements OnUpdate {
 
   static final Logger logger = LoggerFactory.getLogger(OnUpdateForwarder.class);
@@ -25,21 +25,18 @@ public class OnUpdateForwarder implements OnUpdate {
   @ConfigProperty(name=TARGETS_CONFIG_KEY)
   java.util.Optional<List<String>> targetsConfig;
 
+  @Inject
+  DispatcherConfig dispatcherConfig;
+
   List<UpdatesDispatcher> dispatchers = null;
 
-  Map<String, UpdatesBodyPerTopic> state = new LinkedHashMap<>(1);
+  Map<String, UpdatesBodyPerTopic> pollState = new LinkedHashMap<>(1);
 
-  UpdatesBodyPerTopic selectUpdatesHandlerImpl(String topic) {
-    return new UpdatesBodyPerTopicJSON(topic);
-  }
-
-  UpdatesDispatcher selectDispatcherImpl(String configuredTarget) {
-    return new UpdatesDispatcherHttp(configuredTarget);
-  }
+  // TODO lifecycle
 
   @Override
   public void pollStart(Iterable<String> topics) {
-    resetBodies();
+    resetPollState();
   }
 
   @Override
@@ -50,21 +47,22 @@ public class OnUpdateForwarder implements OnUpdate {
 
   @Override
   public void pollEndBlockingUntilTargetsAck() {
-
+    // TODO
   }
 
-  void resetBodies() {
-    state.clear();
+  void resetPollState() {
+    pollState.clear();
   }
 
   UpdatesHandler getUpdateHandler(String topic) {
-    if (!state.containsKey(topic)) {
-      state.put(topic, selectUpdatesHandlerImpl(topic));
+    if (!pollState.containsKey(topic)) {
+      pollState.put(topic, dispatcherConfig.getUpdatesHandlerForPoll(topic));
     }
-    return state.get(topic);
+    return pollState.get(topic);
   }
 
   Iterable<UpdatesDispatcher> getDispatchers() {
+    // TODO move this to lifecycle init, så we can bail early on invalid config
     if (dispatchers == null) {
       updateDispatchersFromConfig();
     }
@@ -85,7 +83,7 @@ public class OnUpdateForwarder implements OnUpdate {
     }
     dispatchers = new LinkedList<UpdatesDispatcher>();
     for (String target : conf) {
-      UpdatesDispatcher dispatcher = selectDispatcherImpl(target);
+      UpdatesDispatcher dispatcher = dispatcherConfig.getDispatcher(target);
       dispatchers.add(dispatcher);
       logger.info("Target {} gets dispatcher type {} which calls itself: {}", target, dispatcher.getClass(), dispatcher);
     }

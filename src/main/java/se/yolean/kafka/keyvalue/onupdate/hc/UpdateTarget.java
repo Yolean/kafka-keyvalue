@@ -1,4 +1,4 @@
-package se.yolean.kafka.keyvalue.onupdate;
+package se.yolean.kafka.keyvalue.onupdate.hc;
 
 import java.net.URI;
 import java.net.URISyntaxException;

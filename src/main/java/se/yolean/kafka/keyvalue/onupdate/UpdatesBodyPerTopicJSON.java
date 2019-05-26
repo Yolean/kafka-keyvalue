@@ -1,6 +1,7 @@
 package se.yolean.kafka.keyvalue.onupdate;
 
 import java.io.OutputStream;
+import java.util.Map;
 
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -34,6 +35,12 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
 
   JsonObject getCurrent() {
     return json.add(OFFSETS_KEY, offsets).add(UPDATES_KEY, updates).build();
+  }
+
+  @Override
+  public Map<String, String> getHeaders() {
+    // TODO implement, but maybe we want to rewrite json serialization first
+    return java.util.Collections.emptyMap();
   }
 
   @Override
