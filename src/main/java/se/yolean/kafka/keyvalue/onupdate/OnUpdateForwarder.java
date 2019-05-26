@@ -111,8 +111,10 @@ public class OnUpdateForwarder implements OnUpdate {
     logger.info("The list of {} update targets is ready", dispatchers);
   }
 
-  private List<String> getTargetsConfig() {
-    return java.util.Arrays.asList(targetsConfig.orElse("").split(TARGETS_CONFIG_SEPARATOR_REGEX));
+  List<String> getTargetsConfig() {
+    String conf = targetsConfig.orElse(null);
+    if (conf == null) return Collections.emptyList();
+    return java.util.Arrays.asList(conf.split(TARGETS_CONFIG_SEPARATOR_REGEX));
   }
 
   void stopDispatcher(UpdatesDispatcher dispatcher) {
