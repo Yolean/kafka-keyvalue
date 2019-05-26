@@ -6,6 +6,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -13,6 +14,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.quarkus.runtime.ShutdownEvent;
+import io.quarkus.runtime.StartupEvent;
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 
@@ -32,7 +35,15 @@ public class OnUpdateForwarder implements OnUpdate {
 
   Map<String, UpdatesBodyPerTopic> pollState = new LinkedHashMap<>(1);
 
-  // TODO lifecycle
+  void start(@Observes StartupEvent ev) {
+    updateDispatchersFromConfig();
+  }
+
+  public void stop(@Observes ShutdownEvent ev) {
+    for (UpdatesDispatcher dispatcher : dispatchers) {
+      stopDispatcher(dispatcher);
+    }
+  }
 
   @Override
   public void pollStart(Iterable<String> topics) {
@@ -47,7 +58,16 @@ public class OnUpdateForwarder implements OnUpdate {
 
   @Override
   public void pollEndBlockingUntilTargetsAck() {
-    // TODO
+    for (UpdatesDispatcher dispatcher : dispatchers) {
+      for (String topic : pollState.keySet()) {
+        try {
+          dispatcher.dispatch(topic, pollState.get(topic));
+        } catch (TargetAckFailedException e) {
+          logger.error("Ack failed for {} topic", dispatcher, topic, e);
+          throw new RuntimeException("No retry strategy for update ack failure", e);
+        }
+      }
+    }
   }
 
   void resetPollState() {
@@ -62,9 +82,8 @@ public class OnUpdateForwarder implements OnUpdate {
   }
 
   Iterable<UpdatesDispatcher> getDispatchers() {
-    // TODO move this to lifecycle init, så we can bail early on invalid config
     if (dispatchers == null) {
-      updateDispatchersFromConfig();
+      throw new IllegalStateException("Dispatches should have been initialized");
     }
     return dispatchers;
   }
@@ -88,6 +107,14 @@ public class OnUpdateForwarder implements OnUpdate {
       logger.info("Target {} gets dispatcher type {} which calls itself: {}", target, dispatcher.getClass(), dispatcher);
     }
     logger.info("The list of {} update targets is ready", dispatchers);
+  }
+
+  void stopDispatcher(UpdatesDispatcher dispatcher) {
+    try {
+      dispatcher.close();
+    } catch (Exception e) {
+      logger.warn("Failed to close dispatcher " + dispatcher, e);
+    }
   }
 
 }
