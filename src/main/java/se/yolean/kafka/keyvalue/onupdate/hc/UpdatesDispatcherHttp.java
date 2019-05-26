@@ -7,6 +7,7 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -54,12 +55,8 @@ public class UpdatesDispatcherHttp implements UpdatesDispatcher {
   }
 
   private HttpEntity getEntity(UpdatesBodyPerTopic body) {
-    StringEntity entity;
-    try {
-      entity = new StringEntity(body.getContent());
-    } catch (UnsupportedEncodingException e) {
-      throw new RuntimeException(e);
-    }
+    ByteArrayEntity entity;
+    entity = new ByteArrayEntity(body.getContent());
     entity.setContentType(body.getContentType());
     return entity;
   }

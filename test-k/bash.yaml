@@ -75,22 +75,17 @@ spec:
                       config:
                         path: /logs/envoy-access.log
                         json_format:
-                          ind: "enforcer access"
                           start_time: "%START_TIME%"
                           req_method: "%REQ(:METHOD)%"
                           req_path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
-                          protocol: "%PROTOCOL%"
                           resp_code: "%RESPONSE_CODE%"
                           resp_flags: "%RESPONSE_FLAGS%"
                           bytes_recv: "%BYTES_RECEIVED%"
                           bytes_sent: "%BYTES_SENT%"
                           duration: "%DURATION%"
-                          resp_time: "%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%"
-                          req_x_forward: "%REQ(X-FORWARDED-FOR)%"
                           agent: "%REQ(USER-AGENT)%"
-                          req_xid: "%REQ(X-REQUEST-ID)%"
-                          auth: "%REQ(:AUTHORITY)%"
-                          upstream_host: "%UPSTREAM_HOST%"
+                          content_type: "%REQ(CONTENT-TYPE)%"
+                          content_length: "%REQ(CONTENT-LENGTH)%"
                           kkv_topic: "%REQ(X-KKV-TOPIC)%"
                           kkv_offsets: "%REQ(X-KKV-OFFSETS)%"
                     route_config:

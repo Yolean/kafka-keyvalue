@@ -19,9 +19,7 @@ public interface UpdatesBodyPerTopic extends UpdatesHandler {
 
   String getContentType();
 
-  int getContentLength();
-
-  String getContent();
+  byte[] getContent();
 
   /**
    * @param out UTF-8 stream

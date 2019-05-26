@@ -1,5 +1,6 @@
 package se.yolean.kafka.keyvalue.onupdate;
 
+import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -7,6 +8,7 @@ import java.util.Map;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
+import javax.json.JsonWriter;
 
 import se.yolean.kafka.keyvalue.UpdateRecord;
 
@@ -24,10 +26,12 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
 
   private JsonObjectBuilder builder;
   private JsonObjectBuilder offsets;
+  private JsonObject offsetsBuilt = null;
   private JsonObjectBuilder updates;
   private JsonObjectBuilder json;
 
-  Map<String,String> headers = new HashMap<String, String>();
+  Map<String,String> headers = new HashMap<String, String>(2);
+  boolean built = false;
 
   public UpdatesBodyPerTopicJSON(String topicName) {
     builder = Json.createObjectBuilder();
@@ -38,12 +42,21 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
   }
 
   JsonObject getCurrent() {
-    return json.add(OFFSETS_KEY, offsets).add(UPDATES_KEY, updates).build();
+    if (built) {
+      throw new IllegalStateException("Refusing to serialize content twice");
+    }
+    if (offsetsBuilt == null) getHeaders();
+    built = true;
+    return json.add(OFFSETS_KEY, offsetsBuilt).add(UPDATES_KEY, updates).build();
   }
 
   @Override
   public Map<String, String> getHeaders() {
-    headers.put(UpdatesBodyPerTopic.HEADER_OFFSETS, offsets.build().toString());
+    if (built) {
+      throw new IllegalStateException("Refusing to return headers after content");
+    }
+    offsetsBuilt = offsets.build();
+    headers.put(UpdatesBodyPerTopic.HEADER_OFFSETS, offsetsBuilt.toString());
     return headers;
   }
 
@@ -59,18 +72,16 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
   }
 
   @Override
-  public String getContent() {
-    return getCurrent().toString();
-  }
-
-  @Override
-  public int getContentLength() {
-    throw new UnsupportedOperationException("not implemented");
+  public byte[] getContent() {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    getContent(out);
+    return out.toByteArray();
   }
 
   @Override
   public void getContent(OutputStream out) {
-    throw new UnsupportedOperationException("not implemented");
+    JsonWriter writer = Json.createWriter(out);
+    writer.write(getCurrent());
   }
 
 }
