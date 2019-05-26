@@ -21,6 +21,7 @@ RUN mvn package && \
 COPY . .
 
 ENTRYPOINT [ "mvn", "compile", "quarkus:dev" ]
+CMD [ "-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090" ]
 
 FROM openjdk:11.0.3-jdk-slim@sha256:ee1ee5fd0c9cef0ec5ed72999567ed7a6efd5bfdbf49326bfd9423c0dca84ef0 \
   as maven-build
@@ -47,6 +48,7 @@ COPY --from=maven-build /workspace/target/lib ./lib
 COPY --from=maven-build /workspace/target/*-runner.jar ./quarkus-kafka.jar
 
 ENTRYPOINT [ "java", "-cp", "./lib/*", "-jar", "./quarkus-kafka.jar" ]
+CMD [ "-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090" ]
 
 # https://github.com/quarkusio/quarkus/issues/2412#issuecomment-494933951
 #FROM oracle/graalvm-ce:19.0.0@sha256:71d4990f47e9b2300c57775e1306af477232019b624376c8f120d910caedb4b4 \
@@ -82,4 +84,5 @@ WORKDIR /work/
 COPY --from=native-build /project/*-runner /work/application
 #RUN chmod 775 /work
 EXPOSE 8080
-CMD ["./application", "-Dquarkus.http.host=0.0.0.0"]
+ENTRYPOINT ["./application"]
+CMD ["-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090"]

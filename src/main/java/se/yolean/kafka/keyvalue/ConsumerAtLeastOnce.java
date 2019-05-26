@@ -82,6 +82,8 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       .named("consume-loop")
       .up();
 
+  Map<TopicPartition,Long> currentOffsets = new HashMap<>(1);
+
   public ConsumerAtLeastOnce() {
     runner = new Thread(this, "kafkaclient");
   }
@@ -223,6 +225,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       while (records.hasNext()) {
         ConsumerRecord<String, byte[]> record = records.next();
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
+        toStats(update);
         cache.put(record.key(), record.value());
 		    Long start = nextUncommitted.get(update.getTopicPartition());
         if (start == null) {
@@ -249,9 +252,13 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   }
 
+  private void toStats(UpdateRecord update) {
+    currentOffsets.put(update.getTopicPartition(), update.getOffset());
+  }
+
   @Override
   public Long getCurrentOffset(String topicName, int partition) {
-    throw new UnsupportedOperationException("TODO implement");
+    return currentOffsets.get(new TopicPartition(topicName, partition));
   }
 
   @Override
