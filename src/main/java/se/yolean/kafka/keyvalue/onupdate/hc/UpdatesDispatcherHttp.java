@@ -7,7 +7,6 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -26,15 +25,11 @@ public class UpdatesDispatcherHttp implements UpdatesDispatcher {
   ResponseHandlerAck responseHandler = new ResponseHandlerAck();
   UpdateTarget target;
   CloseableHttpClient client;
-  HttpClientContext context;
 
   public UpdatesDispatcherHttp(String configuredTarget) {
     target = new UpdateTarget(configuredTarget);
     HttpHost host = target.getHttpclientContextHost(); // If we want to manage contexts
     logger.info("Creating http client for host {} target {}", host, target);
-
-    context = HttpClientContext.create();
-    context.setTargetHost(host);
 
     BasicHttpClientConnectionManager connectionManager = new BasicHttpClientConnectionManager();
     client = HttpClients.createMinimal(connectionManager);
@@ -47,7 +42,7 @@ public class UpdatesDispatcherHttp implements UpdatesDispatcher {
     post.setEntity(getEntity(body));
     ResponseResult result;
     try {
-      result = client.execute(post, responseHandler, context);
+      result = client.execute(target.getHttpclientContextHost(), post, responseHandler);
     } catch (ClientProtocolException e) {
       throw new TargetAckFailedException(e);
     } catch (IOException e) {
