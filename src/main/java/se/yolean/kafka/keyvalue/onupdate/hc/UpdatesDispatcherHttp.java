@@ -38,7 +38,7 @@ public class UpdatesDispatcherHttp implements UpdatesDispatcher {
   @Override
   public void dispatch(String topicName, UpdatesBodyPerTopic body) throws TargetAckFailedException {
     HttpPost post = new HttpPost(target.getHttpUriFromHost(topicName));
-    post.addHeader(UpdatesBodyPerTopic.HEADER_TOPIC, topicName); // TODO body should declare all headers instead
+    body.getHeaders().forEach((name, value) -> post.setHeader(name, value));
     post.setEntity(getEntity(body));
     ResponseResult result;
     try {

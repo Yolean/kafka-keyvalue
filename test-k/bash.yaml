@@ -91,6 +91,8 @@ spec:
                           req_xid: "%REQ(X-REQUEST-ID)%"
                           auth: "%REQ(:AUTHORITY)%"
                           upstream_host: "%UPSTREAM_HOST%"
+                          kkv_topic: "%REQ(X-KKV-TOPIC)%"
+                          kkv_offsets: "%REQ(X-KKV-OFFSETS)%"
                     route_config:
                       name: boards_route
                       virtual_hosts:

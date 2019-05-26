@@ -1,6 +1,7 @@
 package se.yolean.kafka.keyvalue.onupdate;
 
 import java.io.OutputStream;
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.json.Json;
@@ -26,11 +27,14 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
   private JsonObjectBuilder updates;
   private JsonObjectBuilder json;
 
+  Map<String,String> headers = new HashMap<String, String>();
+
   public UpdatesBodyPerTopicJSON(String topicName) {
     builder = Json.createObjectBuilder();
     offsets = Json.createObjectBuilder();
     updates = Json.createObjectBuilder();
     json = builder.add(VERSION_KEY, 1).add(TOPIC_KEY, topicName);
+    headers.put(UpdatesBodyPerTopic.HEADER_TOPIC, topicName);
   }
 
   JsonObject getCurrent() {
@@ -39,8 +43,8 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
 
   @Override
   public Map<String, String> getHeaders() {
-    // TODO implement, but maybe we want to rewrite json serialization first
-    return java.util.Collections.emptyMap();
+    headers.put(UpdatesBodyPerTopic.HEADER_OFFSETS, offsets.build().toString());
+    return headers;
   }
 
   @Override
