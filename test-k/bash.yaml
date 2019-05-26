@@ -38,9 +38,9 @@ spec:
         - name: kafka_offset_reset
           value: earliest
         - name: update_targets
-          value: http://127.0.0.1:8080/204/__topic__
+          value: http://127.0.0.1:8080/204/__TOPIC__
           # We should also test with other endpoints, with Envoy's fault injection
-          # http://127.0.0.1:8080/204/__topic__,http://127.0.0.1:8080/?topic=__topic__
+          # http://127.0.0.1:8080/204/__TOPIC__,http://127.0.0.1:8080/?topic=__TOPIC__
       - name: envoy
         image: envoyproxy/envoy:v1.10.0@sha256:bf7970f469c3d2cd54a472536342bd50df0ddf099ebd51024b7f13016c4ee3c4
         ports:
@@ -167,7 +167,26 @@ spec:
         - /bin/bash
         - -cex
         - |
-          echo "Running"
+          echo "Running ad-hoc smoketests here"
+          curl -s --retry-connrefused --retry 5 http://127.0.0.1:8090/health
+          curl -s --retry 5 http://127.0.0.1:8090/ready
+          curl -s http://127.0.0.1:8090/cache/v1/keys
+          curl -s http://127.0.0.1:8090/cache/v1/offset/kkv-test-bash/0
+          curl -s http://127.0.0.1:8090/cache/v1/offset/kkv-test-bash/1
+          curl -s http://127.0.0.1:8090/cache/v1/offset/kkv-test-bash/2
+          time=$(date -Is)
+          echo testtime=$time | kafkacat -b bootstrap.kafka:9092 -P -K '=' -t kkv-test-bash
+          curl -s http://127.0.0.1:8080/stats/prometheus | grep envoy_server_total_connections
+          echo "Waiting for evidence of an onupdate request ..."
+          tail -n 0 -f /logs/envoy-access.log | head -n 1
+          curl -s http://127.0.0.1:8080/stats/prometheus | grep envoy_server_total_connections
+          curl -s http://127.0.0.1:8090/cache/v1/raw/testtime
+          curl -s http://127.0.0.1:8090/cache/v1/values
+          curl -s http://127.0.0.1:8090/cache/v1/offset/kkv-test-bash/0
+          curl -s http://127.0.0.1:8090/cache/v1/offset/kkv-test-bash/1
+          curl -s http://127.0.0.1:8090/cache/v1/offset/kkv-test-bash/2
+          curl -s http://127.0.0.1:8080/stats/prometheus | grep envoy_server_total_connections
+          echo "Sleeping here, for exec to run manual testing"
           sleep infinity
         volumeMounts:
         - name: logs

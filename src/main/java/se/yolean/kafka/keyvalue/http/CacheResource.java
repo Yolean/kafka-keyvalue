@@ -61,7 +61,7 @@ public class CacheResource {
 
   @GET
   @Path("/offset/{topic}/{partition}")
-  @Produces(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.TEXT_PLAIN)
   public Long getCurrentOffset(@PathParam("topic") String topic, @PathParam("partition") Integer partition) {
     if (topic == null) {
       throw new BadRequestException("Topic can not be null");
