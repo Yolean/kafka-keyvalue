@@ -93,8 +93,8 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   @Inject
   OnUpdate onupdate;
 
-  static Counter pollCount = Counter.build()
-      .name("kkv_poll_count").help("Total number of polls executed").register();
+  //static Counter pollCount = Counter.build()
+  //    .name("kkv_poll_count").help("Total number of polls executed").register();
 
   List<String> topics;
 
@@ -303,7 +303,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
       consumer.commitSync();
 
-      pollCount.inc();
+      //pollCount.inc();
       // Next poll ...
     }
 
