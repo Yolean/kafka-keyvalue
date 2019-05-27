@@ -29,8 +29,10 @@ import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.prometheus.client.Counter;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
+import se.yolean.kafka.keyvalue.metrics.KafkaMetrics;
 
 //@org.eclipse.microprofile.health.Health // See HealthProxy
 @Singleton
@@ -50,6 +52,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   }
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
+
+  @ConfigProperty(name="metrics_enabled", defaultValue="true")
+  boolean metricsEnabled;
 
   @ConfigProperty(name="topic") Optional<String> topic;
   @ConfigProperty(name="topic1") Optional<String> topic1;
@@ -88,7 +93,12 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   @Inject
   OnUpdate onupdate;
 
+  static Counter pollCount = Counter.build()
+      .name("kkv_poll_count").help("Total number of polls executed").register();
+
   List<String> topics;
+
+  KafkaMetrics metrics;
 
   final Thread runner;
 
@@ -174,6 +184,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   public void run() {
     stage = Stage.CreatingConsumer;
     KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps);
+    if (metricsEnabled) {
+      metrics = new KafkaMetrics(consumer);
+    }
     try {
       run(consumer, cache, maxPolls);
     } catch (InterruptedException e) {
@@ -290,6 +303,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
       consumer.commitSync();
 
+      pollCount.inc();
       // Next poll ...
     }
 
@@ -317,6 +331,10 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   @Override
   public Iterator<byte[]> getValues() {
     return cache.values().iterator();
+  }
+
+  public KafkaMetrics getMetrics() {
+    return metrics;
   }
 
 }

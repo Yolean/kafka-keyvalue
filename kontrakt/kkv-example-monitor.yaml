@@ -1,0 +1,26 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kkv-example
+  labels:
+    k8s-app: kkv-example
+spec:
+  #namespaceSelector:
+  #  matchNames:
+  #  - kafka
+  selector:
+    matchLabels:
+      app: kkv-example
+  endpoints:
+  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    interval: 30s
+    scrapeTimeout: 30s
+    port: envoy
+    scheme: http
+    path: /stats/prometheus
+  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    interval: 30s
+    scrapeTimeout: 30s
+    port: kkv
+    scheme: http
+    path: /metrics
