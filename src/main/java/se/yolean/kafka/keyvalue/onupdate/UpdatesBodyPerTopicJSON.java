@@ -31,7 +31,8 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
   private JsonObjectBuilder json;
 
   Map<String,String> headers = new HashMap<String, String>(2);
-  boolean built = false;
+
+  ByteArrayOutputStream alreadySerializedToMemory = null;
 
   public UpdatesBodyPerTopicJSON(String topicName) {
     builder = Json.createObjectBuilder();
@@ -42,21 +43,18 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
   }
 
   JsonObject getCurrent() {
-    if (built) {
-      throw new IllegalStateException("Refusing to serialize content twice");
+    if (offsetsBuilt == null) {
+      throw new IllegalStateException("Headers must be retrieved before body");
     }
-    if (offsetsBuilt == null) getHeaders();
-    built = true;
     return json.add(OFFSETS_KEY, offsetsBuilt).add(UPDATES_KEY, updates).build();
   }
 
   @Override
   public Map<String, String> getHeaders() {
-    if (built) {
-      throw new IllegalStateException("Refusing to return headers after content");
+    if (offsetsBuilt == null) {
+      offsetsBuilt = offsets.build();
+      headers.put(UpdatesBodyPerTopic.HEADER_OFFSETS, offsetsBuilt.toString());
     }
-    offsetsBuilt = offsets.build();
-    headers.put(UpdatesBodyPerTopic.HEADER_OFFSETS, offsetsBuilt.toString());
     return headers;
   }
 
@@ -67,15 +65,20 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
 
   @Override
   public void handle(UpdateRecord update) {
+    if (offsetsBuilt != null) {
+      throw new IllegalStateException("This update has already been retrieved for dispatch and can no longer be updated");
+    }
     offsets.add(Integer.toString(update.getPartition()), Json.createValue(update.getOffset()));
     updates.add(update.getKey(), JsonObject.EMPTY_JSON_OBJECT);
   }
 
   @Override
   public byte[] getContent() {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    getContent(out);
-    return out.toByteArray();
+    if (alreadySerializedToMemory == null) {
+      alreadySerializedToMemory = new ByteArrayOutputStream();
+      getContent(alreadySerializedToMemory);
+    }
+    return alreadySerializedToMemory.toByteArray();
   }
 
   @Override

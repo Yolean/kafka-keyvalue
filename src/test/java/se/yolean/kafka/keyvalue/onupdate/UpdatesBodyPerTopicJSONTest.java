@@ -43,52 +43,19 @@ class UpdatesBodyPerTopicJSONTest {
     UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t2");
     body.handle(new UpdateRecord("t", 0, 10, "k1"));
     body.handle(new UpdateRecord("t", 0, 11, "k2"));
+    body.getHeaders();
     assertEquals(
         "{\"v\":1,\"topic\":\"t2\",\"offsets\":{\"0\":11},\"updates\":{\"k1\":{},\"k2\":{}}}",
         new String(body.getContent()));
   }
 
   @Test
-  void testContentTwice() {
+  void testHeadersAfterContent() {
     UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t2");
-    body.getContent();
-    try {
-      body.getContent();
-    } catch (IllegalStateException e) {
-      assertEquals("Refusing to serialize content twice", e.getMessage());
-    }
-  }
-
-  @Test
-  void testContentTwiceStream() {
-    UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t2");
-    body.getContent();
     try {
       body.getContent(new ByteArrayOutputStream());
     } catch (IllegalStateException e) {
-      assertEquals("Refusing to serialize content twice", e.getMessage());
-    }
-  }
-
-  @Test
-  void testContentTwiceStreamFirst() {
-    UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t2");
-    body.getContent(new ByteArrayOutputStream());
-    try {
-      body.getContent();
-    } catch (IllegalStateException e) {
-      assertEquals("Refusing to serialize content twice", e.getMessage());
-    }
-  }
-
-  @Test
-  void testHeadersAfterContent() {
-    UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t2");
-    body.getContent(new ByteArrayOutputStream());
-    try {
-      body.getHeaders();
-    } catch (IllegalStateException e) {
-      assertEquals("Refusing to return headers after content", e.getMessage());
+      assertEquals("Headers must be retrieved before body", e.getMessage());
     }
   }
 
