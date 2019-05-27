@@ -17,15 +17,15 @@ public class PrometheusMetricsServlet extends MetricsServlet {
 
   public static final String ENDPOINT_PATH = "/metrics";
 
-  private StreamsMetrics streamsMetrics;
+  private KafkaMetrics kafkaMetrics;
 
-  public PrometheusMetricsServlet(StreamsMetrics streamsMetrics) {
-    this.streamsMetrics = streamsMetrics;
+  public PrometheusMetricsServlet(KafkaMetrics kafkaMetrics) {
+    this.kafkaMetrics = kafkaMetrics;
   }
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-    streamsMetrics.checkOnPrometheusScrape();
+    kafkaMetrics.checkOnPrometheusScrape();
     super.doGet(req, resp);
   }
 

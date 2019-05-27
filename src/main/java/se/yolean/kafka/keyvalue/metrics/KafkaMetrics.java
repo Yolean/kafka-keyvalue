@@ -10,9 +10,9 @@ import org.apache.kafka.common.MetricName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StreamsMetrics {
+public class KafkaMetrics {
 
-  public static final Logger logger = LoggerFactory.getLogger(StreamsMetrics.class);
+  public static final Logger logger = LoggerFactory.getLogger(KafkaMetrics.class);
 
   private static final Map<String, KafkaGaugeToPrometheus> prometheus = new HashMap<>();
 
@@ -34,7 +34,7 @@ public class StreamsMetrics {
   /**
    * @param metrics The handle to global state from KafkaStreams
    */
-  public StreamsMetrics(Map<MetricName, ? extends Metric> metrics) {
+  public KafkaMetrics(Map<MetricName, ? extends Metric> metrics) {
     this.kafkaMetrics = metrics;
   }
 

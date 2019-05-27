@@ -13,7 +13,7 @@ import org.apache.kafka.common.metrics.Sensor;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-class StreamsMetricsTest {
+class KafkaMetricsTest {
 
   @Disabled // Mocking metrics didn't work
   @Test
@@ -29,7 +29,7 @@ class StreamsMetricsTest {
 
     assertEquals(1, metrics.metrics().size(), "This test setup should be a working mock");
 
-    StreamsMetrics ourMetrics = new StreamsMetrics(metrics.metrics());
+    KafkaMetrics ourMetrics = new KafkaMetrics(metrics.metrics());
     assertTrue(ourMetrics.hasSeenAssignedParititions(), "Should have seen the assigned partitions value");
 
     metrics.close();
