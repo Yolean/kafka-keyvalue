@@ -53,6 +53,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
+  @ConfigProperty(name="metrics_enabled", defaultValue="true")
+  boolean metricsEnabled;
+
   @ConfigProperty(name="topic") Optional<String> topic;
   @ConfigProperty(name="topic1") Optional<String> topic1;
   @ConfigProperty(name="topic2") Optional<String> topic2;
@@ -90,7 +93,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   @Inject
   OnUpdate onupdate;
 
-  Counter pollCount = Counter.build()
+  static Counter pollCount = Counter.build()
       .name("kkv_poll_count").help("Total number of polls executed").register();
 
   List<String> topics;
@@ -181,7 +184,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   public void run() {
     stage = Stage.CreatingConsumer;
     KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps);
-    metrics = new KafkaMetrics(consumer);
+    if (metricsEnabled) {
+      metrics = new KafkaMetrics(consumer);
+    }
     try {
       run(consumer, cache, maxPolls);
     } catch (InterruptedException e) {
