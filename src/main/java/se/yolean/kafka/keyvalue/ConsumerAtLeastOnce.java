@@ -3,12 +3,14 @@ package se.yolean.kafka.keyvalue;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.enterprise.event.Observes;
@@ -43,6 +45,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     Assigning,
     Resetting,
     StartingPoll,
+    PollingHistorical,
     Polling,
   }
 
@@ -119,7 +122,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
    * @return true if cache appears up-to-date
    */
   public boolean isReady() {
-    return runner.isAlive();
+    return runner.isAlive() && stage == Stage.Polling;
   }
 
   void topicsFromConfig() {
@@ -223,12 +226,14 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     consumer.assign(assign);
 
     final Map<TopicPartition, Long> nextUncommitted = new HashMap<>(1);
+    final Set<TopicPartition> lastCommittedNotReached = new HashSet<>(1);
 
     stage = Stage.Resetting;
     for (TopicPartition tp : assign) {
       long next = consumer.position(tp, metadataTimeout);
       logger.info("Next offset for {} is {}", tp, next);
       nextUncommitted.put(tp, next);
+      lastCommittedNotReached.add(tp);
     }
     consumer.seekToBeginning(assign);
 
@@ -244,7 +249,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       long wait = pollEndTime - System.currentTimeMillis() + minPauseBetweenPolls.toMillis();
       if (wait > 0) Thread.sleep(wait);
 
-      stage = Stage.Polling;
+      stage = lastCommittedNotReached.isEmpty() ? Stage.Polling : Stage.PollingHistorical;
 
       onupdate.pollStart(topics);
 
@@ -265,6 +270,10 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
         if (record.offset() >= start) {
           onupdate.handle(update);
         } else {
+          if (record.offset() == start - 1) {
+            logger.info("Reached last historical message for {} at offset {}", update.getTopicPartition(), update.getOffset());
+            lastCommittedNotReached.remove(update.getTopicPartition());
+          }
           logger.trace("Suppressing onupdate for {} because start offset is {}", update, start);
         }
       }
