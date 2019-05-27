@@ -140,6 +140,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
         .stream()
         .filter(t -> t != null)
         .collect(Collectors.toList());
+    if (topics.size() == 0) {
+      throw new IllegalStateException("At least one topic or topicX config must be set");
+    }
   }
 
   void start(@Observes StartupEvent ev) {
