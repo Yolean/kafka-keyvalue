@@ -33,7 +33,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: topics
+        - name: topic
           value: kkv-test-bash
         - name: kafka_offset_reset
           value: earliest
