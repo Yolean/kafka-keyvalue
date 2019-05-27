@@ -5,3 +5,4 @@ resources:
 - ./topic-test-kkv-1.yaml
 - ./kkv-example-service.yaml
 - ./kkv-example.yaml
+- ./kkv-example-monitor.yaml

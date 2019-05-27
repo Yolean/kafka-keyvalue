@@ -18,6 +18,7 @@ Use [Skaffold](), for example:
 ```bash
 eval $(minikube docker-env)
 kubectl apply -k github.com/Yolean/kubernetes-kafka/variants/dev-small?ref=v6.0.0
+kubectl apply -f https://github.com/Yolean/kubernetes-kafka/raw/50345f266287861d7964d3339a2c2a28e79db2fe/variants/prometheus-operator-example/k8s-cluster-rbac.yaml
 SKAFFOLD_NO_PRUNE=true skaffold dev
 ```
 
