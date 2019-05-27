@@ -1,12 +1,14 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: kkv-test-bash
+  name: kkv-example
   labels: &labels
-    app: kkv-test
-    test-name: bash
+    type: kontrakt-test
+    app: kkv
+    test-name: example
 spec:
   replicas: 1
+  serviceName: kkv-example
   selector:
     matchLabels: *labels
   template:
@@ -162,7 +164,7 @@ spec:
         volumeMounts:
         - name: logs
           mountPath: /logs
-      - name: test
+      - name: selfcheck
         image: yolean/toil@sha256:82c8cc8d082f40753d2e409a670e1dc34455b0e2143adff285cc4102b1326d11
         command:
         - /bin/bash
