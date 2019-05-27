@@ -27,6 +27,7 @@ class UpdateTargetTest {
     UpdateTarget updateTarget = new UpdateTarget("http://dev.local:123/updates?topic=__TOPIC__");
     assertEquals("http://dev.local:123", updateTarget.getHttpclientContextHost().toString());
     assertEquals("/updates?topic=Topic2", updateTarget.getHttpUriFromHost("Topic2").toString());
+    assertEquals("http://dev.local:123/updates?topic=__TOPIC__", updateTarget.toString());
   }
 
 }

@@ -18,4 +18,9 @@ public class ResponseResult {
     return status;
   }
 
+  @Override
+  public String toString() {
+    return "status " + getStatus();
+  }
+
 }

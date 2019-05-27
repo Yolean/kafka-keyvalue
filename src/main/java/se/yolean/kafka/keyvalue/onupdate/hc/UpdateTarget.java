@@ -47,4 +47,9 @@ public class UpdateTarget {
     return path;
   }
 
+  @Override
+  public String toString() {
+    return host.toString() + path.toString();
+  }
+
 }

@@ -73,7 +73,7 @@ public class OnUpdateForwarder implements OnUpdate {
         try {
           dispatcher.dispatch(topic, pollState.get(topic));
         } catch (TargetAckFailedException e) {
-          logger.error("Ack failed for {} topic", dispatcher, topic, e);
+          logger.error("Ack failed for {} topic {}", dispatcher, topic, e);
           throw new RuntimeException("No retry strategy for update ack failure", e);
         }
       }

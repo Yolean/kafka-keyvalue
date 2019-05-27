@@ -1,6 +1,7 @@
 package se.yolean.kafka.keyvalue.onupdate.hc;
 
 import java.io.IOException;
+import java.net.URI;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -36,18 +37,21 @@ public class UpdatesDispatcherHttp implements UpdatesDispatcher {
 
   @Override
   public void dispatch(String topicName, UpdatesBodyPerTopic body) throws TargetAckFailedException {
-    HttpPost post = new HttpPost(target.getHttpUriFromHost(topicName));
+    HttpHost host = target.getHttpclientContextHost();
+    URI path = target.getHttpUriFromHost(topicName);
+    HttpPost post = new HttpPost(path);
     body.getHeaders().forEach((name, value) -> post.setHeader(name, value));
     post.setEntity(getEntity(body));
     ResponseResult result;
     try {
-      result = client.execute(target.getHttpclientContextHost(), post, responseHandler);
+      result = client.execute(host, post, responseHandler);
     } catch (ClientProtocolException e) {
       throw new TargetAckFailedException(e);
     } catch (IOException e) {
       throw new TargetAckFailedException(e);
     }
     if (!result.isAck()) {
+      logger.warn("Non-ack response from {}{}: {}", host, path, result);
       throw new TargetAckFailedException(result.getStatus());
     }
   }
@@ -67,6 +71,11 @@ public class UpdatesDispatcherHttp implements UpdatesDispatcher {
     } catch (IOException e) {
       logger.error("Failed to close http client");
     }
+  }
+
+  @Override
+  public String toString() {
+    return getClass().getSimpleName() + '[' + target + ']';
   }
 
 }
