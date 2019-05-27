@@ -42,8 +42,8 @@ spec:
         - name: target
           value: http://127.0.0.1:8080/204/__TOPIC__
         # Remaining work is to set up other endpoints, for example using Envoy's fault injection
-        #- name: target1
-        #  value: http://127.0.0.1:8080/failures/?topic=__TOPIC__
+        - name: target1
+          value: http://127.0.0.1:8080/faults-204?topic=__TOPIC__
         readinessProbe:
           httpGet:
             path: /ready
@@ -123,6 +123,10 @@ spec:
                           direct_response:
                             status: 204
                         - match:
+                            prefix: "/faults-204"
+                          direct_response:
+                            status: 204
+                        - match:
                             prefix: "/302"
                           redirect:
                             path_redirect: /200
@@ -140,6 +144,13 @@ spec:
                         headers:
                           name: :path
                           exact_match: /healthz
+                    - name: envoy.fault
+                      typed_config:
+                        "@type": type.googleapis.com/envoy.config.filter.http.fault.v2.HTTPFault
+                        abort:
+                          http_status: 503
+                          percentage:
+                            numerator: 20
                     - name: envoy.router
                       config: {}
             clusters:
