@@ -265,7 +265,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
         if (record.offset() >= start) {
           onupdate.handle(update);
         } else {
-          logger.info("Suppressing onupdate for {} because start offset is {}", update, start);
+          logger.trace("Suppressing onupdate for {} because start offset is {}", update, start);
         }
       }
 
