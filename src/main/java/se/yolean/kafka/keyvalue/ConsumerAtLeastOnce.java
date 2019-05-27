@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
+import se.yolean.kafka.keyvalue.metrics.KafkaMetrics;
 
 //@org.eclipse.microprofile.health.Health // See HealthProxy
 @Singleton
@@ -89,6 +90,8 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   OnUpdate onupdate;
 
   List<String> topics;
+
+  KafkaMetrics metrics;
 
   final Thread runner;
 
@@ -174,6 +177,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   public void run() {
     stage = Stage.CreatingConsumer;
     KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps);
+    metrics = new KafkaMetrics(consumer.metrics());
     try {
       run(consumer, cache, maxPolls);
     } catch (InterruptedException e) {
@@ -317,6 +321,10 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   @Override
   public Iterator<byte[]> getValues() {
     return cache.values().iterator();
+  }
+
+  public KafkaMetrics getMetrics() {
+    return metrics;
   }
 
 }
