@@ -52,6 +52,8 @@ spec:
           httpGet:
             path: /health
             port: api
+          initialDelaySeconds: 30
+          periodSeconds: 10
       - name: envoy
         image: envoyproxy/envoy:v1.10.0@sha256:bf7970f469c3d2cd54a472536342bd50df0ddf099ebd51024b7f13016c4ee3c4
         ports:
