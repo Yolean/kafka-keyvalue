@@ -44,6 +44,14 @@ spec:
         # Remaining work is to set up other endpoints, for example using Envoy's fault injection
         #- name: target1
         #  value: http://127.0.0.1:8080/failures/?topic=__TOPIC__
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: api
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: api
       - name: envoy
         image: envoyproxy/envoy:v1.10.0@sha256:bf7970f469c3d2cd54a472536342bd50df0ddf099ebd51024b7f13016c4ee3c4
         ports:
