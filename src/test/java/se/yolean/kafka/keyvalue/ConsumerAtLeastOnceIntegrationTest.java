@@ -28,6 +28,7 @@ import org.mockito.Mockito;
 import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
 
 import se.yolean.kafka.keyvalue.ConsumerAtLeastOnce.Stage;
+import se.yolean.kafka.keyvalue.metrics.KafkaMetrics;
 
 public class ConsumerAtLeastOnceIntegrationTest {
 
@@ -128,6 +129,14 @@ public class ConsumerAtLeastOnceIntegrationTest {
     assertEquals("v2", new String(values.next()));
     assertTrue(values.hasNext());
     assertEquals("v1", new String(values.next()));
+
+    testMetrics(consumer.getMetrics());
+  }
+
+  void testMetrics(KafkaMetrics metrics) {
+
+    metrics.check();
+
   }
 
   @Test

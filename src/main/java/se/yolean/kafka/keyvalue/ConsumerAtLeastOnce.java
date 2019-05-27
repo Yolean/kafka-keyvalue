@@ -29,6 +29,7 @@ import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.prometheus.client.Counter;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import se.yolean.kafka.keyvalue.metrics.KafkaMetrics;
@@ -88,6 +89,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   @Inject
   OnUpdate onupdate;
+
+  Counter pollCount = Counter.build()
+      .name("kkv_poll_count").help("Total number of polls executed").register();
 
   List<String> topics;
 
@@ -177,7 +181,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   public void run() {
     stage = Stage.CreatingConsumer;
     KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps);
-    metrics = new KafkaMetrics(consumer.metrics());
+    metrics = new KafkaMetrics(consumer);
     try {
       run(consumer, cache, maxPolls);
     } catch (InterruptedException e) {
@@ -294,6 +298,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
       consumer.commitSync();
 
+      pollCount.inc();
       // Next poll ...
     }
 

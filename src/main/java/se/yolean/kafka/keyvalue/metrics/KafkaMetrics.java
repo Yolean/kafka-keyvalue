@@ -5,6 +5,7 @@ import static se.yolean.kafka.keyvalue.metrics.KafkaGaugeToPrometheus.getNameInP
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.slf4j.Logger;
@@ -12,36 +13,34 @@ import org.slf4j.LoggerFactory;
 
 public class KafkaMetrics {
 
-  public static final Logger logger = LoggerFactory.getLogger(KafkaMetrics.class);
+  static final Logger logger = LoggerFactory.getLogger(KafkaMetrics.class);
 
-  private static final Map<String, KafkaGaugeToPrometheus> prometheus = new HashMap<>();
+  static final Map<String, KafkaGaugeToPrometheus> prometheus = new HashMap<>();
 
-  private static final String ASSIGNED_PARTITIONS =
-      getNameInPrometheus("consumer-coordinator-metrics", "assigned-partitions");
-  private static final String KAFKA_METRICS_COUNT =
+  static boolean initialized = false;
+
+  static final String KAFKA_METRICS_COUNT =
       getNameInPrometheus("kafka-metrics-count", "count");
 
-  // These might be interesting too for health
-  //private static final String COMMIT_TOTAL =
-  //    getNameInPrometheus("consumer-coordinator-metrics", "commit-total");
-  //private static final String RECORDS_CONSUMED_TOTAL =
-  //    getNameInPrometheus("consumer-fetch-manager-metrics", "records-consumed-total");
-
-  private Map<MetricName, ? extends Metric> kafkaMetrics;
-
-  private boolean hasSeenAssignedParititions = false;
+  private KafkaConsumer<String, byte[]> consumer;
 
   /**
-   * @param metrics The handle to global state from KafkaStreams
+   * @param consumer The handle to global state from KafkaStreams
    */
-  public KafkaMetrics(Map<MetricName, ? extends Metric> metrics) {
-    this.kafkaMetrics = metrics;
+  public KafkaMetrics(KafkaConsumer<String, byte[]> consumer) {
+    this.consumer = consumer;
+    if (initialized) {
+      throw new IllegalStateException("A metrics instance has been created already");
+    }
+    initialized = true;
   }
 
   /**
    * So we can trigger re-check from the main thread without thread creation in this class.
    */
   public void check() {
+    Map<MetricName, ? extends Metric> kafkaMetrics = consumer.metrics();
+
     for (Map.Entry<MetricName, ? extends Metric> metric : kafkaMetrics.entrySet()) {
 
       String promName = getNameInPrometheus(metric.getKey());
@@ -57,23 +56,7 @@ public class KafkaMetrics {
 
       prom.update(metric.getValue());
 
-      if (!hasSeenAssignedParititions && ASSIGNED_PARTITIONS.equals(promName)) {
-        Double partitions = (Double) metric.getValue().metricValue();
-        if (partitions > 0.5) {
-          hasSeenAssignedParititions = true;
-          logger.info("Noticed assigned partitions for the first time");
-        }
-      }
-
     }
-  }
-
-  public boolean hasSeenAssignedParititions() {
-    return hasSeenAssignedParititions;
-  }
-
-  public void checkOnPrometheusScrape() {
-    check();
   }
 
 }
