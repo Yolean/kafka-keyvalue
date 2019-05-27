@@ -28,7 +28,6 @@ import org.mockito.Mockito;
 import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
 
 import se.yolean.kafka.keyvalue.ConsumerAtLeastOnce.Stage;
-import se.yolean.kafka.keyvalue.metrics.KafkaMetrics;
 
 public class ConsumerAtLeastOnceIntegrationTest {
 
