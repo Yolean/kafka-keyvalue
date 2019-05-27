@@ -1,10 +1,13 @@
 package se.yolean.kafka.keyvalue.onupdate;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
@@ -24,11 +27,16 @@ public class OnUpdateForwarder implements OnUpdate {
 
   static final Logger logger = LoggerFactory.getLogger(OnUpdateForwarder.class);
 
-  public static final String TARGETS_CONFIG_SEPARATOR_REGEX = ",";
-
-  public static final String TARGETS_CONFIG_KEY = "update_targets";
-  @ConfigProperty(name=TARGETS_CONFIG_KEY)
-  java.util.Optional<String> targetsConfig;
+  @ConfigProperty(name="target") Optional<String> target;
+  @ConfigProperty(name="target1") Optional<String> target1;
+  @ConfigProperty(name="target2") Optional<String> target2;
+  @ConfigProperty(name="target3") Optional<String> target3;
+  @ConfigProperty(name="target4") Optional<String> target4;
+  @ConfigProperty(name="target5") Optional<String> target5;
+  @ConfigProperty(name="target6") Optional<String> target6;
+  @ConfigProperty(name="target7") Optional<String> target7;
+  @ConfigProperty(name="target8") Optional<String> target8;
+  @ConfigProperty(name="target9") Optional<String> target9;
 
   @Inject
   DispatcherConfig dispatcherConfig;
@@ -91,17 +99,14 @@ public class OnUpdateForwarder implements OnUpdate {
   }
 
   void updateDispatchersFromConfig() {
-    if (!targetsConfig.isPresent()) {
-      logger.info("Update is a NOP. Configure '" + TARGETS_CONFIG_KEY + "' to enable updates");
-      dispatchers = Collections.emptyList();
-      return;
-    }
     List<String> conf = getTargetsConfig();
+
     if (conf.size() == 0) {
-      logger.warn(TARGETS_CONFIG_KEY + " was provided but has zero entries");
+      logger.info("Update is a NOP. Configure 'target' or 'targetX' to enable updates");
       dispatchers = Collections.emptyList();
       return;
     }
+
     dispatchers = new LinkedList<UpdatesDispatcher>();
     for (String target : conf) {
       UpdatesDispatcher dispatcher = dispatcherConfig.getDispatcher(target);
@@ -112,9 +117,20 @@ public class OnUpdateForwarder implements OnUpdate {
   }
 
   List<String> getTargetsConfig() {
-    String conf = targetsConfig.orElse(null);
-    if (conf == null) return Collections.emptyList();
-    return java.util.Arrays.asList(conf.split(TARGETS_CONFIG_SEPARATOR_REGEX));
+    return Arrays.asList(
+        target.orElse(null),
+        target1.orElse(null),
+        target2.orElse(null),
+        target3.orElse(null),
+        target4.orElse(null),
+        target5.orElse(null),
+        target6.orElse(null),
+        target7.orElse(null),
+        target8.orElse(null),
+        target9.orElse(null))
+        .stream()
+        .filter(t -> t != null)
+        .collect(Collectors.toList());
   }
 
   void stopDispatcher(UpdatesDispatcher dispatcher) {

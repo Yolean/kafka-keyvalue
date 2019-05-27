@@ -1,12 +1,15 @@
 package se.yolean.kafka.keyvalue;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
@@ -45,8 +48,16 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  @ConfigProperty(name="topics")
-  List<String> topics;
+  @ConfigProperty(name="topic") Optional<String> topic;
+  @ConfigProperty(name="topic1") Optional<String> topic1;
+  @ConfigProperty(name="topic2") Optional<String> topic2;
+  @ConfigProperty(name="topic3") Optional<String> topic3;
+  @ConfigProperty(name="topic4") Optional<String> topic4;
+  @ConfigProperty(name="topic5") Optional<String> topic5;
+  @ConfigProperty(name="topic6") Optional<String> topic6;
+  @ConfigProperty(name="topic7") Optional<String> topic7;
+  @ConfigProperty(name="topic8") Optional<String> topic8;
+  @ConfigProperty(name="topic9") Optional<String> topic9;
 
   @ConfigProperty(name="metadata_timeout", defaultValue="5s")
   String   metadataTimeoutConf;
@@ -73,6 +84,8 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   @Inject
   OnUpdate onupdate;
+
+  List<String> topics;
 
   final Thread runner;
 
@@ -109,6 +122,23 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     return runner.isAlive();
   }
 
+  void topicsFromConfig() {
+    topics = Arrays.asList(
+        topic.orElse(null),
+        topic1.orElse(null),
+        topic2.orElse(null),
+        topic3.orElse(null),
+        topic4.orElse(null),
+        topic5.orElse(null),
+        topic6.orElse(null),
+        topic7.orElse(null),
+        topic8.orElse(null),
+        topic9.orElse(null))
+        .stream()
+        .filter(t -> t != null)
+        .collect(Collectors.toList());
+  }
+
   void start(@Observes StartupEvent ev) {
     // workaround for Converter not working
     metadataTimeout = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(metadataTimeoutConf);
@@ -116,6 +146,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     minPauseBetweenPolls = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(minPauseBetweenPollsConf.get());
     logger.info("Poll duration: {}", pollDuration);
     // end workaround
+    topicsFromConfig();
     logger.info("Started. Topics: {}", topics);
     logger.info("Cache: {}", cache);
     runner.start();

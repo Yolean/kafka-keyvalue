@@ -33,14 +33,15 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: topics
+        - name: topic
           value: kkv-test-bash
         - name: kafka_offset_reset
           value: earliest
-        - name: update_targets
+        - name: target
           value: http://127.0.0.1:8080/204/__TOPIC__
-          # We should also test with other endpoints, with Envoy's fault injection
-          # http://127.0.0.1:8080/204/__TOPIC__,http://127.0.0.1:8080/?topic=__TOPIC__
+        # Remaining work is to set up other endpoints, for example using Envoy's fault injection
+        #- name: target1
+        #  value: http://127.0.0.1:8080/failures/?topic=__TOPIC__
       - name: envoy
         image: envoyproxy/envoy:v1.10.0@sha256:bf7970f469c3d2cd54a472536342bd50df0ddf099ebd51024b7f13016c4ee3c4
         ports:
