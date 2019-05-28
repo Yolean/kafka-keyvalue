@@ -286,7 +286,8 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       try {
         onupdate.pollEndBlockingUntilTargetsAck();
       } catch (RuntimeException e) {
-        logger.error("Failed onupdate ack. App should exit.", e);
+        logger.error("Failed onupdate ack - app should exit", e);
+        // We don't change this.state here becasue thread !isAlive should trigger unreadiness and then we might want to know which stage we reached
         throw e;
       }
 
