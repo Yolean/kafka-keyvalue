@@ -51,9 +51,6 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  @ConfigProperty(name="metrics_enabled", defaultValue="true")
-  boolean metricsEnabled;
-
   @ConfigProperty(name="topic") Optional<String> topic;
   @ConfigProperty(name="topic1") Optional<String> topic1;
   @ConfigProperty(name="topic2") Optional<String> topic2;
