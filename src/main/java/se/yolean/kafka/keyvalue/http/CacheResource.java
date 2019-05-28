@@ -28,6 +28,12 @@ public class CacheResource {
   @Inject
   KafkaCache cache;
 
+  void requireUpToDateCache() throws javax.ws.rs.ServiceUnavailableException {
+    if (!cache.isReady()) {
+      throw new javax.ws.rs.ServiceUnavailableException("Denied because cache is unready, check /health for status");
+    }
+  }
+
   /**
    * Will eventually contain logic for reading values from other replicas in
    * partitioned caches
@@ -39,6 +45,7 @@ public class CacheResource {
    *                           somehow was null
    */
   byte[] getCacheValue(String key) throws NotFoundException {
+    requireUpToDateCache();
     if (key == null) {
       throw new javax.ws.rs.BadRequestException("Request key can not be null");
     }
@@ -56,6 +63,7 @@ public class CacheResource {
   @Path("/raw/{key}")
   @Produces(MediaType.APPLICATION_OCTET_STREAM)
   public byte[] valueByKey(@PathParam("key") final String key, @Context UriInfo uriInfo) {
+    requireUpToDateCache();
     return getCacheValue(key);
   }
 
@@ -82,6 +90,7 @@ public class CacheResource {
   @GET()
   @Path("/keys")
   public Response keys() {
+    requireUpToDateCache();
     Iterator<String> all = cache.getKeys();
 
     StreamingOutput stream = new StreamingOutput() {
@@ -103,6 +112,7 @@ public class CacheResource {
   @Path("/keys")
   @Produces(MediaType.APPLICATION_JSON)
   public Response keysJson() {
+    requireUpToDateCache();
     Iterator<String> all = cache.getKeys();
 
     StreamingOutput stream = new StreamingOutput() {
@@ -127,6 +137,7 @@ public class CacheResource {
   @Path("/values")
   @Produces(MediaType.TEXT_PLAIN)
   public Response values() {
+    requireUpToDateCache();
     Iterator<byte[]> values = cache.getValues();
 
     StreamingOutput stream = new StreamingOutput() {
