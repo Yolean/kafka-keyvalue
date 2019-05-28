@@ -150,7 +150,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     metadataTimeout = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(metadataTimeoutConf);
     pollDuration = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(pollDurationConf.get());
     minPauseBetweenPolls = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(minPauseBetweenPollsConf.get());
+    logger.info("Metadata timeout: {}", metadataTimeout);
     logger.info("Poll duration: {}", pollDuration);
+    logger.info("Min pause between polls: {}", minPauseBetweenPolls);
     // end workaround
     topicsFromConfig();
     logger.info("Started. Topics: {}", topics);
