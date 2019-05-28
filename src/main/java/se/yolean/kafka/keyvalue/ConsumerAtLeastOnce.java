@@ -236,7 +236,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       long next = consumer.position(tp, metadataTimeout);
       logger.info("Next offset for {} is {}", tp, next);
       nextUncommitted.put(tp, next);
-      lastCommittedNotReached.add(tp);
+      if (next > 0) {
+        lastCommittedNotReached.add(tp);
+      }
     }
     consumer.seekToBeginning(assign);
 
