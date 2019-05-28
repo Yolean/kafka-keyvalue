@@ -1,0 +1,1 @@
+git checkout build-plainjava && git rebase quarkus-as-sidecar && git push -f solsson build-plainjava && git checkout quarkus-as-sidecar && git push solsson quarkus-as-sidecar
