@@ -66,11 +66,11 @@ public class KafkaGaugeToPrometheus {
     return kafkaGroup;
   }
 
-  private void setup(MetricName name) {
+  private boolean setup(MetricName name) {
     List<String> labels = getLabelNames(name);
     if ("consumer-fetch-manager-metrics".equals(name.group()) && !labels.contains("topic")) {
       logger.info("Metric {} will not be registered until we have a sample that contains topic name", name);
-      return;
+      return false;
     }
     String description = name.description();
     if (description == null || description.length() == 0) {
@@ -83,6 +83,7 @@ public class KafkaGaugeToPrometheus {
         .register();
     this.labels = Collections.unmodifiableList(labels);
     logger.debug("New prometheus metric created: {} from {}", this, name);
+    return true;
   }
 
   private List<String> getLabelNames(MetricName name) {
@@ -109,7 +110,7 @@ public class KafkaGaugeToPrometheus {
     }
     if (value instanceof Double) {
       if (gauge == null) {
-        setup(metric.metricName());
+        if (!setup(metric.metricName())) return;
       }
       List<String> labelValues = getLabelValues(metric.metricName());
       try {
