@@ -68,6 +68,10 @@ public class KafkaGaugeToPrometheus {
 
   private void setup(MetricName name) {
     List<String> labels = getLabelNames(name);
+    if ("consumer-fetch-manager-metrics".equals(name.group()) && !labels.contains("topic")) {
+      logger.info("Metric {} will not be registered until we have a sample that contains topic name", name);
+      return;
+    }
     String description = name.description();
     if (description == null || description.length() == 0) {
       description = "No description provided by Kafka";
