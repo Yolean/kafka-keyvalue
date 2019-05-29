@@ -21,7 +21,12 @@ public class RetryConnectionRefusedThreadSleep implements HttpRequestRetryHandle
 
   @Override
   public boolean retryRequest(IOException exception, int executionCount, HttpContext context) {
-    boolean retry = decisions.onConnectionRefused(executionCount);
+    final boolean retry = decisions.onConnectionRefused(executionCount);
+    if (!retry) {
+      logger.info("Retry={} at count {} for what we assume is connection refused: {}",
+          retry, executionCount, exception.toString());
+      return retry;
+    }
     waitPeriod *= 2;
     logger.info("Retry={} with wait {}ms at count {} for what we assume is connection refused: {}",
         retry, waitPeriod, executionCount, exception.toString());

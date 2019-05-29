@@ -46,7 +46,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     WaitingForKafkaConnection (40),
     Assigning (50),
     Resetting (60),
-    StartingPoll (70),
+    InitialPoll (70),
     PollingHistorical (80),
     Polling (90);
 
@@ -257,7 +257,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     }
     consumer.seekToBeginning(assign);
 
-    stage = Stage.StartingPoll;
+    stage = Stage.InitialPoll;
     long pollEndTime = System.currentTimeMillis();
 
     for (long n = 0; polls == 0 || n < polls; n++) {
@@ -268,8 +268,6 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       // - Anyway let's keep it because we'll do onupdate HTTP requests
       long wait = pollEndTime - System.currentTimeMillis() + minPauseBetweenPolls.toMillis();
       if (wait > 0) Thread.sleep(wait);
-
-      stage = lastCommittedNotReached.isEmpty() ? Stage.Polling : Stage.PollingHistorical;
 
       onupdate.pollStart(topics);
 
@@ -298,11 +296,13 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
         }
       }
 
+      stage = lastCommittedNotReached.isEmpty() ? Stage.Polling : Stage.PollingHistorical;
+
       try {
         onupdate.pollEndBlockingUntilTargetsAck();
       } catch (RuntimeException e) {
-        logger.error("Failed onupdate ack - app should exit", e);
-        // We don't change this.state here becasue thread !isAlive should trigger unreadiness and then we might want to know which stage we reached
+        logger.warn("Failed onupdate ack - app should exit: {}", e.toString());
+        // We don't change this.state here because thread !isAlive should trigger unreadiness and then we might want to know which stage we reached
         throw e;
       }
 
