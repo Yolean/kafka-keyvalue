@@ -36,19 +36,16 @@ COPY --from=dev ${MAVEN_CONFIG} ${MAVEN_CONFIG}
 
 WORKDIR /workspace
 COPY . .
-# Can't get integration tests to pass on docker hub, and can't get logs from them
-#RUN mvn -o package
-RUN mvn -o package -DskipTests
+RUN mvn -o package
 
-FROM openjdk:11.0.3-jre-slim@sha256:73c29cc971f328f1456e443f55e4a7ce403638a0429a173549b5be76ef24ab37 \
+FROM fabric8/java-alpine-openjdk8-jre@sha256:4c8c834428855aa37e29fe896f5a3a829ccdde3bcd1ab5b71a17a1b3136c4176 \
   as runtime-plainjava
-
-WORKDIR /app
-COPY --from=maven-build /workspace/target/lib ./lib
-COPY --from=maven-build /workspace/target/*-runner.jar ./quarkus-kafka.jar
-
-ENTRYPOINT [ "java", "-cp", "./lib/*", "-jar", "./quarkus-kafka.jar" ]
-CMD [ "-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090" ]
+EXPOSE 8090
+ENV JAVA_OPTIONS="-Dquarkus.http.host=0.0.0.0 -Dquarkus.http.port=8090 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+ENV AB_ENABLED=jmx_exporter
+COPY --from=maven-build /workspace/target/lib/* /deployments/lib/
+COPY --from=maven-build /workspace/target/*-runner.jar /deployments/app.jar
+ENTRYPOINT [ "/deployments/run-java.sh" ]
 
 # https://github.com/quarkusio/quarkus/issues/2412#issuecomment-494933951
 #FROM oracle/graalvm-ce:19.0.0@sha256:71d4990f47e9b2300c57775e1306af477232019b624376c8f120d910caedb4b4 \
@@ -79,10 +76,10 @@ RUN native-image \
   -H:+StackTrace
 
 # The rest should be identical to src/main/docker/Dockerfile which is the recommended quarkus build
-FROM cescoffier/native-base@sha256:407e2412c7d15ee951bfc31dcdcbbba806924350734e9b0929a95dd16c7c1b2b
+FROM registry.fedoraproject.org/fedora-minimal@sha256:28dcdc19fd1d55598dc308a44c40287f4b00d0bf5a53cd01c39368c16cf85d57
 WORKDIR /work/
 COPY --from=native-build /project/*-runner /work/application
 #RUN chmod 775 /work
-EXPOSE 8080
+EXPOSE 8090
 ENTRYPOINT ["./application"]
 CMD ["-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090"]
