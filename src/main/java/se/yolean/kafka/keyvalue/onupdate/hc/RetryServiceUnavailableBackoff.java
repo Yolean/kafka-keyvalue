@@ -10,7 +10,7 @@ public class RetryServiceUnavailableBackoff implements ServiceUnavailableRetrySt
 
   static final Logger logger = LoggerFactory.getLogger(RetryServiceUnavailableBackoff.class);
 
-  int waitPeriod = 5;
+  int waitPeriod = 125;
 
   final RetryDecisions decisions;
 
@@ -23,7 +23,7 @@ public class RetryServiceUnavailableBackoff implements ServiceUnavailableRetrySt
     final int status = response.getStatusLine().getStatusCode();
     final boolean retry = decisions.onStatus(executionCount, status);
     waitPeriod *= 2;
-    logger.info("Retry={} with wait {} at count {} for status {}", retry, waitPeriod, executionCount, status);
+    logger.info("Retry={} with wait {}ms at count {} for status {}", retry, waitPeriod, executionCount, status);
     return retry;
   }
 

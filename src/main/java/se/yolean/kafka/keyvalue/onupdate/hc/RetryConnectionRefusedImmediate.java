@@ -20,7 +20,8 @@ public class RetryConnectionRefusedImmediate implements HttpRequestRetryHandler 
   @Override
   public boolean retryRequest(IOException exception, int executionCount, HttpContext context) {
     boolean retry = decisions.onConnectionRefused(executionCount);
-    logger.info("Retry={} at count {} for what we assume is connection refused: {}", retry, executionCount, exception);
+    logger.info("Retry={} at count {} for what we assume is connection refused: {}",
+        retry, executionCount, exception.toString());
     return retry;
   }
 

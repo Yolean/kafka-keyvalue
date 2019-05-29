@@ -5,7 +5,6 @@ import java.net.URI;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.ServiceUnavailableRetryStrategy;
@@ -16,11 +15,8 @@ import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.socket.PlainConnectionSocketFactory;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.DefaultServiceUnavailableRetryStrategy;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
 import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
-import org.apache.http.protocol.HttpContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,11 +27,6 @@ import se.yolean.kafka.keyvalue.onupdate.UpdatesDispatcher;
 public class UpdatesDispatcherHttp implements UpdatesDispatcher {
 
   static final Logger logger = LoggerFactory.getLogger(UpdatesDispatcherHttp.class);
-
-  int retries = 5;
-  boolean retryNonIdempotent = true; // Update POST _should_ be idempotent
-  int retriesOnUnavailable = 5;
-  int retriesOnUnavailableWaitMillis = 3000;
 
   ResponseHandlerAck responseHandler = new ResponseHandlerAck();
   UpdateTarget target;
@@ -54,7 +45,7 @@ public class UpdatesDispatcherHttp implements UpdatesDispatcher {
     BasicHttpClientConnectionManager connectionManager = new BasicHttpClientConnectionManager(registry, null, null, null);
 
 
-    HttpRequestRetryHandler retryHandler = new RetryConnectionRefusedImmediate(retryDecisions);
+    HttpRequestRetryHandler retryHandler = new RetryConnectionRefusedThreadSleep(retryDecisions);
     ServiceUnavailableRetryStrategy serviceUnavailStrategy = new RetryServiceUnavailableBackoff(retryDecisions);
 
     client = HttpClients.custom()

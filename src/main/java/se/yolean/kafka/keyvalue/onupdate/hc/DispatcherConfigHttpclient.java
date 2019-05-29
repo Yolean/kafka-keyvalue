@@ -16,10 +16,10 @@ public class DispatcherConfigHttpclient implements DispatcherConfig, RetryDecisi
   //@ConfigProperty(name="update_connection_timeout", defaultValue="1")
   //Duration connectionTimeout;
 
-  @ConfigProperty(name="max_retries_connection_refused", defaultValue="10")
+  @ConfigProperty(name="max_retries_connection_refused", defaultValue="8")
   int maxRetriesConnectionRefused;
 
-  @ConfigProperty(name="max_retries_connection_refused", defaultValue="10")
+  @ConfigProperty(name="max_retries_connection_refused", defaultValue="8")
   int maxRetriesStatus;
 
   @Override
