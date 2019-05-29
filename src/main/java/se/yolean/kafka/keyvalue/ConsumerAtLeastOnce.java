@@ -128,9 +128,6 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   }
 
   /**
-   * TODO the essential criteria here is that we've consumed everything up to our start offset
-   * so that the cache is consistent.
-   *
    * @return true if cache appears up-to-date
    */
   public boolean isReady() {
