@@ -155,6 +155,10 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   }
 
   void start(@Observes StartupEvent ev) {
+    logger.info("Build meta, if present: branch={}, commit={}, image={}",
+        System.getenv("SOURCE_BRANCH"),
+        System.getenv("SOURCE_COMMIT"),
+        System.getenv("IMAGE_NAME"));
     // workaround for Converter not working
     metadataTimeout = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(metadataTimeoutConf);
     pollDuration = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(pollDurationConf.get());
