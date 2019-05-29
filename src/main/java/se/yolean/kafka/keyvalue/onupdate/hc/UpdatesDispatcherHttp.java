@@ -5,7 +5,10 @@ import java.net.URI;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpRequestRetryHandler;
+import org.apache.http.client.ServiceUnavailableRetryStrategy;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
@@ -17,6 +20,7 @@ import org.apache.http.impl.client.DefaultServiceUnavailableRetryStrategy;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
 import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
+import org.apache.http.protocol.HttpContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,15 +33,15 @@ public class UpdatesDispatcherHttp implements UpdatesDispatcher {
   static final Logger logger = LoggerFactory.getLogger(UpdatesDispatcherHttp.class);
 
   int retries = 5;
-  boolean retryNonIdempotent = true;
+  boolean retryNonIdempotent = true; // Update POST _should_ be idempotent
   int retriesOnUnavailable = 5;
-  int retriesOnUnavailableInterval = 1;
+  int retriesOnUnavailableWaitMillis = 3000;
 
   ResponseHandlerAck responseHandler = new ResponseHandlerAck();
   UpdateTarget target;
   CloseableHttpClient client;
 
-  public UpdatesDispatcherHttp(String configuredTarget) {
+  public UpdatesDispatcherHttp(String configuredTarget, RetryDecisions retryDecisions) {
     target = new UpdateTarget(configuredTarget);
     HttpHost host = target.getHttpclientContextHost(); // If we want to manage contexts
     logger.info("Creating http client for host {} target {}", host, target);
@@ -49,8 +53,9 @@ public class UpdatesDispatcherHttp implements UpdatesDispatcher {
         .build();
     BasicHttpClientConnectionManager connectionManager = new BasicHttpClientConnectionManager(registry, null, null, null);
 
-    StandardHttpRequestRetryHandler retryHandler = new StandardHttpRequestRetryHandler(retries, retryNonIdempotent);
-    DefaultServiceUnavailableRetryStrategy serviceUnavailStrategy = new DefaultServiceUnavailableRetryStrategy(retriesOnUnavailable, retriesOnUnavailableInterval);
+
+    HttpRequestRetryHandler retryHandler = new RetryConnectionRefusedImmediate(retryDecisions);
+    ServiceUnavailableRetryStrategy serviceUnavailStrategy = new RetryServiceUnavailableBackoff(retryDecisions);
 
     client = HttpClients.custom()
         .setConnectionManager(connectionManager)

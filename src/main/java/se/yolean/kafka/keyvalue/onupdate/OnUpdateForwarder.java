@@ -135,6 +135,7 @@ public class OnUpdateForwarder implements OnUpdate {
 
   void stopDispatcher(UpdatesDispatcher dispatcher) {
     try {
+      logger.info("Stopping update dispatcher");
       dispatcher.close();
     } catch (Exception e) {
       logger.warn("Failed to close dispatcher " + dispatcher, e);
