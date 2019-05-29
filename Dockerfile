@@ -40,20 +40,19 @@ COPY . .
 #RUN mvn -o package
 RUN mvn -o package -DskipTests
 
-FROM fabric8/java-alpine-openjdk8-jre@sha256:4c8c834428855aa37e29fe896f5a3a829ccdde3bcd1ab5b71a17a1b3136c4176 \
+FROM openjdk:11.0.3-jre-slim@sha256:73c29cc971f328f1456e443f55e4a7ce403638a0429a173549b5be76ef24ab37 \
   as runtime-plainjava
-# Fix Snappy java.lang.UnsatisfiedLinkError: /tmp/snappy-1.1.7-3d2397f3-516f-45ab-aad1-94be731682f5-libsnappyjava.so: Error loading shared library ld-linux-x86-64.so.2: No such file or directory (needed by /tmp/snappy-1.1.7-3d2397f3-516f-45ab-aad1-94be731682f5-libsnappyjava.so
-RUN apk add --no-cache libc6-compat
-
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
 ARG IMAGE_NAME
+
+WORKDIR /app
+COPY --from=maven-build /workspace/target/lib ./lib
+COPY --from=maven-build /workspace/target/*-runner.jar ./quarkus-kafka.jar
+
+ENTRYPOINT [ "java", "-cp", "./lib/*", "-jar", "./quarkus-kafka.jar" ]
+CMD [ "-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090" ]
 EXPOSE 8090
-ENV JAVA_OPTIONS="-Dquarkus.http.host=0.0.0.0 -Dquarkus.http.port=8090 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
-ENV AB_ENABLED=jmx_exporter
-COPY --from=maven-build /workspace/target/lib/* /deployments/lib/
-COPY --from=maven-build /workspace/target/*-runner.jar /deployments/app.jar
-ENTRYPOINT [ "/deployments/run-java.sh" ]
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
