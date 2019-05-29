@@ -9,7 +9,7 @@ class UpdatesDispatcherHttpTest {
   @Test
   void testToString() {
     String configuredTarget = "http://some.host/__TOPIC__";
-    UpdatesDispatcherHttp dispatcher = new UpdatesDispatcherHttp(configuredTarget );
+    UpdatesDispatcherHttp dispatcher = new UpdatesDispatcherHttp(configuredTarget, null);
     assertEquals("UpdatesDispatcherHttp[http://some.host/__TOPIC__]", dispatcher.toString());
   }
 

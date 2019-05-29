@@ -4,14 +4,18 @@ public class ResponseResult {
 
   private int status;
 
+  static boolean isAck(int status) {
+    if (status == 200) return true;
+    if (status == 204) return true;
+    return false;
+  }
+
   ResponseResult(int status) {
     this.status = status;
   }
 
-  boolean isAck() {
-    if (status == 200) return true;
-    if (status == 204) return true;
-    return false;
+  public boolean isAck() {
+    return isAck(status);
   }
 
   int getStatus() {

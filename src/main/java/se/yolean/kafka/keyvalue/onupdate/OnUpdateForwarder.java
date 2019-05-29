@@ -67,14 +67,14 @@ public class OnUpdateForwarder implements OnUpdate {
   }
 
   @Override
-  public void pollEndBlockingUntilTargetsAck() {
+  public void pollEndBlockingUntilTargetsAck() throws UpdateSemanticsSuggestHalt {
     for (UpdatesDispatcher dispatcher : dispatchers) {
       for (String topic : pollState.keySet()) {
         try {
           dispatcher.dispatch(topic, pollState.get(topic));
         } catch (TargetAckFailedException e) {
           logger.error("Ack failed for {} topic {}", dispatcher, topic, e);
-          throw new RuntimeException("No retry strategy for update ack failure", e);
+          throw new UpdateSemanticsSuggestHalt("Will stop fowarding updates upon any error, to not violate consistency", e);
         }
       }
     }
@@ -135,6 +135,7 @@ public class OnUpdateForwarder implements OnUpdate {
 
   void stopDispatcher(UpdatesDispatcher dispatcher) {
     try {
+      logger.info("Stopping update dispatcher");
       dispatcher.close();
     } catch (Exception e) {
       logger.warn("Failed to close dispatcher " + dispatcher, e);
