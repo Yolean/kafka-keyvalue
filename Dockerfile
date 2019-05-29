@@ -42,6 +42,9 @@ RUN mvn -o package -DskipTests
 
 FROM fabric8/java-alpine-openjdk8-jre@sha256:4c8c834428855aa37e29fe896f5a3a829ccdde3bcd1ab5b71a17a1b3136c4176 \
   as runtime-plainjava
+# Fix Snappy java.lang.UnsatisfiedLinkError: /tmp/snappy-1.1.7-3d2397f3-516f-45ab-aad1-94be731682f5-libsnappyjava.so: Error loading shared library ld-linux-x86-64.so.2: No such file or directory (needed by /tmp/snappy-1.1.7-3d2397f3-516f-45ab-aad1-94be731682f5-libsnappyjava.so
+RUN apk add --no-cache libc6-compat
+
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
 ARG IMAGE_NAME
