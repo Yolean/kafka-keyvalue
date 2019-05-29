@@ -42,6 +42,9 @@ RUN mvn -o package -DskipTests
 
 FROM fabric8/java-alpine-openjdk8-jre@sha256:4c8c834428855aa37e29fe896f5a3a829ccdde3bcd1ab5b71a17a1b3136c4176 \
   as runtime-plainjava
+ARG SOURCE_COMMIT
+ARG SOURCE_BRANCH
+ARG IMAGE_NAME
 EXPOSE 8090
 ENV JAVA_OPTIONS="-Dquarkus.http.host=0.0.0.0 -Dquarkus.http.port=8090 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
 ENV AB_ENABLED=jmx_exporter
@@ -49,12 +52,7 @@ COPY --from=maven-build /workspace/target/lib/* /deployments/lib/
 COPY --from=maven-build /workspace/target/*-runner.jar /deployments/app.jar
 ENTRYPOINT [ "/deployments/run-java.sh" ]
 
-ARG SOURCE_COMMIT
-ENV SOURCE_COMMIT ${SOURCE_COMMIT}
-ARG SOURCE_BRANCH
-ENV SOURCE_BRANCH ${SOURCE_BRANCH}
-ARG IMAGE_NAME
-ENV IMAGE_NAME ${IMAGE_NAME}
+ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
 # https://github.com/quarkusio/quarkus/issues/2412#issuecomment-494933951
 #FROM oracle/graalvm-ce:19.0.0@sha256:71d4990f47e9b2300c57775e1306af477232019b624376c8f120d910caedb4b4 \
@@ -86,6 +84,10 @@ RUN native-image \
 
 # The rest should be identical to src/main/docker/Dockerfile which is the recommended quarkus build
 FROM registry.fedoraproject.org/fedora-minimal@sha256:28dcdc19fd1d55598dc308a44c40287f4b00d0bf5a53cd01c39368c16cf85d57
+ARG SOURCE_COMMIT
+ARG SOURCE_BRANCH
+ARG IMAGE_NAME
+
 WORKDIR /work/
 COPY --from=native-build /project/*-runner /work/application
 #RUN chmod 775 /work
@@ -93,9 +95,4 @@ EXPOSE 8090
 ENTRYPOINT ["./application"]
 CMD ["-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090"]
 
-ARG SOURCE_COMMIT
-ENV SOURCE_COMMIT ${SOURCE_COMMIT}
-ARG SOURCE_BRANCH
-ENV SOURCE_BRANCH ${SOURCE_BRANCH}
-ARG IMAGE_NAME
-ENV IMAGE_NAME ${IMAGE_NAME}
+ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
