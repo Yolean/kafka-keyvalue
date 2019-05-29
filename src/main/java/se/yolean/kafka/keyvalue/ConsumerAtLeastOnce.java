@@ -122,7 +122,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     return health.withData("stage", stage.toString()).build();
   }
 
-  @Gauge(name="kkv_stage", unit = MetricUnits.NONE, description="The stage this instance is at")
+  @Gauge(name="stage", unit = MetricUnits.NONE, description="The stage this instance is at")
   public Integer getStageMetric() {
     return stage.metricValue;
   }
