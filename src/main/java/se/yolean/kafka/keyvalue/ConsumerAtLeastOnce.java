@@ -26,6 +26,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
+import org.eclipse.microprofile.metrics.MetricUnits;
+import org.eclipse.microprofile.metrics.annotation.Gauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,15 +40,20 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     HealthCheck {
 
   public enum Stage {
-    Created,
-    CreatingConsumer,
-    Initializing,
-    WaitingForKafkaConnection,
-    Assigning,
-    Resetting,
-    StartingPoll,
-    PollingHistorical,
-    Polling,
+    Created (10),
+    CreatingConsumer (20),
+    Initializing (30),
+    WaitingForKafkaConnection (40),
+    Assigning (50),
+    Resetting (60),
+    StartingPoll (70),
+    PollingHistorical (80),
+    Polling (90);
+
+    final int metricValue;
+    Stage(int metricValue) {
+      this.metricValue = metricValue;
+    }
   }
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -113,6 +120,11 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       health = health.down();
     }
     return health.withData("stage", stage.toString()).build();
+  }
+
+  @Gauge(name="kkv_stage", unit = MetricUnits.NONE, description="The stage this instance is at")
+  public Integer getStageMetric() {
+    return stage.metricValue;
   }
 
   /**
