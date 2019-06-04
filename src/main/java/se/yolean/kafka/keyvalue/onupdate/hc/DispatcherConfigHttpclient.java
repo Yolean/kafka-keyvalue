@@ -19,7 +19,7 @@ public class DispatcherConfigHttpclient implements DispatcherConfig, RetryDecisi
   @ConfigProperty(name="max_retries_connection_refused", defaultValue="8")
   int maxRetriesConnectionRefused;
 
-  @ConfigProperty(name="max_retries_connection_refused", defaultValue="8")
+  @ConfigProperty(name="max_retries_status", defaultValue="8")
   int maxRetriesStatus;
 
   @Override

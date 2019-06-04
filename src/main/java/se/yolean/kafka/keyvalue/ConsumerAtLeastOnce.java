@@ -70,7 +70,6 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   @ConfigProperty(name="topic9") Optional<String> topic9;
 
   @ConfigProperty(name="metadata_timeout", defaultValue="5s")
-  String   metadataTimeoutConf;
   Duration metadataTimeout;
 
   @ConfigProperty(name="poll_duration", defaultValue="5s")
