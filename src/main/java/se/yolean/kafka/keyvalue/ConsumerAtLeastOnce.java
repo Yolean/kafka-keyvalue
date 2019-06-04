@@ -26,8 +26,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
-import org.eclipse.microprofile.metrics.MetricUnits;
-import org.eclipse.microprofile.metrics.annotation.Gauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,7 +117,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     return health.withData("stage", stage.toString()).build();
   }
 
-  @Gauge(name="stage", unit = MetricUnits.NONE, description="The stage this instance is at")
+  //@Gauge(name="stage", unit = MetricUnits.NONE, description="The stage this instance is at")
   public Integer getStageMetric() {
     return stage.metricValue;
   }

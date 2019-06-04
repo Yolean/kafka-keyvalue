@@ -3,7 +3,6 @@ package se.yolean.kafka.keyvalue.onupdate.hc;
 import javax.inject.Singleton;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.metrics.annotation.Counted;
 
 import se.yolean.kafka.keyvalue.onupdate.DispatcherConfig;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopic;
@@ -36,13 +35,13 @@ public class DispatcherConfigHttpclient implements DispatcherConfig, RetryDecisi
   }
 
   @Override
-  @Counted(name="retries_connection_refused", description="Retries granted for errors that look like connection refused")
+  //@Counted(name="retries_connection_refused", description="Retries granted for errors that look like connection refused")
   public boolean onConnectionRefused(int count) {
     return count <= maxRetriesConnectionRefused;
   }
 
   @Override
-  @Counted(name="retries_status", description="Retries granted for unexpected http statuses")
+  //@Counted(name="retries_status", description="Retries granted for unexpected http statuses")
   public boolean onStatus(int count, int status) {
     if (ResponseResult.isAck(status)) return false;
     return count <= maxRetriesStatus;
