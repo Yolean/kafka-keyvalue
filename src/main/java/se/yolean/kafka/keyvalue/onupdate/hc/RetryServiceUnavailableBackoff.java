@@ -23,11 +23,11 @@ public class RetryServiceUnavailableBackoff implements ServiceUnavailableRetrySt
     final int status = response.getStatusLine().getStatusCode();
     final boolean retry = decisions.onStatus(executionCount, status);
     if (!retry) {
-      logger.info("Retry={} with at count {} for status {}", retry, waitPeriod, executionCount, status);
+      logger.info("Retry={} at count {} for status {}", retry, waitPeriod, executionCount, status);
       return retry;
     }
     waitPeriod *= 2;
-    logger.info("Retry={} with wait {}ms at count {} for status {}", retry, waitPeriod, executionCount, status);
+    logger.info("Retry={} with wait {} ms at count {} for status {}", retry, waitPeriod, executionCount, status);
     return retry;
   }
 

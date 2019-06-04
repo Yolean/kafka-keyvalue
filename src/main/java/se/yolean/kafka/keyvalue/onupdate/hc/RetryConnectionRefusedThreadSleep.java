@@ -11,8 +11,6 @@ public class RetryConnectionRefusedThreadSleep implements HttpRequestRetryHandle
 
   static final Logger logger = LoggerFactory.getLogger(RetryConnectionRefusedThreadSleep.class);
 
-  int waitPeriod = 125;
-
   final RetryDecisions decisions;
 
   public RetryConnectionRefusedThreadSleep(RetryDecisions descisions) {
@@ -27,15 +25,15 @@ public class RetryConnectionRefusedThreadSleep implements HttpRequestRetryHandle
           retry, executionCount, exception.toString());
       return retry;
     }
-    waitPeriod *= 2;
-    logger.info("Retry={} with wait {}ms at count {} for what we assume is connection refused: {}",
-        retry, waitPeriod, executionCount, exception.toString());
-    forceSleep(waitPeriod);
+    int waitMillis = getRetryIntervalMillis(executionCount);
+    logger.info("Retry={} with wait {} ms at count {} for what we assume is connection refused: {}",
+        retry, waitMillis, executionCount, exception.toString());
+    forceSleep(waitMillis);
     return retry;
   }
 
-  public long getRetryInterval() {
-    return waitPeriod;
+  public int getRetryIntervalMillis(int executionCount) {
+    return (int) (125 * Math.pow(2, executionCount));
   }
 
   void forceSleep(int millis) {
