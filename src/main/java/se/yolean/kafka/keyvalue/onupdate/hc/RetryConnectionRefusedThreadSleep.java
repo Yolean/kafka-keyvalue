@@ -25,18 +25,18 @@ public class RetryConnectionRefusedThreadSleep implements HttpRequestRetryHandle
           retry, executionCount, exception.toString());
       return retry;
     }
-    int waitMillis = getRetryIntervalMillis(executionCount);
+    long waitMillis = getRetryInterval(executionCount);
     logger.info("Retry={} with wait {} ms at count {} for what we assume is connection refused: {}",
         retry, waitMillis, executionCount, exception.toString());
     forceSleep(waitMillis);
     return retry;
   }
 
-  public int getRetryIntervalMillis(int executionCount) {
-    return (int) (125 * Math.pow(2, executionCount));
+  public long getRetryInterval(int executionCount) {
+    return (long) (125 * Math.pow(2, executionCount));
   }
 
-  void forceSleep(int millis) {
+  void forceSleep(long millis) {
     try {
       Thread.sleep(millis);
     } catch (InterruptedException e) {
