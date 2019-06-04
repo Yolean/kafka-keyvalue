@@ -98,7 +98,7 @@ WORKDIR /work/
 COPY --from=native-build /project/*-runner /work/application
 #RUN chmod 775 /work
 EXPOSE 8090
-ENTRYPOINT ["./application"]
-CMD ["-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager"]
+ENTRYPOINT ["./application", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager"]
+CMD ["-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090"]
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
