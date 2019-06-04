@@ -74,11 +74,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   Duration metadataTimeout;
 
   @ConfigProperty(name="poll_duration", defaultValue="5s")
-  javax.inject.Provider<String>   pollDurationConf;
   Duration pollDuration;
 
   @ConfigProperty(name="min_pause_between_polls", defaultValue="1s")
-  javax.inject.Provider<String>   minPauseBetweenPollsConf;
   Duration minPauseBetweenPolls;
 
   @ConfigProperty(name="max_polls", defaultValue="0")
@@ -159,10 +157,6 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
         System.getenv("SOURCE_BRANCH"),
         System.getenv("SOURCE_COMMIT"),
         System.getenv("IMAGE_NAME"));
-    // workaround for Converter not working
-    metadataTimeout = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(metadataTimeoutConf);
-    pollDuration = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(pollDurationConf.get());
-    minPauseBetweenPolls = new se.yolean.kafka.keyvalue.config.DurationConverter().convert(minPauseBetweenPollsConf.get());
     logger.info("Metadata timeout: {}", metadataTimeout);
     logger.info("Poll duration: {}", pollDuration);
     logger.info("Min pause between polls: {}", minPauseBetweenPolls);
