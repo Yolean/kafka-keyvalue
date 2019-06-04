@@ -50,9 +50,13 @@ WORKDIR /app
 COPY --from=maven-build /workspace/target/lib ./lib
 COPY --from=maven-build /workspace/target/*-runner.jar ./quarkus-kafka.jar
 
-ENTRYPOINT [ "java", "-cp", "./lib/*", "-jar", "./quarkus-kafka.jar" ]
-CMD [ "-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090" ]
 EXPOSE 8090
+ENTRYPOINT [ "java", \
+  "-Dquarkus.http.host=0.0.0.0", \
+  "-Dquarkus.http.port=8090", \
+  "-Djava.util.logging.manager=org.jboss.logmanager.LogManager", \
+  "-cp", "./lib/*", \
+  "-jar", "./quarkus-kafka.jar" ]
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
@@ -95,6 +99,6 @@ COPY --from=native-build /project/*-runner /work/application
 #RUN chmod 775 /work
 EXPOSE 8090
 ENTRYPOINT ["./application"]
-CMD ["-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090"]
+CMD ["-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager"]
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
