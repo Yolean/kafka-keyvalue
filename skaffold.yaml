@@ -1,0 +1,16 @@
+apiVersion: skaffold/v1beta11
+kind: Config
+build:
+  artifacts:
+  - image: yolean/kafka-keyvalue
+    context: .
+    docker:
+      target: dev
+    # Full source sync messes up consumer init, and we're yet to experiment with which subsets we can sync
+    #sync:
+    #  manual:
+    #  - src: src/main/**
+    #    dest: .
+deploy:
+  kustomize:
+    path: ./kontrakt

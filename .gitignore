@@ -12,3 +12,7 @@ gradlew
 out/
 node_modules
 dist
+.mvn
+target
+.vscode
+kubeconfig-kkv-kind

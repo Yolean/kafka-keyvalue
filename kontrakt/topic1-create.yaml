@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: testtopic-create
+spec:
+  template:
+    spec:
+      containers:
+      - name: topic-create
+        image: solsson/kafka:2.2.0@sha256:cf048d6211b6b48f1783f97cb41add511386e2f0a5f5c62fa0eee9564dcd3e9a
+        command:
+        - ./bin/kafka-topics.sh
+        - --zookeeper
+        -   zookeeper.kafka.svc.cluster.local:2181
+        - --create
+        - --if-not-exists
+        - --topic
+        -   testtopic
+        - --partitions
+        -   "1"
+        - --replication-factor
+        -   "1"
+        resources:
+          limits:
+            cpu: 200m
+            memory: 100Mi
+      restartPolicy: Never

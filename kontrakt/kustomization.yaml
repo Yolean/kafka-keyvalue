@@ -1,0 +1,8 @@
+bases:
+# It's slow to re-apply the kafka stack on every skaffold dev, needs to be automated outside this skaffold
+# - github.com/Yolean/kubernetes-kafka/variants/dev-small?ref=v6.0.0
+resources:
+- ./topic-test-kkv-1.yaml
+- ./kkv-example-service.yaml
+- ./kkv-example.yaml
+#- ./kkv-example-monitor.yaml
