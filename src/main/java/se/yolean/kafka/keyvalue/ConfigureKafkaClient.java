@@ -1,5 +1,6 @@
 package se.yolean.kafka.keyvalue;
 
+import java.util.Optional;
 import java.util.Properties;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -34,6 +35,9 @@ public class ConfigureKafkaClient implements Provider<Properties> {
   @ConfigProperty(name="kafka_idempotence", defaultValue="true")
   boolean idempotence;
 
+  @ConfigProperty(name="kafka_max_poll_records")
+  Optional<Integer> maxPollRecords;
+
   Properties getConsumerProperties() {
     Properties props = new Properties();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
@@ -43,6 +47,9 @@ public class ConfigureKafkaClient implements Provider<Properties> {
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
+    if (maxPollRecords.isPresent()) {
+      props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords.get());
+    }
     return props;
   }
 
