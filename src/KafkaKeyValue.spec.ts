@@ -95,7 +95,7 @@ describe('KafkaKeyValue', function () {
       (<jest.Mock>(kkv.get)).mockResolvedValueOnce({ foo: 'bar' })
 
       updateEvents.emit('update', {
-        v: '1',
+        v: 1,
         topic: 'testtopic01',
         offsets: {
           '0': 28262
