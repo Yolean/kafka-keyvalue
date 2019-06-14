@@ -1,0 +1,37 @@
+{
+  "name": "kafka-keyvalue",
+  "version": "1.0.0",
+  "description": "",
+  "engines": {
+    "node": ">=10.15"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yolean/kafka-keyvalue-nodejs"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "./node_modules/.bin/jest",
+    "prepare": "rm -rf dist/ && tsc",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [],
+  "author": "Yolean AB",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "1.18.3",
+    "bunyan": "1.8.12",
+    "express": "4.16.4",
+    "node-fetch": "2.3.0",
+    "prom-client": "11.2.1"
+  },
+  "devDependencies": {
+    "@types/jest": "24.0.12",
+    "@types/node": "10.14.6",
+    "jest": "24.8.0",
+    "ts-jest": "24.0.2",
+    "ts-node": "8.1.0",
+    "typescript": "3.3.4000"
+  }
+}
