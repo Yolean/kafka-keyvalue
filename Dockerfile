@@ -60,12 +60,15 @@ ENTRYPOINT [ "java", \
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
-# https://github.com/quarkusio/quarkus/issues/2412#issuecomment-494933951
-#FROM oracle/graalvm-ce:19.0.0@sha256:71d4990f47e9b2300c57775e1306af477232019b624376c8f120d910caedb4b4 \
+# https://github.com/quarkusio/quarkus/issues/2792
+#FROM oracle/graalvm-ce:19.0.2@sha256:684ba0e822eb2f569ffef96abb315f5b66550c4e7d5d38ad6570b72f0ce06c35 \
 #  as native-build
 #RUN gu install native-image
 FROM oracle/graalvm-ce:1.0.0-rc16@sha256:aa8b12e0bf15ffec6581f1a9feb42bf4c4f67d7c57d5739cca5fdc6c25fe4c54 \
   as native-build
+
+# https://github.com/quarkusio/quarkus/issues/2718
+#RUN yum -y install snappy libzstd lz4 && yum clean all
 
 WORKDIR /project
 COPY --from=maven-build /workspace/target/lib ./lib
