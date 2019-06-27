@@ -61,11 +61,9 @@ ENTRYPOINT [ "java", \
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
 # https://github.com/quarkusio/quarkus/issues/2792
-#FROM oracle/graalvm-ce:19.0.2@sha256:684ba0e822eb2f569ffef96abb315f5b66550c4e7d5d38ad6570b72f0ce06c35 \
-#  as native-build
-#RUN gu install native-image
-FROM oracle/graalvm-ce:1.0.0-rc16@sha256:aa8b12e0bf15ffec6581f1a9feb42bf4c4f67d7c57d5739cca5fdc6c25fe4c54 \
+FROM oracle/graalvm-ce:19.0.2@sha256:684ba0e822eb2f569ffef96abb315f5b66550c4e7d5d38ad6570b72f0ce06c35 \
   as native-build
+RUN gu install native-image
 
 # https://github.com/quarkusio/quarkus/issues/2718
 #RUN yum -y install snappy libzstd lz4 && yum clean all
@@ -92,7 +90,7 @@ RUN native-image \
   -H:+StackTrace
 
 # The rest should be identical to src/main/docker/Dockerfile which is the recommended quarkus build
-FROM registry.fedoraproject.org/fedora-minimal@sha256:28dcdc19fd1d55598dc308a44c40287f4b00d0bf5a53cd01c39368c16cf85d57
+FROM registry.access.redhat.com/ubi8/ubi-minimal@sha256:7b7a9336b681f779b239141db4fd27fed9a7cc50e7ef7a727fc9490559b4e1df
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
 ARG IMAGE_NAME
