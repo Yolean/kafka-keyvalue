@@ -163,8 +163,18 @@ export default class KafkaKeyValue {
     });
   }
 
-  async onReady() {
-    // TODO
+  async onReady(attempt = 0) {
+    logger.info({ attempt, cacheHost: this.getCacheHost() }, 'Polling cache for readiness');
+    const res = await fetch(this.getCacheHost());
+
+    logger.debug({ res, statusCode: res.status }, 'onReady cache poll response');
+
+    const json = await res.json();
+    if (json.ready) return Promise.resolve();
+    else {
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 5000));
+      return this.onReady(attempt + 1);
+    }
   }
 
   private getCacheHost() {
