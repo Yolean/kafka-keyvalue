@@ -163,18 +163,23 @@ export default class KafkaKeyValue {
     });
   }
 
-  async onReady(attempt = 0) {
+  async onReady(attempt = 1) {
+    const retry = async () => {
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 5000));
+      return this.onReady(attempt + 1);
+    };
+
     logger.info({ attempt, cacheHost: this.getCacheHost() }, 'Polling cache for readiness');
-    const res = await fetch(this.getCacheHost());
+    const res = await fetch(this.getCacheHost() + '/ready', {
+      headers: { 'Content-Type': 'application/json' }
+    });
 
     logger.debug({ res, statusCode: res.status }, 'onReady cache poll response');
 
+    if (res.status !== 200) return retry();
+
     const json = await res.json();
-    if (json.ready) return Promise.resolve();
-    else {
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 5000));
-      return this.onReady(attempt + 1);
-    }
+    if (!json.ready) return retry();
   }
 
   private getCacheHost() {
