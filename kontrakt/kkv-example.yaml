@@ -51,7 +51,7 @@ spec:
             port: api
         livenessProbe:
           httpGet:
-            path: /health
+            path: /health/live
             port: api
           initialDelaySeconds: 30
       - name: envoy
@@ -187,7 +187,7 @@ spec:
         - -cex
         - |
           echo "Running ad-hoc smoketests here"
-          curl -s --retry-connrefused --retry 5 http://127.0.0.1:8090/health
+          curl -s --retry-connrefused --retry 5 http://127.0.0.1:8090/health/live
           curl -s --retry 5 http://127.0.0.1:8090/ready
           curl -s http://127.0.0.1:8090/cache/v1/keys
           curl -s http://127.0.0.1:8090/cache/v1/offset/kkv-test-bash/0

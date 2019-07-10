@@ -21,7 +21,7 @@ spec:
         - -cex
         - |
           curl --ipv4 --retry 5 --retry-connrefused http://pixy.kafka -I
-          curl --ipv4 --retry 5 --retry-connrefused http://localhost:8080/health
+          curl --ipv4 --retry 5 --retry-connrefused http://localhost:8080/health/live
           curl --ipv4 --retry 5 --retry-connrefused http://localhost:8080/ready -I
           curl --ipv4 --retry 5 --retry-connrefused http://localhost:8080/ready
           # readiness isn't implemented yet so instead we'll guess that kafka is operational after
