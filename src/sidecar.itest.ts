@@ -8,7 +8,8 @@ describe('waiting for initial cache readiness', function () {
   let server, getUniqueKey;
   beforeAll(function (done) {
     jest.setTimeout(30000);
-    getUniqueKey = (key: string) => `${key}_${Date.now()}`;
+    const now = Date.now();
+    getUniqueKey = (key: string) => `${key}_${now}`;
 
     const app = express();
     app.post(ON_UPDATE_DEFAULT_PATH, getOnUpdateRoute());
@@ -19,7 +20,7 @@ describe('waiting for initial cache readiness', function () {
     server.close(done);
   });
 
-  it('works', async function () {
+  it('lets us put and get values afterwards', async function () {
     const cache1 = new KafkaKeyValue({
       cacheHost: 'http://localhost:8091',
       metrics: KafkaKeyValue.createMetrics(promClient.Counter, promClient.Gauge, promClient.Histogram),
@@ -31,11 +32,15 @@ describe('waiting for initial cache readiness', function () {
 
     const onUpdateSpy: UpdateHandler = jest.fn();
     cache1.onUpdate(onUpdateSpy);
+    const updateReceived = new Promise(resolve => cache1.onUpdate((key, value) => {
+      if (key === getUniqueKey('first_put')) resolve();
+    }));
 
     await cache1.put(getUniqueKey('first_put'), { result: 'hole in one' });
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    expect(onUpdateSpy).toHaveBeenCalledTimes(1);
-    expect(onUpdateSpy).toHaveBeenCalledWith([getUniqueKey('first_put'), { result: 'hole in one' }]);
+    await updateReceived;
+    expect(onUpdateSpy).toHaveBeenCalled();
+    expect(onUpdateSpy).toHaveBeenCalledWith(getUniqueKey('first_put'), { result: 'hole in one' });
+    expect(await cache1.get(getUniqueKey('first_put'))).toEqual({ result: 'hole in one' });
   });
 });
