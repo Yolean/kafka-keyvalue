@@ -13,6 +13,10 @@ RUN ls -l
 
 ENTRYPOINT [ "tail", "-f", "/dev/null" ]
 
+FROM prepare as watch
+
+ENTRYPOINT [ "./node_modules/.bin/jest", "--testMatch", "**/*.itest.ts", "--watchAll" ]
+
 FROM prepare
 
 ENTRYPOINT [ "./node_modules/.bin/jest", "--testMatch", "**/*.itest.ts" ]

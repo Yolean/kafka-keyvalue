@@ -5,14 +5,15 @@ build:
   - image: builds.registry.svc.cluster.local/yolean/kafka-keyvalue-nodejs-itest
     context: .
     custom:
-      buildCommand: y-build --opt filename=itest.Dockerfile
+      buildCommand: y-build --opt filename=itest.Dockerfile --opt target=watch
       dependencies:
         dockerfile:
           path: ./itest.Dockerfile
-    # sync:
-    #   manual:
-    #   - src: src/**
-    #     dest: src
+    sync:
+      manual:
+      - src: src/**
+        dest: src
+        strip: src
 deploy:
   kustomize:
     path: ./variant-dev
