@@ -33,10 +33,15 @@ spec:
           ./bin/kafka-topics.sh \
             --zookeeper $ZOOKEEPER_CONNECT \
             --topic sidecar-itest \
+            --delete \
+            --if-exists
+          ./bin/kafka-topics.sh \
+            --zookeeper $ZOOKEEPER_CONNECT \
+            --topic sidecar-itest \
             --create \
-            --if-not-exists \
             --partitions 50 \
-            --replication-factor $REPLICATION_FACTOR;
+            --replication-factor $REPLICATION_FACTOR \
+            --config compression.type=uncompressed;
       containers:
       - name: itest
         image: builds.registry.svc.cluster.local/yolean/kafka-keyvalue-nodejs-itest
