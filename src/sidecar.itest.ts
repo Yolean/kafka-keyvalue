@@ -11,7 +11,7 @@ describe('waiting for initial cache readiness', function () {
     getUniqueKey = (key: string) => `${key}_${Date.now()}`;
 
     const app = express();
-    app.get(ON_UPDATE_DEFAULT_PATH, getOnUpdateRoute());
+    app.post(ON_UPDATE_DEFAULT_PATH, getOnUpdateRoute());
     server = app.listen(80, done);
   });
 
