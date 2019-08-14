@@ -188,7 +188,7 @@ spec:
         - |
           echo "Running ad-hoc smoketests here"
           curl -s --retry-connrefused --retry 5 http://127.0.0.1:8090/health/live
-          curl -s --retry 5 http://127.0.0.1:8090/ready
+          curl -s --retry 5 http://127.0.0.1:8090/health/ready
           curl -s http://127.0.0.1:8090/cache/v1/keys
           curl -s http://127.0.0.1:8090/cache/v1/offset/kkv-test-bash/0
           curl -s http://127.0.0.1:8090/cache/v1/offset/kkv-test-bash/1
