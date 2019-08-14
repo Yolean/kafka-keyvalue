@@ -21,8 +21,7 @@ spec:
     spec:
       containers:
       - name: kkv
-        image: yolean/kafka-keyvalue
-        imagePullPolicy: Never # SKAFFOLD_NO_PRUNE=true skaffold dev
+        image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
         ports:
         - containerPort: 8090
           name: api

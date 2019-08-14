@@ -1,11 +1,14 @@
-apiVersion: skaffold/v1beta12
+apiVersion: skaffold/v1beta13
 kind: Config
 build:
   artifacts:
-  - image: yolean/kafka-keyvalue
+  - image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
     context: .
-    docker:
-      target: dev
+    custom:
+      buildCommand: y-build --opt target=dev
+      dependencies:
+        dockerfile:
+          path: ./Dockerfile
     # Full source sync messes up consumer init, and we're yet to experiment with which subsets we can sync
     #sync:
     #  manual:

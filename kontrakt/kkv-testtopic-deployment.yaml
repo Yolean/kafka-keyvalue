@@ -31,16 +31,24 @@ spec:
           curl --ipv4 -d '{"x":2}' -H 'Content-Type: application/json' 'http://pixy.kafka/topics/testtopic/messages?key=smoketest1' -f
           tail -f /dev/null
       - name: kkv-testtopic
-        image: yolean/kafka-keyvalue:plainjava
-        # Built locally, for example with the compose alias and compose up -d k8s-kind (non-native builds are faster):
-        # compose build kkv-plainjava && compose exec k8s-kind kind load docker-image yolean/kafka-keyvalue:plainjava --name=kkv
-        imagePullPolicy: Never
+        image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
         env:
         - name: kafka_bootstrap
           value: bootstrap.kafka:9092
         - name: kafka_group_id
           value: kkvdemo-testtopic
-        - name: topics
+        - name: topic
           value: testtopic
         - name: kafka_offset_reset
           value: latest
+        ports:
+        - containerPort: 8090
+          name: api
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: api
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: api
