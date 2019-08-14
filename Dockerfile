@@ -14,6 +14,8 @@ RUN mvn io.quarkus:quarkus-maven-plugin:0.15.0:create \
     -DprojectArtifactId=getting-started \
     -DclassName="org.acme.quickstart.GreetingResource" \
     -Dpath="/hello"
+# avoid REST test because it conflicts with y-stack's buildkitd pod port 8080
+RUN rm -r src/test/java/org/acme && echo 'package org; public class T { @org.junit.jupiter.api.Test public void t() { } }' > src/test/java/org/acme/T.java
 COPY pom.xml .
 RUN mvn package && \
   rm -r src target mvnw* && \
