@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 
-@org.eclipse.microprofile.health.Liveness
 @Singleton
 public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     HealthCheck {
