@@ -20,13 +20,24 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
 
+import org.eclipse.microprofile.health.HealthCheck;
+import org.eclipse.microprofile.health.HealthCheckResponse;
+import org.eclipse.microprofile.health.Liveness;
+
 import se.yolean.kafka.keyvalue.KafkaCache;
 
+@Liveness
 @Path("/cache/v1")
-public class CacheResource {
+public class CacheResource implements HealthCheck {
 
   @Inject
   KafkaCache cache;
+
+
+  @Override
+  public HealthCheckResponse call() {
+    return HealthCheckResponse.named("REST liveness").up().build();
+  }
 
   void requireUpToDateCache() throws javax.ws.rs.ServiceUnavailableException {
     if (!cache.isReady()) {
