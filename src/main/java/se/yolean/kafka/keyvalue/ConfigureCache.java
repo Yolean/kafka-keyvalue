@@ -3,9 +3,9 @@ package se.yolean.kafka.keyvalue;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Produces;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
  * Cache types
  * {@value #CACHE_TYPE_INMEMORY}
  */
-@ApplicationScoped
+@Singleton
 public class ConfigureCache implements Provider<Map<String, byte[]>> {
 
   // ConfigProperty didn't work with Enum
