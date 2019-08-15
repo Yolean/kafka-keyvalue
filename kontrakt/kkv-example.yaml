@@ -21,8 +21,7 @@ spec:
     spec:
       containers:
       - name: kkv
-        image: yolean/kafka-keyvalue
-        imagePullPolicy: Never # SKAFFOLD_NO_PRUNE=true skaffold dev
+        image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
         ports:
         - containerPort: 8090
           name: api
@@ -47,7 +46,7 @@ spec:
         #  value: http://127.0.0.1:23456/expectingconnectionrefused?topic=__TOPIC__
         readinessProbe:
           httpGet:
-            path: /ready
+            path: /health/ready
             port: api
         livenessProbe:
           httpGet:
@@ -188,7 +187,7 @@ spec:
         - |
           echo "Running ad-hoc smoketests here"
           curl -s --retry-connrefused --retry 5 http://127.0.0.1:8090/health/live
-          curl -s --retry 5 http://127.0.0.1:8090/ready
+          curl -s --retry 5 http://127.0.0.1:8090/health/ready
           curl -s http://127.0.0.1:8090/cache/v1/keys
           curl -s http://127.0.0.1:8090/cache/v1/offset/kkv-test-bash/0
           curl -s http://127.0.0.1:8090/cache/v1/offset/kkv-test-bash/1

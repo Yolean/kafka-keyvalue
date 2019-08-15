@@ -3,9 +3,9 @@ package se.yolean.kafka.keyvalue;
 import java.util.Optional;
 import java.util.Properties;
 
-import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Produces;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -18,7 +18,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  *
  * It will always consume from start of topics.
  */
-@ApplicationScoped
+@Singleton
 public class ConfigureKafkaClient implements Provider<Properties> {
 
   public static final String DEFAULT_OFFSET_RESET = "none";
