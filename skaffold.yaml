@@ -2,7 +2,7 @@ apiVersion: skaffold/v1beta11
 kind: Config
 build:
   artifacts:
-  - image: builds.registry.svc.cluster.local/yolean/kafka-keyvalue-nodejs-itest
+  - image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue-nodejs-itest
     context: .
     custom:
       buildCommand: y-build --opt filename=itest.Dockerfile --opt target=watch

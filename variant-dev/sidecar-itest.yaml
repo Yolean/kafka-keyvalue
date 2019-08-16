@@ -44,7 +44,7 @@ spec:
             --config compression.type=uncompressed;
       containers:
       - name: itest
-        image: builds.registry.svc.cluster.local/yolean/kafka-keyvalue-nodejs-itest
+        image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue-nodejs-itest
         ports:
         - containerPort: 80
         env:
