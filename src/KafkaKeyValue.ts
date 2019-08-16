@@ -170,7 +170,7 @@ export default class KafkaKeyValue {
     };
 
     logger.info({ attempt, cacheHost: this.getCacheHost() }, 'Polling cache for readiness');
-    const res = await fetch(this.getCacheHost() + '/ready', {
+    const res = await fetch(this.getCacheHost() + '/health/ready', {
       headers: { 'Content-Type': 'application/json' }
     });
 
