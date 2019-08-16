@@ -61,10 +61,9 @@ ENTRYPOINT [ "java", \
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
-# https://github.com/quarkusio/quarkus/issues/2792
-FROM oracle/graalvm-ce:19.1.1@sha256:9c683cba2d1b40921509299cdec6f58412d245247fbb2ded38f1a4f3e3563fa5 \
+# Based on mvn package -Pnative -Dnative-image.docker-build=true
+FROM quay.io/quarkus/ubi-quarkus-native-image:19.1.1@sha256:eeed4f097e3063797cea6b4f7fc7931c8c89847ac9a4c17ad3af3613b5755bb6 \
   as native-build
-RUN gu install native-image
 
 # https://github.com/quarkusio/quarkus/issues/2718
 #RUN yum -y install snappy libzstd lz4 && yum clean all
@@ -78,12 +77,14 @@ COPY --from=maven-build /workspace/target/*-runner.jar ./
 RUN native-image \
   -J-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
   --initialize-at-build-time= \
-  -H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
+  #-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
   -jar kafka-keyvalue-1.0-SNAPSHOT-runner.jar \
   -J-Djava.util.concurrent.ForkJoinPool.common.parallelism=1 \
   -H:FallbackThreshold=0 \
   -H:+ReportExceptionStackTraces \
-  -H:+PrintAnalysisCallTree \
+  # Fatal error: jdk.vm.ci.common.JVMCIError: jdk.vm.ci.common.JVMCIError: java.nio.file.AccessDeniedException: /project/reports
+  # https://github.com/quarkusio/quarkus/commit/a5dcd0b3f6b0f1f72994ab87d05a6f5386cd1501
+  #-H:+PrintAnalysisCallTree \
   -H:-AddAllCharsets \
   -H:EnableURLProtocols=http \
   -H:-SpawnIsolates \
