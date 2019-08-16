@@ -77,21 +77,23 @@ COPY --from=maven-build /workspace/target/*-runner.jar ./
 # but CollectionPolicy commented out due to "Error: policy com.oracle.svm.core.genscavenge.CollectionPolicy cannot be instantiated."
 RUN native-image \
   -J-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
-  #-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
+  --initialize-at-build-time= \
+  -H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
   -jar kafka-keyvalue-1.0-SNAPSHOT-runner.jar \
   -J-Djava.util.concurrent.ForkJoinPool.common.parallelism=1 \
   -H:FallbackThreshold=0 \
+  -H:+ReportExceptionStackTraces \
   -H:+PrintAnalysisCallTree \
   -H:-AddAllCharsets \
   -H:EnableURLProtocols=http \
   -H:-SpawnIsolates \
-  -H:-JNI \
+  -H:+JNI \
   --no-server \
   -H:-UseServiceLoaderFeature \
   -H:+StackTrace
 
 # The rest should be identical to src/main/docker/Dockerfile which is the recommended quarkus build
-FROM registry.access.redhat.com/ubi8/ubi-minimal@sha256:7b7a9336b681f779b239141db4fd27fed9a7cc50e7ef7a727fc9490559b4e1df
+FROM registry.access.redhat.com/ubi8/ubi-minimal@sha256:2cfe133279640b2afbf5af3c87f246ca7aeeee16edc9d3ec187b35c929d84ba7
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
 ARG IMAGE_NAME
