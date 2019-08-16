@@ -74,11 +74,11 @@ COPY --from=maven-build /workspace/target/lib ./lib
 COPY --from=maven-build /workspace/target/*-runner.jar ./
 
 # from Quarkus' maven plugin mvn package -Pnative -Dnative-image.docker-build=true
-# but CollectionPolicy commented out due to "Error: policy com.oracle.svm.core.genscavenge.CollectionPolicy cannot be instantiated."
 RUN native-image \
   -J-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
   --initialize-at-build-time= \
-  -H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
+  # commented out due to "Error: policy com.oracle.svm.core.genscavenge.CollectionPolicy cannot be instantiated."
+  #-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
   -jar kafka-keyvalue-1.0-SNAPSHOT-runner.jar \
   -J-Djava.util.concurrent.ForkJoinPool.common.parallelism=1 \
   -H:FallbackThreshold=0 \
