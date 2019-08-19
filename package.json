@@ -14,7 +14,8 @@
   "scripts": {
     "test": "./node_modules/.bin/jest",
     "prepare": "rm -rf dist/ && tsc",
-    "prepublishOnly": "npm test"
+    "prepublishOnly": "npm test",
+    "postinstall": "tsc"
   },
   "keywords": [],
   "author": "Yolean AB",
