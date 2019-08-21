@@ -11,6 +11,7 @@ spec:
       labels:
         app: kafka-keyvalue-nodejs--sidecar-itest
     spec:
+      terminationGracePeriodSeconds: 1
       initContainers:
       - name: topic-configure
         image: solsson/kafka-cli@sha256:9fa3306e9f5d18283d10e01f7c115d8321eedc682f262aff784bd0126e1f2221
