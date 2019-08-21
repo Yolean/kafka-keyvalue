@@ -20,19 +20,19 @@
   "author": "Yolean AB",
   "license": "ISC",
   "dependencies": {
-    "body-parser": "1.18.3",
+    "body-parser": "1.19.0",
     "bunyan": "1.8.12",
-    "express": "4.16.4",
-    "node-fetch": "2.3.0",
+    "express": "4.17.1",
+    "node-fetch": "2.6.0",
     "prom-client": "11.2.1"
   },
   "devDependencies": {
-    "@types/jest": "24.0.12",
-    "@types/node": "10.14.6",
-    "@types/node-fetch": "2.3.7",
-    "jest": "24.8.0",
+    "@types/jest": "24.0.18",
+    "@types/node": "10.14.16",
+    "@types/node-fetch": "2.5.0",
+    "jest": "24.9.0",
     "ts-jest": "24.0.2",
-    "ts-node": "8.1.0",
-    "typescript": "3.3.4000"
+    "ts-node": "8.3.0",
+    "typescript": "3.5.3"
   }
 }
