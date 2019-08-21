@@ -30,9 +30,8 @@ import se.yolean.kafka.keyvalue.KafkaCache;
 @Path("/cache/v1")
 public class CacheResource implements HealthCheck {
 
-  @Inject
-  KafkaCache cache;
-
+  @Inject // Note that this can be null if cache is still in it's startup event handler
+  KafkaCache cache = null;
 
   @Override
   public HealthCheckResponse call() {
@@ -40,6 +39,9 @@ public class CacheResource implements HealthCheck {
   }
 
   void requireUpToDateCache() throws javax.ws.rs.ServiceUnavailableException {
+    if (cache == null) {
+      throw new javax.ws.rs.ServiceUnavailableException("Denied because cache isn't started yet, check /health for status");
+    }
     if (!cache.isReady()) {
       throw new javax.ws.rs.ServiceUnavailableException("Denied because cache is unready, check /health for status");
     }
