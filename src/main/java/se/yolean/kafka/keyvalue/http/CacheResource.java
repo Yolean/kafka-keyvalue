@@ -22,11 +22,9 @@ import javax.ws.rs.core.UriInfo;
 
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
-import org.eclipse.microprofile.health.Liveness;
 
 import se.yolean.kafka.keyvalue.KafkaCache;
 
-@Liveness
 @Path("/cache/v1")
 public class CacheResource implements HealthCheck {
 
