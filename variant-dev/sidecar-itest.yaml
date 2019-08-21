@@ -53,7 +53,7 @@ spec:
         - name: USER_CACHE_HOST
           value: http://127.0.0.1:8091
       - name: kv-cache
-        image: solsson/kafka-keyvalue@sha256:933ab93537e65d8119fe8ebd7369f0c8fd389869920731ac9a750322227d6928
+        image: solsson/kafka-keyvalue@sha256:0fe33f95366c82ba91b6009b84f0e14644237735ffd738ff5019aed450642228
         args:
         - -Dquarkus.http.port=8091
         ports:

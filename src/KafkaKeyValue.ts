@@ -177,12 +177,12 @@ export default class KafkaKeyValue {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    logger.debug({ res, statusCode: res.status }, 'onReady cache poll response');
+    if (res.status !== 200) {
+      logger.info({ responseBody: await res.text(), statusCode: res.status }, 'Cache not ready yet');
+      return retry();
+    }
 
-    if (res.status !== 200) return retry();
-
-    const json = await res.json();
-    if (!json.ready) return retry();
+    logger.info('200 received, cache ready');
   }
 
   private getCacheHost() {
