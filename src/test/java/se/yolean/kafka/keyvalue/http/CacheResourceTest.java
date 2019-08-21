@@ -11,8 +11,8 @@ class CacheResourceTest {
 
   @Test
   void testValueByKeyUnready() {
-    KafkaCache cache = Mockito.mock(KafkaCache.class);
-    CacheResource rest = new CacheResource(cache);
+    CacheResource rest = new CacheResource();
+    rest.cache = Mockito.mock(KafkaCache.class);
     Mockito.when(rest.cache.isReady()).thenReturn(false);
     try {
       rest.valueByKey("a", null);
@@ -24,8 +24,8 @@ class CacheResourceTest {
 
   @Test
   void testKeysUnready() {
-    KafkaCache cache = Mockito.mock(KafkaCache.class);
-    CacheResource rest = new CacheResource(cache);
+    CacheResource rest = new CacheResource();
+    rest.cache = Mockito.mock(KafkaCache.class);
     Mockito.when(rest.cache.isReady()).thenReturn(false);
     try {
       rest.keys();
@@ -37,8 +37,7 @@ class CacheResourceTest {
 
   @Test
   void testKeysJsonUnready() {
-    KafkaCache cache = Mockito.mock(KafkaCache.class);
-    CacheResource rest = new CacheResource(cache);
+    CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
     Mockito.when(rest.cache.isReady()).thenReturn(false);
     try {
@@ -51,8 +50,7 @@ class CacheResourceTest {
 
   @Test
   void testValuesUnready() {
-    KafkaCache cache = Mockito.mock(KafkaCache.class);
-    CacheResource rest = new CacheResource(cache);
+    CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
     Mockito.when(rest.cache.isReady()).thenReturn(false);
     try {
@@ -65,8 +63,7 @@ class CacheResourceTest {
 
   @Test
   void testGetCurrentOffsetUnreadyAllowed() {
-    KafkaCache cache = Mockito.mock(KafkaCache.class);
-    CacheResource rest = new CacheResource(cache);
+    CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
     Mockito.when(rest.cache.isReady()).thenReturn(false);
     rest.getCurrentOffset("t", 5);
