@@ -2,6 +2,8 @@ package se.yolean.kafka.keyvalue.http;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import org.eclipse.microprofile.health.HealthCheckResponse;
+import org.eclipse.microprofile.health.HealthCheckResponse.State;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -67,6 +69,22 @@ class CacheResourceTest {
     rest.cache = Mockito.mock(KafkaCache.class);
     Mockito.when(rest.cache.isReady()).thenReturn(false);
     rest.getCurrentOffset("t", 5);
+  }
+
+  @Test
+  void testLivenessRegardlessOfCacheHealth() {
+    CacheResource rest = new CacheResource();
+    rest.cache = Mockito.mock(KafkaCache.class);
+    HealthCheckResponse health = rest.call();
+    assertTrue(health.getState().equals(State.UP), "Liveness should be true so we don't get killed during startup");
+  }
+
+  @Test
+  void testLivenessWhenCacheIsNull() {
+    CacheResource rest = new CacheResource();
+    rest.cache = null; // Quarkus is allowed to do this. It's reasonable when cache is still in the StartupEvent handler
+    HealthCheckResponse health = rest.call();
+    assertTrue(health.getState().equals(State.UP), "Liveness should be true even when cache isn't initialized");
   }
 
 }
