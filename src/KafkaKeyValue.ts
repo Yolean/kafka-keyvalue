@@ -168,7 +168,7 @@ export default class KafkaKeyValue {
 
   async onReady(attempt = 1) {
     const retry = async () => {
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 5000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
       return this.onReady(attempt + 1);
     };
 
