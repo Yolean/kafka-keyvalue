@@ -30,12 +30,9 @@ import se.yolean.kafka.keyvalue.KafkaCache;
 @Path("/cache/v1")
 public class CacheResource implements HealthCheck {
 
+  @Inject
   KafkaCache cache;
 
-  @Inject
-  public CacheResource(KafkaCache cache) {
-    this.cache = cache;
-  }
 
   @Override
   public HealthCheckResponse call() {
