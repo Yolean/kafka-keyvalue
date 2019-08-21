@@ -1,12 +1,13 @@
 import fetch, { Response } from 'node-fetch';
 import { Counter, Gauge, CounterConfiguration, GaugeConfiguration, HistogramConfiguration, Histogram } from 'prom-client';
 import getLogger from './logger';
-import { gunzip } from 'zlib';
+import { gunzip, gzip, InputType } from 'zlib';
 import { promisify } from 'util';
 import updateEvents from './update-events';
 
 const logger = getLogger({ __filename });
-const pGunzip = promisify(gunzip);
+const pGunzip = promisify<InputType, Buffer>(gunzip);
+const pGzip = promisify<InputType, Buffer>(gzip);
 
 export interface IKafkaKeyValueImpl { new (options: IKafkaKeyValue): KafkaKeyValue }
 
@@ -39,9 +40,7 @@ export interface IKafkaKeyValueMetrics {
 
 export type UpdateHandler = (key: string, value: any) => any
 
-async function decompressGzipResponse(res: Response) {
-  let buffer = await res.buffer();
-
+export async function decompressGzipResponse(buffer: Buffer): Promise<any> {
   let msg;
   try {
     msg = await pGunzip(buffer);
@@ -58,8 +57,12 @@ async function decompressGzipResponse(res: Response) {
   }
 }
 
+export async function compressGzipPayload(payload: string): Promise<Buffer> {
+  return pGzip(payload);
+}
+
 async function parseResponse(res: Response, assumeGzipped: boolean): Promise<any> {
-  if (assumeGzipped) return decompressGzipResponse(res);
+  if (assumeGzipped) return decompressGzipResponse(await res.buffer());
   else return res.json();
 }
 
@@ -234,12 +237,16 @@ export default class KafkaKeyValue {
   }
 
   async put(key: string, value: any): Promise<number> {
+    const stringValue: string = JSON.stringify(value);
+    let valueReady: Promise<string | Buffer> = Promise.resolve(stringValue);
+    if (this.config.gzip) valueReady = compressGzipPayload(stringValue);
+
     const res = await fetch(`${this.getPixyHost()}/topics/${this.topic}/messages?key=${key}&sync`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(value)
+      body: await valueReady
     });
 
     const json = await res.json();

@@ -1,4 +1,4 @@
-import KafkaKeyValue, { streamResponseBody } from './KafkaKeyValue';
+import KafkaKeyValue, { streamResponseBody, compressGzipPayload, decompressGzipResponse } from './KafkaKeyValue';
 import updateEvents from './update-events';
 import { EventEmitter } from 'events';
 
@@ -55,6 +55,15 @@ const promClientMock = {
 };
 
 describe('KafkaKeyValue', function () {
+
+  describe('gzipping payloads pre-put', function () {
+
+    it('works', async function () {
+      const buffer: Buffer = await compressGzipPayload(JSON.stringify({ foo: 'bar' }));
+      const response = await decompressGzipResponse(buffer);
+      expect(response).toEqual({ foo: 'bar' });
+    });
+  });
 
   describe('streaming values', function () {
 
