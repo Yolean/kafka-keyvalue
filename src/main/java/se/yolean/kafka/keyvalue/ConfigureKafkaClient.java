@@ -45,7 +45,6 @@ public class ConfigureKafkaClient implements Provider<Properties> {
     props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, offsetReset);
     // Properties below are chosen to match the application's design and should not be altered
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-    props.put(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
     if (maxPollRecords.isPresent()) {
