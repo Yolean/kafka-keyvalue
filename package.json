@@ -1,5 +1,5 @@
 {
-  "name": "kafka-keyvalue",
+  "name": "@yolean/kafka-keyvalue",
   "version": "1.1.0",
   "description": "",
   "engines": {
