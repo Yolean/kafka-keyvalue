@@ -173,9 +173,18 @@ export default class KafkaKeyValue {
     };
 
     logger.info({ attempt, cacheHost: this.getCacheHost() }, 'Polling cache for readiness');
-    const res = await fetch(this.getCacheHost() + '/health/ready', {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    let res;
+    try {
+      res = await fetch(this.getCacheHost() + '/health/ready', {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (e) {
+      if (e.errno === 'ECONNREFUSED') {
+        logger.info({ err: e }, 'Identified as retryable');
+        return retry();
+      }
+      throw e;
+    }
 
     if (res.status !== 200) {
       logger.info({ responseBody: await res.text(), statusCode: res.status }, 'Cache not ready yet');
