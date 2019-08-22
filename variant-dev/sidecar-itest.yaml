@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-keyvalue-nodejs--sidecar-itest
+spec:
+  selector:
+    matchLabels:
+      app: kafka-keyvalue-nodejs--sidecar-itest
+  template:
+    metadata:
+      labels:
+        app: kafka-keyvalue-nodejs--sidecar-itest
+    spec:
+      terminationGracePeriodSeconds: 1
+      initContainers:
+      - name: topic-configure
+        image: solsson/kafka-cli@sha256:9fa3306e9f5d18283d10e01f7c115d8321eedc682f262aff784bd0126e1f2221
+        resources:
+          requests:
+            cpu: 25m
+            memory: 20Mi
+          limits:
+            cpu: 25m
+            memory: 20Mi
+        env:
+        - name: ZOOKEEPER_CONNECT
+          value: pzoo.kafka:2181
+        - name: REPLICATION_FACTOR
+          value: "1"
+        command:
+        - /bin/bash
+        - -cex
+        - >
+          ./bin/kafka-topics.sh \
+            --zookeeper $ZOOKEEPER_CONNECT \
+            --topic sidecar-itest \
+            --delete \
+            --if-exists
+          ./bin/kafka-topics.sh \
+            --zookeeper $ZOOKEEPER_CONNECT \
+            --topic sidecar-itest \
+            --create \
+            --partitions 50 \
+            --replication-factor $REPLICATION_FACTOR \
+            --config compression.type=uncompressed;
+      containers:
+      - name: itest
+        image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue-nodejs-itest
+        ports:
+        - containerPort: 80
+        env:
+        - name: PIXY_HOST
+          value: http://pixy.kafka
+        - name: USER_CACHE_HOST
+          value: http://127.0.0.1:8091
+      - name: kv-cache
+        image: solsson/kafka-keyvalue@sha256:a072f48f2ac9b30daeb2e78b7cada6091937b470504b31a1cc38d24e1b00d810
+        args:
+        - -Dquarkus.http.port=8091
+        ports:
+        - containerPort: 8091
+          name: api
+        env:
+        - name: kafka_bootstrap
+          value: bootstrap.kafka:9092
+        - name: kafka_group_id
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: topic
+          value: sidecar-itest
+        - name: kafka_max_poll_records
+          value: "1000"
+        - name: kafka_offset_reset
+          value: latest
+        - name: target
+          value: http://127.0.0.1/kafka-keyvalue/v1/updates
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: api
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: api
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          limits:
+            memory: 100Mi
+            cpu: 30m
+          requests:
+            memory: 100Mi
+            cpu: 30m
