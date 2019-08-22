@@ -8,6 +8,7 @@ const promClientMock = {
     dec: any
     labels: any
     reset: any
+    remove: any
 
     constructor(options) {
 
@@ -15,6 +16,7 @@ const promClientMock = {
       this.dec = jest.fn();
       this.labels = jest.fn().mockReturnValue(this);
       this.reset = jest.fn();
+      this.remove = jest.fn();
     }
   },
   Gauge: class Gauge {
@@ -25,6 +27,7 @@ const promClientMock = {
     reset: any
     setToCurrentTime: any
     startTimer: any
+    remove: any
 
     constructor(options) {
 
@@ -35,6 +38,7 @@ const promClientMock = {
       this.reset = jest.fn();
       this.setToCurrentTime = jest.fn();
       this.startTimer = jest.fn();
+      this.remove = jest.fn();
     }
   },
 
@@ -43,6 +47,7 @@ const promClientMock = {
     startTimer: any
     labels: any
     reset: any
+    remove: any
 
     constructor(options) {
 
@@ -50,6 +55,7 @@ const promClientMock = {
       this.startTimer = jest.fn();
       this.labels = jest.fn().mockReturnValue(this);
       this.reset = jest.fn();
+      this.remove = jest.fn();
     }
   },
 };
