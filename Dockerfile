@@ -62,7 +62,7 @@ ENTRYPOINT [ "java", \
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
 # https://github.com/quarkusio/quarkus/issues/2792
-FROM oracle/graalvm-ce:19.1.1@sha256:9c683cba2d1b40921509299cdec6f58412d245247fbb2ded38f1a4f3e3563fa5 \
+FROM oracle/graalvm-ce:19.2.0@sha256:85c7d15f3797fd121d4a4adb0edae859311f6f789c80859fefee69eeee5ac386 \
   as native-build
 RUN gu install native-image
 
