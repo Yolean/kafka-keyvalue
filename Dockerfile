@@ -9,7 +9,7 @@ ENV MAVEN_HOME=/usr/share/maven
 ENV MAVEN_CONFIG=/root/.m2
 
 WORKDIR /workspace
-RUN mvn io.quarkus:quarkus-maven-plugin:0.23.2:create \
+RUN mvn io.quarkus:quarkus-maven-plugin:0.24.0:create \
     -DprojectGroupId=org.acme \
     -DprojectArtifactId=getting-started \
     -DclassName="org.acme.quickstart.GreetingResource" \
