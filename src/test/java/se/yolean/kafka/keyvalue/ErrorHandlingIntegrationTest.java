@@ -55,10 +55,10 @@ public class ErrorHandlingIntegrationTest {
   void testBrokerDisconnect() throws Exception {
 
     ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
-    final String TOPIC = "topic1";
+    final String TOPIC = "topicx";
     final String GROUP = this.getClass().getSimpleName() + "_testBrokerDisconnect_" + System.currentTimeMillis();
     final String BOOTSTRAP = kafka.getKafkaConnectString();
-    kafka.getKafkaTestUtils().createTopic("topic1", 3, (short) 1);
+    kafka.getKafkaTestUtils().createTopic("topicx", 3, (short) 1);
 
     consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
     consumer.onupdate = Mockito.mock(OnUpdate.class);
@@ -85,6 +85,12 @@ public class ErrorHandlingIntegrationTest {
 
     broker.stop();
     consumer.run();
+
+    broker.start();
+    producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k2", "v1".getBytes())).get();
+    consumer.run();
+
+    assertEquals(1, consumer.cache.size(), "Should be operational now, before we mess with connections");
 
     producer.close();
   }

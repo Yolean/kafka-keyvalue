@@ -59,7 +59,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     Resetting (60),
     InitialPoll (70),
     PollingHistorical (80),
-    Polling (90);
+    Polling (90),
+    ConnectionLost (100),
+    Reconnecting (110);
 
     final int metricValue;
     Stage(int metricValue) {
