@@ -2,13 +2,13 @@ version: "3.4"
 services:
 
   zookeeper:
-    image: solsson/kafka:2.2.0@sha256:cf048d6211b6b48f1783f97cb41add511386e2f0a5f5c62fa0eee9564dcd3e9a
+    image: solsson/kafka@sha256:e03747d2f1971d7efd91f70d2522c4fa874853f931d02f05015ef0976fba849f
     entrypoint: ./bin/zookeeper-server-start.sh
     command:
     - ./config/zookeeper.properties
 
   kafka:
-    image: solsson/kafka:2.2.0@sha256:cf048d6211b6b48f1783f97cb41add511386e2f0a5f5c62fa0eee9564dcd3e9a
+    image: solsson/kafka@sha256:e03747d2f1971d7efd91f70d2522c4fa874853f931d02f05015ef0976fba849f
     depends_on:
     - zookeeper
     entrypoint:
@@ -16,6 +16,8 @@ services:
     - ./config/server.properties
     - --override
     -   zookeeper.connect=zookeeper:2181
+    - --override
+    -   auto.create.topics.enable=false
     - --override
     -   log.retention.hours=-1
     - --override
@@ -47,7 +49,7 @@ services:
     -  0.0.0.0:19090
 
   topic1-create:
-    image: solsson/kafka:2.2.0@sha256:cf048d6211b6b48f1783f97cb41add511386e2f0a5f5c62fa0eee9564dcd3e9a
+    image: solsson/kafka-cli@sha256:9fa3306e9f5d18283d10e01f7c115d8321eedc682f262aff784bd0126e1f2221
     depends_on:
     - kafka
     entrypoint:
@@ -64,34 +66,22 @@ services:
     - --replication-factor
     -   '1'
 
-  kkv-plainjava:
-    image: yolean/kafka-keyvalue:plainjava
-    build:
-      context: ../
-      target: runtime-plainjava
-    labels:
-    - com.yolean.build-target
-    command:
-    - echo
-    - This was only a build. Exiting.
-
-  cache1:
+  sut:
     depends_on:
     - kafka
     - topic1-create
-    image: yolean/kafka-keyvalue:latest
+    #build: .
     build:
-      context: ../
-    labels:
-    - com.yolean.build-target
+      context: .
+      target: runtime-plainjava
     ports:
     - 19081:8080
     environment:
     - kafka_bootstrap=kafka:9092
     - kafka_group_id=cache1
     - kafka_offset_reset=latest
-    - topics=topic1
-    #- update_targets=http://example-nodejs-client:8081/kafka-keyvalue/v1/updates,http://onupdate-logging:8080/,http://example-nodejs-client:8082/testpost
+    - topic=topic1
+    #- target=http://example-nodejs-client:8081/kafka-keyvalue/v1/updates,http://onupdate-logging:8080/,http://example-nodejs-client:8082/testpost
 
   onupdate-logging:
     image: solsson/httpstatus-random:access-logging@sha256:5330b2e84457e65ae9552acb00b26e8b7b2a878bcafb3baabddc13c1f840cd90
@@ -102,7 +92,7 @@ services:
     depends_on:
     - onupdate-logging
     - pixy
-    - cache1
+    - sut
     image: solsson/curl@sha256:92ebf15ac57bea360484480336ed5d9fa16d38d773fd00f7e9fb2cae94baf25a
     labels:
     - com.yolean.build-contract
@@ -122,55 +112,3 @@ services:
       curl --ipv4 -d '{"x":2}' -H 'Content-Type: application/json' 'http://pixy:19090/topics/topic1/messages?key=smoketest1&sync' -f
       curl --ipv4 -d '{"x":3}' -H 'Content-Type: application/json' 'http://pixy:19090/topics/topic1/messages?key=smoketest1&sync' -f
       curl --ipv4 --retry 5 --retry-connrefused http://cache1:19081/cache/v1/raw/smoketest1 -f | grep '{"x":3}'
-
-  example-nodejs-client:
-    depends_on:
-    - pixy
-    - cache1
-    build:
-      context: ../example-nodejs-client
-    labels:
-    - com.yolean.build-contract
-    expose:
-    - "8081"
-    - "8082"
-    environment:
-    - PIXY_HOST=http://pixy:19090
-    - CACHE1_HOST=http://cache1:19081
-    command:
-    # By design the cache service deals with a single topic, meaning that tests probably can't run concurrently
-    - --runInBand
-
-  # compose build && compose up -d k8s-kind && compose logs -f k8s-kind
-  # compose exec k8s-kind cat /root/.kube/kind-config-kkv > ./kubeconfig-kkv-kind
-  # export KUBECONFIG=$(pwd)/kubeconfig-kkv-kind
-  # kubectl apply -f kontrakt/
-  k8s-kind:
-    build:
-      context: ../kontrakt/kind
-    volumes:
-    - /var/run/docker.sock:/var/run/docker.sock:rw
-    network_mode: host
-    environment:
-    - KIND_NAME=kkv
-    - KUBECONFIG=/root/.kube/kind-config-kkv
-    command:
-    - /bin/sh
-    - -cex
-    - |
-      kind delete cluster --name=$$KIND_NAME || echo "Found no prior cluster"
-      kind create cluster --name=$$KIND_NAME
-      kind get kubeconfig-path --name=$$KIND_NAME
-      kubectl cluster-info
-
-      cd kubernetes-kafka
-      kubectl apply -f 00-namespace.yml
-      kubectl apply -f rbac-namespace-default/
-      kubectl apply -k variants/scale-1-ephemeral/
-      kubectl apply -f pixy/
-
-      # Load images built by docker-compose (to re-load use compose exec)
-      kind load docker-image yolean/kafka-keyvalue:latest --name=$$KIND_NAME
-      kind load docker-image yolean/kafka-keyvalue:plainjava --name=$$KIND_NAME
-
-      tail -f /dev/null
