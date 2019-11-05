@@ -9,16 +9,17 @@ ENV MAVEN_HOME=/usr/share/maven
 ENV MAVEN_CONFIG=/root/.m2
 
 WORKDIR /workspace
-RUN mvn io.quarkus:quarkus-maven-plugin:0.28.0:create \
-    -DprojectGroupId=org.acme \
-    -DprojectArtifactId=getting-started \
-    -DclassName="org.acme.quickstart.GreetingResource" \
-    -Dpath="/hello" && \
-    rm -r src/test/java/org/acme && echo 'package org; public class T { @org.junit.jupiter.api.Test public void t() { } }' > src/test/java/org/T.java
-COPY pom.xml .
-RUN mvn package && \
-  rm -r src target mvnw* && \
-  ls -la
+RUN mvn io.quarkus:quarkus-maven-plugin:0.28.1:create \
+    -DprojectGroupId=org.example.temp \
+    -DprojectArtifactId=kafka-quickstart \
+    -Dextensions="kafka" && \
+    cd kafka-quickstart && \
+    mkdir -p src/test/java/org && echo 'package org; public class T { @org.junit.jupiter.api.Test public void t() { } }' > src/test/java/org/T.java
+COPY pom.xml kafka-quickstart/
+RUN cd kafka-quickstart && \
+  mvn package && \
+  cd .. && \
+  rm -r kafka-quickstart
 COPY . .
 
 ENTRYPOINT [ "mvn", "compile", "quarkus:dev" ]
@@ -62,7 +63,7 @@ ENTRYPOINT [ "java", \
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
 # https://github.com/quarkusio/quarkus/issues/2792
-FROM oracle/graalvm-ce:19.2.0@sha256:85c7d15f3797fd121d4a4adb0edae859311f6f789c80859fefee69eeee5ac386 \
+FROM oracle/graalvm-ce:19.2.1@sha256:5ab434f12dc1a17c15107defd03de13c969a516dde022df2f737ec6002e7e7e1 \
   as native-build
 RUN gu install native-image
 
