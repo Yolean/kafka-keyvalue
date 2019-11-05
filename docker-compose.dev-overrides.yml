@@ -1,0 +1,14 @@
+version: "3.4"
+services:
+
+  addlicense:
+    image: solsson/addlicense@sha256:485bc42c4bf96be84b6aacbac8761fcff151f54cb3c3f0d8031cf8e8ce3faf0a
+    volumes:
+    - .:/workspace/source
+    command:
+    - -c
+    -   Yolean AB
+    - -l
+    -   apache
+    - src/main/java
+    - src/test/java
