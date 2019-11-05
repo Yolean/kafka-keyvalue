@@ -22,6 +22,12 @@ kubectl apply -f https://github.com/Yolean/kubernetes-kafka/raw/50345f266287861d
 SKAFFOLD_NO_PRUNE=true skaffold dev
 ```
 
+### docker-compose
+
+We maintain a docker-compose file for [Docker Hub automated test](https://docs.docker.com/docker-hub/builds/automated-testing/).
+It can be used for dev too, for example:
+`docker-compose -f docker-compose.test.yml -f docker-compose.dev-overrides.yml up --build topic1-create sut`
+
 ## Logging
 
 See [Quarkus' logging configuration](https://quarkus.io/guides/logging-guide).

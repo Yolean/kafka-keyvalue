@@ -216,6 +216,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     } finally {
       logger.info("Closing consumer ...");
       consumer.close();
+      // Before we introduce proper termination support let's await: https://github.com/quarkusio/quarkus/issues/284
+      // https://github.com/quarkusio/quarkus/blob/0.28.1/core/runtime/src/main/java/io/quarkus/runtime/Application.java#L121
+      // https://github.com/quarkusio/quarkus/issues/2150 https://github.com/quarkusio/quarkus/issues/2851 https://github.com/quarkusio/quarkus/issues/3296 https://github.com/quarkusio/quarkus/pull/4924/files
       logger.info("Consumer closed at stage {}; Use liveness probes with /health for app termination", stage);
     }
   }
