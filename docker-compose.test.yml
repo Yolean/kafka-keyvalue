@@ -82,6 +82,7 @@ services:
     - kafka_offset_reset=latest
     - topic=topic1
     #- target=http://example-nodejs-client:8081/kafka-keyvalue/v1/updates,http://onupdate-logging:8080/,http://example-nodejs-client:8082/testpost
+    - max_polls=10
 
   onupdate-logging:
     image: solsson/httpstatus-random:access-logging@sha256:5330b2e84457e65ae9552acb00b26e8b7b2a878bcafb3baabddc13c1f840cd90
