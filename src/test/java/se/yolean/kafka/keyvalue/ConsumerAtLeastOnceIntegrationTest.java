@@ -112,7 +112,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
     // TODO per-test kafka topic: assertEquals(3, consumer.cache.size(), "Should have got the additional key from the last batch");
     assertEquals("v2", new String(consumer.cache.get("k1")), "Value should come from the latest record");
 
-    Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 0, 2, "k1"));
+    Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 2, 1, "k1"));
 
     // API extended after this test was written. We should probably verify order too.
     Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollStart(Collections.singletonList(TOPIC));
@@ -145,46 +145,10 @@ public class ConsumerAtLeastOnceIntegrationTest {
   }
 
   @Test
-  void testMetadataTimeout() throws InterruptedException, ExecutionException {
-
-    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
-    final String TOPIC = "topic1";
-    final String GROUP = this.getClass().getSimpleName() + "_testMetadataTimeout_" + System.currentTimeMillis();
-    final String BOOTSTRAP = kafka.getKafkaConnectString();
-    kafka.getKafkaTestUtils().createTopic("topic1", 1, (short) 1);
-
-    consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
-    consumer.onupdate = Mockito.mock(OnUpdate.class);
-    consumer.cache = new HashMap<>();
-    consumer.topics = Collections.singletonList(TOPIC);
-
-    consumer.maxPolls = 5;
-    consumer.metadataTimeout = Duration.ofMillis(10);
-    consumer.pollDuration = Duration.ofMillis(1000);
-    consumer.minPauseBetweenPolls = Duration.ofMillis(500);
-
-    long t1 = System.currentTimeMillis();
-    try {
-      consumer.run();
-      fail("Should have thrown");
-    } catch (RuntimeException e) {
-      assertEquals("Timeout expired while fetching topic metadata", e.getMessage());
-      assertEquals(org.apache.kafka.common.errors.TimeoutException.class, e.getClass());
-    }
-    assertTrue(System.currentTimeMillis() - t1 > 20, "Should have spent time waiting for metadata timeout twice");
-    assertTrue(System.currentTimeMillis() - t1 < 500, "Should have exited after metadata timeout, not waited for other things");
-
-    assertFalse(consumer.isReady(),
-        "Should have stopped at an exception (tests don't use a thread so this is probably a dummy assertion)");
-    assertEquals(Stage.WaitingForKafkaConnection, consumer.stage,
-        "Should have exited at the initial kafka connection stage");
-  }
-
-  @Test
   void testTopicNonexistent() throws InterruptedException, ExecutionException {
 
     ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
-    final String TOPIC = "topic0";
+    final String TOPIC = "test-nonexistence";
     final String GROUP = this.getClass().getSimpleName() + "_testTopicNonexistent_" + System.currentTimeMillis();
     final String BOOTSTRAP = kafka.getKafkaConnectString();
 
@@ -216,10 +180,10 @@ public class ConsumerAtLeastOnceIntegrationTest {
   void testNoOffsetReset() {
 
     ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
-    final String TOPIC = "topic1";
+    final String TOPIC = "test-nooffsetreset";
     final String GROUP = this.getClass().getSimpleName() + "_testNoOffsetReset_" + System.currentTimeMillis();
     final String BOOTSTRAP = kafka.getKafkaConnectString();
-    kafka.getKafkaTestUtils().createTopic("topic1", 1, (short) 1);
+    kafka.getKafkaTestUtils().createTopic("test-nooffsetreset", 1, (short) 1);
 
     consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
     consumer.onupdate = Mockito.mock(OnUpdate.class);
@@ -236,7 +200,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
       consumer.run();
       fail("Should have thrown when there's no recorded offset and reset config is 'none'");
     } catch (RuntimeException e) {
-      assertEquals("Undefined offset with no reset policy for partitions: [topic1-0]", e.getMessage());
+      assertEquals("Undefined offset with no reset policy for partitions: [test-nooffsetreset-0]", e.getMessage());
       assertEquals(org.apache.kafka.clients.consumer.NoOffsetForPartitionException.class, e.getClass());
     }
 
