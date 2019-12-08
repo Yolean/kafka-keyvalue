@@ -78,7 +78,12 @@ COPY --from=maven-build /workspace/target/*-runner.jar ./
 
 # from Quarkus' maven plugin mvn package -Pnative -Dnative-image.docker-build=true
 RUN native-image \
+  -J-Dsun.nio.ch.maxUpdateArraySize=100 \
   -J-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
+  -J-Dvertx.logger-delegate-factory-class-name=io.quarkus.vertx.core.runtime.VertxLogDelegateFactory \
+  -J-Dvertx.disableDnsResolver=true \
+  -J-Dio.netty.leakDetection.level=DISABLED \
+  -J-Dio.netty.allocator.maxOrder=1 \
   --initialize-at-build-time= \
   # commented out due to "Error: policy com.oracle.svm.core.genscavenge.CollectionPolicy cannot be instantiated."
   #-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
@@ -89,7 +94,6 @@ RUN native-image \
   -H:+PrintAnalysisCallTree \
   -H:-AddAllCharsets \
   -H:EnableURLProtocols=http \
-  -H:-SpawnIsolates \
   -H:+JNI \
   --no-server \
   -H:-UseServiceLoaderFeature \
