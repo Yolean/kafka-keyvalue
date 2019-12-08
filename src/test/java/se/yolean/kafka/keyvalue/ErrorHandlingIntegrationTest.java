@@ -1,34 +1,41 @@
 package se.yolean.kafka.keyvalue;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.kafka.common.serialization.StringSerializer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.Mockito;
-
-import com.salesforce.kafka.test.KafkaBroker;
-import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
 
 import se.yolean.kafka.keyvalue.ConsumerAtLeastOnce.Stage;
 
 public class ErrorHandlingIntegrationTest {
 
-  @RegisterExtension
-  static final SharedKafkaTestResource kafka = new SharedKafkaTestResource().withBrokers(1);
+  private String bootstrap;
+
+  @BeforeEach
+  void before() throws UnknownHostException, IOException {
+    ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+    bootstrap = server.getInetAddress().getHostAddress() + ":" + server.getLocalPort();
+    server.close();
+  }
+
+  @AfterEach
+  void after() throws IOException {
+  }
 
   Properties getConsumerProperties(String bootstrap, String groupId) {
     Properties props = new Properties();
@@ -42,23 +49,13 @@ public class ErrorHandlingIntegrationTest {
     return props;
   }
 
-  Properties getTestProducerProperties(String bootstrap) {
-    Properties props = new Properties();
-    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
-    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
-    props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, CompressionType.NONE.name);
-    return props;
-  }
-
   @Test
-  void testBrokerDisconnect() throws Exception {
+  void testMetadataTimeout() throws InterruptedException, ExecutionException {
 
     ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
-    final String TOPIC = "topicx";
-    final String GROUP = this.getClass().getSimpleName() + "_testBrokerDisconnect_" + System.currentTimeMillis();
-    final String BOOTSTRAP = kafka.getKafkaConnectString();
-    kafka.getKafkaTestUtils().createTopic("topicx", 3, (short) 1);
+    final String TOPIC = "topic1";
+    final String GROUP = this.getClass().getSimpleName() + "_testMetadataTimeout_" + System.currentTimeMillis();
+    final String BOOTSTRAP = bootstrap;
 
     consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
     consumer.onupdate = Mockito.mock(OnUpdate.class);
@@ -66,33 +63,25 @@ public class ErrorHandlingIntegrationTest {
     consumer.topics = Collections.singletonList(TOPIC);
 
     consumer.maxPolls = 5;
-    consumer.metadataTimeout = Duration.ofSeconds(10); // TODO tests fail on an assertion further down if this is too short, there's no produce error
-    consumer.pollDuration = Duration.ofMillis(100);
-    consumer.minPauseBetweenPolls = Duration.ofMillis(100);
+    consumer.metadataTimeout = Duration.ofMillis(10);
+    consumer.pollDuration = Duration.ofMillis(1000);
+    consumer.minPauseBetweenPolls = Duration.ofMillis(500);
 
-    KafkaProducer<String, byte[]> producer = new KafkaProducer<>(getTestProducerProperties(BOOTSTRAP));
-    producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k1", "v1".getBytes())).get();
+    long t1 = System.currentTimeMillis();
+    try {
+      consumer.run();
+      fail("Should have thrown");
+    } catch (RuntimeException e) {
+      assertEquals("Timeout expired while fetching topic metadata", e.getMessage());
+      assertEquals(org.apache.kafka.common.errors.TimeoutException.class, e.getClass());
+    }
+    assertTrue(System.currentTimeMillis() - t1 > 20, "Should have spent time waiting for metadata timeout twice");
+    assertTrue(System.currentTimeMillis() - t1 < 500, "Should have exited after metadata timeout, not waited for other things");
 
-    consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest"); // start from scratch even if we're reusing a test topic
-    consumer.run();
-    consumer.consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none"); // the test should fail if we don't have an offset after the first run
-
-    assertEquals(Stage.Polling, consumer.stage); // To be able to see where we exited we're not resetting stage at the end of runs
-
-    assertEquals(1, consumer.cache.size(), "Should be operational now, before we mess with connections");
-
-    KafkaBroker broker = kafka.getKafkaBrokers().iterator().next();
-
-    broker.stop();
-    consumer.run();
-
-    broker.start();
-    producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k2", "v1".getBytes())).get();
-    consumer.run();
-
-    assertEquals(1, consumer.cache.size(), "Should be operational now, before we mess with connections");
-
-    producer.close();
+    assertFalse(consumer.isReady(),
+        "Should have stopped at an exception (tests don't use a thread so this is probably a dummy assertion)");
+    assertEquals(Stage.WaitingForKafkaConnection, consumer.stage,
+        "Should have exited at the initial kafka connection stage");
   }
 
 }
