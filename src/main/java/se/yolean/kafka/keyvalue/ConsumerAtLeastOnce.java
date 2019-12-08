@@ -59,9 +59,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     Resetting (60),
     InitialPoll (70),
     PollingHistorical (80),
-    Polling (90),
-    ConnectionLost (100),
-    Reconnecting (110);
+    Polling (90);
 
     final int metricValue;
     Stage(int metricValue) {
@@ -107,7 +105,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   List<String> topics;
 
-  final Thread runner;
+  boolean shouldBeRunning = false;
+
+  Thread runner = null;
 
   Stage stage = Stage.Created;
 
@@ -117,31 +117,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   Map<TopicPartition,Long> currentOffsets = new HashMap<>(1);
 
-  public ConsumerAtLeastOnce() {
-    runner = new Thread(this, "kafkaclient");
-  }
-
-  /**
-   * https://github.com/eclipse/microprofile-health to trigger termination
-   */
-  @Override
-  public HealthCheckResponse call() {
-    if (!runner.isAlive()) {
-      health = health.down();
-    }
-    return health.withData("stage", stage.toString()).build();
-  }
-
   //@Gauge(name="stage", unit = MetricUnits.NONE, description="The stage this instance is at")
   public Integer getStageMetric() {
     return stage.metricValue;
-  }
-
-  /**
-   * @return true if cache appears up-to-date
-   */
-  public boolean isReady() {
-    return runner.isAlive() && stage == Stage.Polling;
   }
 
   void topicsFromConfig() {
@@ -172,15 +150,52 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     logger.info("Metadata timeout: {}", metadataTimeout);
     logger.info("Poll duration: {}", pollDuration);
     logger.info("Min pause between polls: {}", minPauseBetweenPolls);
-    // end workaround
     topicsFromConfig();
     logger.info("Started. Topics: {}", topics);
     logger.info("Cache: {}", cache);
-    runner.start();
+    shouldBeRunning = true;
+    startIfNeeded();
   }
 
   public void stop(@Observes ShutdownEvent ev) {
+    shouldBeRunning = false;
     logger.info("Stopping");
+  }
+
+  void startIfNeeded() {
+    if (!shouldBeRunning) return;
+    if (runner != null && runner.isAlive()) return;
+    runner = new Thread(this, "kafkaclient");
+    runner.start();
+  }
+
+  /**
+   * Tries to self-assess that cache isn't stale
+   * @return true if cache appears up-to-date
+   */
+  public boolean isReady() {
+    return runner != null && runner.isAlive() && stage == Stage.Polling;
+  }
+
+  void ensureRunning() {
+    if (shouldBeRunning) {
+      logger.info("Consumer thread exited but someone cares about readiness: attempting restart");
+      startIfNeeded();
+    }
+  }
+
+  /**
+   * https://github.com/eclipse/microprofile-health to trigger termination
+   */
+  @Override
+  public HealthCheckResponse call() {
+    if (runner != null && runner.isAlive()) {
+      health = health.up();
+    } else {
+      health = health.down();
+      ensureRunning();
+    }
+    return health.withData("stage", stage.toString()).build();
   }
 
   /**
