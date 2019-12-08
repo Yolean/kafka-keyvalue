@@ -69,8 +69,8 @@ public class ErrorHandlingIntegrationTest {
 
     consumer.maxPolls = 5;
     consumer.metadataTimeout = Duration.ofMillis(10);
-    consumer.pollDuration = Duration.ofMillis(1000);
-    consumer.minPauseBetweenPolls = Duration.ofMillis(500);
+    consumer.pollDuration = Duration.ofMillis(3000);
+    consumer.minPauseBetweenPolls = Duration.ofMillis(2000);
 
     long t1 = System.currentTimeMillis();
     try {
@@ -81,7 +81,7 @@ public class ErrorHandlingIntegrationTest {
       assertEquals(org.apache.kafka.common.errors.TimeoutException.class, e.getClass());
     }
     assertTrue(System.currentTimeMillis() - t1 > 10, "Should have spent time waiting for metadata timeout");
-    assertTrue(System.currentTimeMillis() - t1 < 500, "Should have exited after metadata timeout, not waited for other things");
+    assertTrue(System.currentTimeMillis() - t1 < 1900, "Should have exited after metadata timeout, not waited for other things");
 
     assertFalse(consumer.isReady(),
         "Should have stopped at an exception (tests don't use a thread so this is probably a dummy assertion)");
