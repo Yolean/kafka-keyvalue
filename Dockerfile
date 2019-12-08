@@ -48,6 +48,8 @@ ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
 ARG IMAGE_NAME
 
+RUN apk add --no-cache snappy snappy lz4 zstd
+
 WORKDIR /app
 COPY --from=maven-build /workspace/target/lib ./lib
 COPY --from=maven-build /workspace/target/*-runner.jar ./quarkus-kafka.jar
