@@ -66,7 +66,7 @@ public class ErrorHandlingKafkaIntegrationTest {
     consumer.topics = Collections.singletonList(TOPIC);
 
     consumer.maxPolls = 5;
-    consumer.metadataTimeout = Duration.ofMillis(500);
+    consumer.metadataTimeout = Duration.ofMillis(2000);
     consumer.pollDuration = Duration.ofMillis(100);
     consumer.minPauseBetweenPolls = Duration.ofMillis(100);
 

@@ -142,7 +142,7 @@ public class ErrorHandlingIntegrationTest {
         } catch (InterruptedException e) {
           fail(e);
         }
-        //throw error;
+        throw error;
       }
     };
 
@@ -163,17 +163,17 @@ public class ErrorHandlingIntegrationTest {
 
     StartupEvent startup = Mockito.mock(StartupEvent.class);
     consumer.start(startup);
-    Thread.sleep(10);
+    Thread.sleep(TIMEOUT / 2);
     assertEquals(1, runs.size());
     Thread.sleep(TIMEOUT);
 
     consumer.call(); // Readiness probe
-    Thread.sleep(10);
+    Thread.sleep(50);
     assertEquals(2, runs.size());
     Thread.sleep(TIMEOUT);
 
     consumer.call(); // Readiness probe
-    Thread.sleep(10);
+    Thread.sleep(TIMEOUT / 2);
     assertEquals(3, runs.size());
     Thread.sleep(TIMEOUT);
 
@@ -181,12 +181,12 @@ public class ErrorHandlingIntegrationTest {
     consumer.stop(shutdown);
 
     consumer.call(); // Readiness probe
-    Thread.sleep(1);
+    Thread.sleep(TIMEOUT / 2);
     assertEquals(3, runs.size());
     Thread.sleep(TIMEOUT);
 
     consumer.call(); // Readiness probe
-    Thread.sleep(1);
+    Thread.sleep(TIMEOUT / 2);
     assertEquals(3, runs.size());
     Thread.sleep(TIMEOUT);
   }
