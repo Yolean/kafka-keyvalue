@@ -42,7 +42,7 @@ COPY . .
 #RUN mvn -o package
 RUN mvn -o package -DskipTests
 
-FROM adoptopenjdk/openjdk11:x86_64-ubi-minimal-jre-11.0.5_10@sha256:211be858640892f5bd24a17b229420e115c046f624380ca046ec26517c5f51f1 \
+FROM fabric8/java-alpine-openjdk8-jre@sha256:a5d31f17d618032812ae85d12426b112279f02951fa92a7ff8a9d69a6d3411b1 \
   as runtime-plainjava
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
@@ -94,7 +94,7 @@ RUN native-image \
   -H:+StackTrace
 
 # The rest should be identical to src/main/docker/Dockerfile which is the recommended quarkus build
-FROM registry.access.redhat.com/ubi8/ubi-minimal@sha256:c505667389712dc337986e29ffcb65116879ef27629dc3ce6e1b17727c06e78f
+FROM registry.access.redhat.com/ubi8/ubi-minimal@sha256:32fb8bae553bfba2891f535fa9238f79aafefb7eff603789ba8920f505654607
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
 ARG IMAGE_NAME
