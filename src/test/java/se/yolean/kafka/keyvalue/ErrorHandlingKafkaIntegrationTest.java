@@ -1,6 +1,6 @@
 package se.yolean.kafka.keyvalue;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -80,17 +80,24 @@ public class ErrorHandlingKafkaIntegrationTest {
     assertEquals(Stage.Polling, consumer.stage); // To be able to see where we exited we're not resetting stage at the end of runs
 
     assertEquals(1, consumer.cache.size(), "Should be operational now, before we mess with connections");
+    assertEquals("v1", new String(consumer.cache.get("k1")), "Should have the first key's value");
 
     KafkaBroker broker = kafka.getKafkaBrokers().iterator().next();
 
     broker.stop();
-    consumer.run();
+    try {
+      consumer.run();
+    } catch (Exception e) {
+      e.printStackTrace(); // Oddly we don't get a stack trace
+      assertEquals(org.apache.kafka.common.errors.TimeoutException.class, e.getClass());
+    }
 
     broker.start();
     producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k2", "v1".getBytes())).get();
     consumer.run();
 
-    assertEquals(1, consumer.cache.size(), "Should be operational now, before we mess with connections");
+    assertEquals(2, consumer.cache.size(), "Cache should be operational again, after the broker was restarted");
+    assertEquals("v1", new String(consumer.cache.get("k2")), "Should have the first key's value");
 
     producer.close();
   }
