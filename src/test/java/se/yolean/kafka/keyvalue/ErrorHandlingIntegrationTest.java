@@ -80,7 +80,7 @@ public class ErrorHandlingIntegrationTest {
       assertEquals("Timeout expired while fetching topic metadata", e.getMessage());
       assertEquals(org.apache.kafka.common.errors.TimeoutException.class, e.getClass());
     }
-    assertTrue(System.currentTimeMillis() - t1 > 20, "Should have spent time waiting for metadata timeout twice");
+    assertTrue(System.currentTimeMillis() - t1 > 10, "Should have spent time waiting for metadata timeout");
     assertTrue(System.currentTimeMillis() - t1 < 500, "Should have exited after metadata timeout, not waited for other things");
 
     assertFalse(consumer.isReady(),
