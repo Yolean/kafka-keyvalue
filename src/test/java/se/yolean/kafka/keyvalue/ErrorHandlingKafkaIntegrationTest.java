@@ -66,7 +66,7 @@ public class ErrorHandlingKafkaIntegrationTest {
     consumer.topics = Collections.singletonList(TOPIC);
 
     consumer.maxPolls = 5;
-    consumer.metadataTimeout = Duration.ofSeconds(10); // TODO tests fail on an assertion further down if this is too short, there's no produce error
+    consumer.metadataTimeout = Duration.ofMillis(500);
     consumer.pollDuration = Duration.ofMillis(100);
     consumer.minPauseBetweenPolls = Duration.ofMillis(100);
 

@@ -9,17 +9,22 @@ import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import io.quarkus.runtime.ShutdownEvent;
+import io.quarkus.runtime.StartupEvent;
 import se.yolean.kafka.keyvalue.ConsumerAtLeastOnce.Stage;
 
 public class ErrorHandlingIntegrationTest {
@@ -82,6 +87,108 @@ public class ErrorHandlingIntegrationTest {
         "Should have stopped at an exception (tests don't use a thread so this is probably a dummy assertion)");
     assertEquals(Stage.WaitingForKafkaConnection, consumer.stage,
         "Should have exited at the initial kafka connection stage");
+  }
+
+  @Test
+  void testIsAlive() throws InterruptedException {
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce() {
+      @Override
+      public void run() {
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException e) { fail(e); }
+      }
+    };
+    consumer.shouldBeRunning = true;
+    consumer.startIfNeeded();
+    assertTrue(consumer.runner.isAlive());
+    Thread.sleep(20);
+    assertFalse(consumer.runner.isAlive());
+  }
+
+  @Test
+  void testIsAliveAfterException() throws InterruptedException {
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce() {
+      @Override
+      public void run() {
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException e) { fail(e); }
+        throw new org.apache.kafka.common.errors.TimeoutException();
+      }
+    };
+    consumer.shouldBeRunning = true;
+    consumer.startIfNeeded();
+    assertTrue(consumer.runner.isAlive());
+    Thread.sleep(20);
+    assertFalse(consumer.runner.isAlive());
+  }
+
+
+  @Test
+  void testFailToConnectAsThread() throws InterruptedException, ExecutionException {
+
+    final List<Object> runs = new LinkedList<Object>();
+
+    // Based on that this behavior is asserted above
+    RuntimeException error = new org.apache.kafka.common.errors.TimeoutException();
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce() {
+      @Override void topicsFromConfig() {}
+      @Override
+      public void run() {
+        runs.add(null);
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e) {
+          fail(e);
+        }
+        //throw error;
+      }
+    };
+
+    final String TOPIC = "topic1";
+    final String GROUP = this.getClass().getSimpleName() + "_testFailToConnectAsThread_" + System.currentTimeMillis();
+    final String BOOTSTRAP = bootstrap;
+    final long TIMEOUT = 100;
+
+    consumer.consumerProps = getConsumerProperties(BOOTSTRAP, GROUP);
+    consumer.onupdate = Mockito.mock(OnUpdate.class);
+    consumer.cache = new HashMap<>();
+    consumer.topics = Collections.singletonList(TOPIC);
+
+    consumer.maxPolls = 5;
+    consumer.metadataTimeout = Duration.ofMillis(TIMEOUT);
+    consumer.pollDuration = Duration.ofMillis(1000);
+    consumer.minPauseBetweenPolls = Duration.ofMillis(500);
+
+    StartupEvent startup = Mockito.mock(StartupEvent.class);
+    consumer.start(startup);
+    Thread.sleep(10);
+    assertEquals(1, runs.size());
+    Thread.sleep(TIMEOUT);
+
+    consumer.call(); // Readiness probe
+    Thread.sleep(10);
+    assertEquals(2, runs.size());
+    Thread.sleep(TIMEOUT);
+
+    consumer.call(); // Readiness probe
+    Thread.sleep(10);
+    assertEquals(3, runs.size());
+    Thread.sleep(TIMEOUT);
+
+    ShutdownEvent shutdown = Mockito.mock(ShutdownEvent.class);
+    consumer.stop(shutdown);
+
+    consumer.call(); // Readiness probe
+    Thread.sleep(1);
+    assertEquals(3, runs.size());
+    Thread.sleep(TIMEOUT);
+
+    consumer.call(); // Readiness probe
+    Thread.sleep(1);
+    assertEquals(3, runs.size());
+    Thread.sleep(TIMEOUT);
   }
 
 }
