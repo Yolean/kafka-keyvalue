@@ -85,6 +85,7 @@ RUN native-image \
   -J-Dio.netty.leakDetection.level=DISABLED \
   -J-Dio.netty.allocator.maxOrder=1 \
   --initialize-at-build-time= \
+  # added because of build issues, https://github.com/Yolean/kafka-keyvalue/pull/36
   --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslContext \
   --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslEngine \
   # commented out due to "Error: policy com.oracle.svm.core.genscavenge.CollectionPolicy cannot be instantiated."
@@ -99,6 +100,7 @@ RUN native-image \
   -H:+JNI \
   --no-server \
   -H:-UseServiceLoaderFeature \
+  -H:+TraceClassInitialization \
   -H:+StackTrace
 
 # The rest should be identical to src/main/docker/Dockerfile which is the recommended quarkus build
