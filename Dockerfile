@@ -16,9 +16,8 @@ RUN mvn io.quarkus:quarkus-maven-plugin:1.0.1.Final:create \
     cd kafka-quickstart && \
     mkdir -p src/test/java/org && echo 'package org; public class T { @org.junit.jupiter.api.Test public void t() { } }' > src/test/java/org/T.java
 COPY pom.xml kafka-quickstart/
-RUN cd kafka-quickstart && \
-  mvn package && \
-  cd .. && \
+RUN set -e; \
+  (mvn -f kafka-quickstart/pom.xml package -Pnative || echo "# Build error is expected. Meant to prepare for native-image run."); \
   rm -r kafka-quickstart
 COPY . .
 
@@ -38,9 +37,20 @@ COPY --from=dev ${MAVEN_CONFIG} ${MAVEN_CONFIG}
 
 WORKDIR /workspace
 COPY . .
+
+# Prepare everything, with a mock native-image executable
+RUN set -e; \
+  echo 'echo "native-image $@" | tee /workspace/native-image.sh' > /usr/local/bin/native-image; \
+  chmod u+x /usr/local/bin/native-image
 # Can't get integration tests to pass on docker hub, and can't get logs from them
-#RUN mvn -o package
-RUN mvn -o package -DskipTests
+# We're yet to try with memory capping flags though
+#RUN mvn -o test
+RUN set -e; \
+  mvn -o -DskipTests package; \
+  (mvn -o -DskipTests package -Pnative || echo "# Build error is expected. Meant to prepare for native-image run."); \
+  stat target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/lib; \
+  stat target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/kafka-keyvalue-1.0-SNAPSHOT-runner.jar; \
+  cat native-image.sh | sed 's| | \\\n  |g'
 
 FROM fabric8/java-alpine-openjdk8-jre@sha256:a5d31f17d618032812ae85d12426b112279f02951fa92a7ff8a9d69a6d3411b1 \
   as runtime-plainjava
@@ -73,11 +83,11 @@ RUN gu install native-image
 #RUN yum -y install snappy libzstd lz4 && yum clean all
 
 WORKDIR /project
-COPY --from=maven-build /workspace/target/lib ./lib
-COPY --from=maven-build /workspace/target/*-runner.jar ./
+COPY --from=maven-build /workspace/target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar /project/target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar
 
-# from Quarkus' maven plugin mvn package -Pnative -Dnative-image.docker-build=true
-RUN native-image \
+# Native image args are printed in the prepare step in maven-build above
+RUN (cd target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/ && \
+  native-image \
   -J-Dsun.nio.ch.maxUpdateArraySize=100 \
   -J-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
   -J-Dvertx.logger-delegate-factory-class-name=io.quarkus.vertx.core.runtime.VertxLogDelegateFactory \
@@ -87,18 +97,19 @@ RUN native-image \
   --initialize-at-build-time= \
   # commented out due to "Error: policy com.oracle.svm.core.genscavenge.CollectionPolicy cannot be instantiated."
   #-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
-  -jar kafka-keyvalue-1.0-SNAPSHOT-runner.jar \
+  -jar \
+  kafka-keyvalue-1.0-SNAPSHOT-runner.jar \
   -J-Djava.util.concurrent.ForkJoinPool.common.parallelism=1 \
   -H:FallbackThreshold=0 \
   -H:+ReportExceptionStackTraces \
-  -H:+PrintAnalysisCallTree \
   -H:-AddAllCharsets \
   -H:EnableURLProtocols=http \
   -H:+JNI \
   --no-server \
   -H:-UseServiceLoaderFeature \
-  -H:+TraceClassInitialization \
-  -H:+StackTrace
+  -H:+StackTrace \
+  kafka-keyvalue-1.0-SNAPSHOT-runner \
+  )
 
 # The rest should be identical to src/main/docker/Dockerfile which is the recommended quarkus build
 FROM registry.access.redhat.com/ubi8/ubi-minimal@sha256:32fb8bae553bfba2891f535fa9238f79aafefb7eff603789ba8920f505654607
@@ -107,7 +118,7 @@ ARG SOURCE_BRANCH
 ARG IMAGE_NAME
 
 WORKDIR /work/
-COPY --from=native-build /project/*-runner /work/application
+COPY --from=native-build /project/target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/*-runner /work/application
 #RUN chmod 775 /work
 EXPOSE 8090
 ENTRYPOINT ["./application", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager"]
