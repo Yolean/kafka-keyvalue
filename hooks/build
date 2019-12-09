@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 echo "------ HOOK START - BUILD -------"
 printenv
