@@ -85,9 +85,6 @@ RUN native-image \
   -J-Dio.netty.leakDetection.level=DISABLED \
   -J-Dio.netty.allocator.maxOrder=1 \
   --initialize-at-build-time= \
-  # added because of build issues, https://github.com/Yolean/kafka-keyvalue/pull/36
-  --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslContext \
-  --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslEngine \
   # commented out due to "Error: policy com.oracle.svm.core.genscavenge.CollectionPolicy cannot be instantiated."
   #-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
   -jar kafka-keyvalue-1.0-SNAPSHOT-runner.jar \
@@ -96,7 +93,8 @@ RUN native-image \
   -H:+ReportExceptionStackTraces \
   -H:+PrintAnalysisCallTree \
   -H:-AddAllCharsets \
-  -H:EnableURLProtocols=http \
+  -H:EnableURLProtocols=http,https \
+  --enable-all-security-services \
   -H:+JNI \
   --no-server \
   -H:-UseServiceLoaderFeature \
