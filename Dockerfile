@@ -53,7 +53,7 @@ RUN set -e; \
   cat native-image.sh | sed 's| | \\\n  |g'
 
 FROM fabric8/java-alpine-openjdk8-jre@sha256:a5d31f17d618032812ae85d12426b112279f02951fa92a7ff8a9d69a6d3411b1 \
-  as runtime-plainjava
+  as runtime-jre
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
 ARG IMAGE_NAME
