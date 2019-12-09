@@ -1,6 +1,6 @@
 FROM maven:3.6.3-jdk-8-slim@sha256:d8e01825867d1e4ddbb96e40b5f08183e2a7d7ff40521c49cd8e76e36d75d340 as maven
 
-FROM adoptopenjdk/openjdk8:jdk8u232-b09-slim@sha256:3031fe397a55c182dc709c1d54529e58ef49c10c3becbc5eafc5dc9a9cf3ce4d \
+FROM openjdk:8-jdk-slim@sha256:71592a5c3eecf243b624f0a718402bb54d9ccb282b3ae3aa108f62b5cd5539d1 \
   as dev
 
 COPY --from=maven /usr/share/maven /usr/share/maven
@@ -25,7 +25,7 @@ COPY . .
 ENTRYPOINT [ "mvn", "compile", "quarkus:dev" ]
 CMD [ "-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090" ]
 
-FROM adoptopenjdk/openjdk8:jdk8u232-b09-slim@sha256:3031fe397a55c182dc709c1d54529e58ef49c10c3becbc5eafc5dc9a9cf3ce4d \
+FROM openjdk:8-jdk-slim@sha256:71592a5c3eecf243b624f0a718402bb54d9ccb282b3ae3aa108f62b5cd5539d1 \
   as maven-build
 
 COPY --from=maven /usr/share/maven /usr/share/maven
