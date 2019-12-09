@@ -82,6 +82,8 @@ RUN native-image \
   -J-Dvertx.logger-delegate-factory-class-name=io.quarkus.vertx.core.runtime.VertxLogDelegateFactory \
   -J-Dvertx.disableDnsResolver=true \
   --initialize-at-build-time= \
+  --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslContext \
+  --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslEngine \
   # commented out due to "Error: policy com.oracle.svm.core.genscavenge.CollectionPolicy cannot be instantiated."
   #-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
   -jar kafka-keyvalue-1.0-SNAPSHOT-runner.jar \
