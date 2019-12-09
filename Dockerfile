@@ -93,8 +93,7 @@ RUN native-image \
   -H:+ReportExceptionStackTraces \
   -H:+PrintAnalysisCallTree \
   -H:-AddAllCharsets \
-  -H:EnableURLProtocols=http,https \
-  --enable-all-security-services \
+  -H:EnableURLProtocols=http \
   -H:+JNI \
   --no-server \
   -H:-UseServiceLoaderFeature \
