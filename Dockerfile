@@ -1,6 +1,6 @@
-FROM maven:3.6.2-jdk-8-slim@sha256:2b54b5981f55838fc4fba956e0092bc97b932ef011c7f70ca85caec337711741 as maven
+FROM maven:3.6.3-jdk-8-slim@sha256:d8e01825867d1e4ddbb96e40b5f08183e2a7d7ff40521c49cd8e76e36d75d340 as maven
 
-FROM adoptopenjdk/openjdk11:jdk-11.0.4_11-slim@sha256:79f43f49f505df27528a3dce52e30339116ed6716b1f658206ba76caca26c85b \
+FROM adoptopenjdk/openjdk11:jdk-11.0.5_10-slim@sha256:b3cc66d2cdd34b4e02ad245985961abd407d37f4c2850dfd83d49a821ec417d7 \
   as dev
 
 COPY --from=maven /usr/share/maven /usr/share/maven
@@ -9,22 +9,23 @@ ENV MAVEN_HOME=/usr/share/maven
 ENV MAVEN_CONFIG=/root/.m2
 
 WORKDIR /workspace
-RUN mvn io.quarkus:quarkus-maven-plugin:0.26.0:create \
-    -DprojectGroupId=org.acme \
-    -DprojectArtifactId=getting-started \
-    -DclassName="org.acme.quickstart.GreetingResource" \
-    -Dpath="/hello" && \
-    rm -r src/test/java/org/acme && echo 'package org; public class T { @org.junit.jupiter.api.Test public void t() { } }' > src/test/java/org/T.java
-COPY pom.xml .
-RUN mvn package && \
-  rm -r src target mvnw* && \
-  ls -la
+RUN mvn io.quarkus:quarkus-maven-plugin:1.0.1.Final:create \
+    -DprojectGroupId=org.example.temp \
+    -DprojectArtifactId=kafka-quickstart \
+    -Dextensions="kafka" && \
+    cd kafka-quickstart && \
+    mkdir -p src/test/java/org && echo 'package org; public class T { @org.junit.jupiter.api.Test public void t() { } }' > src/test/java/org/T.java
+COPY pom.xml kafka-quickstart/
+RUN cd kafka-quickstart && \
+  mvn package && \
+  cd .. && \
+  rm -r kafka-quickstart
 COPY . .
 
 ENTRYPOINT [ "mvn", "compile", "quarkus:dev" ]
 CMD [ "-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090" ]
 
-FROM adoptopenjdk/openjdk11:jdk-11.0.4_11-slim@sha256:79f43f49f505df27528a3dce52e30339116ed6716b1f658206ba76caca26c85b \
+FROM adoptopenjdk/openjdk11:jdk-11.0.5_10-slim@sha256:b3cc66d2cdd34b4e02ad245985961abd407d37f4c2850dfd83d49a821ec417d7 \
   as maven-build
 
 COPY --from=maven /usr/share/maven /usr/share/maven
@@ -41,11 +42,13 @@ COPY . .
 #RUN mvn -o package
 RUN mvn -o package -DskipTests
 
-FROM adoptopenjdk/openjdk11:jre-11.0.4_11@sha256:140ba182d696180600a2871a98f67ad0ee2d6a1e48a7c570d1c0e156860c2a9d \
+FROM fabric8/java-alpine-openjdk8-jre@sha256:a5d31f17d618032812ae85d12426b112279f02951fa92a7ff8a9d69a6d3411b1 \
   as runtime-plainjava
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
 ARG IMAGE_NAME
+
+RUN apk add --no-cache snappy snappy lz4 zstd
 
 WORKDIR /app
 COPY --from=maven-build /workspace/target/lib ./lib
@@ -62,7 +65,7 @@ ENTRYPOINT [ "java", \
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
 # https://github.com/quarkusio/quarkus/issues/2792
-FROM oracle/graalvm-ce:19.2.0@sha256:85c7d15f3797fd121d4a4adb0edae859311f6f789c80859fefee69eeee5ac386 \
+FROM oracle/graalvm-ce:19.2.1@sha256:5ab434f12dc1a17c15107defd03de13c969a516dde022df2f737ec6002e7e7e1 \
   as native-build
 RUN gu install native-image
 
@@ -75,12 +78,12 @@ COPY --from=maven-build /workspace/target/*-runner.jar ./
 
 # from Quarkus' maven plugin mvn package -Pnative -Dnative-image.docker-build=true
 RUN native-image \
-  -J-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
   -J-Dsun.nio.ch.maxUpdateArraySize=100 \
-  -J-Dio.netty.leakDetection.level=DISABLED \
-  -J-Dio.netty.allocator.maxOrder=1 \
+  -J-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
   -J-Dvertx.logger-delegate-factory-class-name=io.quarkus.vertx.core.runtime.VertxLogDelegateFactory \
   -J-Dvertx.disableDnsResolver=true \
+  -J-Dio.netty.leakDetection.level=DISABLED \
+  -J-Dio.netty.allocator.maxOrder=1 \
   --initialize-at-build-time= \
   --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslContext \
   --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslEngine \
@@ -93,14 +96,13 @@ RUN native-image \
   -H:+PrintAnalysisCallTree \
   -H:-AddAllCharsets \
   -H:EnableURLProtocols=http \
-  -H:-SpawnIsolates \
   -H:+JNI \
   --no-server \
   -H:-UseServiceLoaderFeature \
   -H:+StackTrace
 
 # The rest should be identical to src/main/docker/Dockerfile which is the recommended quarkus build
-FROM registry.access.redhat.com/ubi8/ubi-minimal@sha256:2cfe133279640b2afbf5af3c87f246ca7aeeee16edc9d3ec187b35c929d84ba7
+FROM registry.access.redhat.com/ubi8/ubi-minimal@sha256:32fb8bae553bfba2891f535fa9238f79aafefb7eff603789ba8920f505654607
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
 ARG IMAGE_NAME
