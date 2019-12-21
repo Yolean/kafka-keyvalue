@@ -42,9 +42,7 @@ COPY . .
 RUN set -e; \
   echo 'echo "native-image $@" | tee /workspace/native-image.sh' > /usr/local/bin/native-image; \
   chmod u+x /usr/local/bin/native-image
-# Can't get integration tests to pass on docker hub, and can't get logs from them
-# We're yet to try with memory capping flags though
-#RUN mvn -o test
+RUN mvn -o test
 RUN set -e; \
   mvn -o -DskipTests package; \
   (mvn -o -DskipTests package -Pnative || echo "# Build error is expected. Meant to prepare for native-image run."); \
