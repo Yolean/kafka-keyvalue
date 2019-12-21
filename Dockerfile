@@ -9,7 +9,7 @@ ENV MAVEN_HOME=/usr/share/maven
 ENV MAVEN_CONFIG=/root/.m2
 
 WORKDIR /workspace
-RUN mvn io.quarkus:quarkus-maven-plugin:1.0.1.Final:create \
+RUN mvn io.quarkus:quarkus-maven-plugin:1.1.0.Final:create \
     -DprojectGroupId=org.example.temp \
     -DprojectArtifactId=kafka-quickstart \
     -Dextensions="kafka" && \
