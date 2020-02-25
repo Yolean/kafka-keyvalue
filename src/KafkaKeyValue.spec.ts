@@ -121,8 +121,7 @@ describe('KafkaKeyValue', function () {
       });
 
       // Promises needs to resolve before we get new value
-      await Promise.resolve();
-      await Promise.resolve();
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(onUpdateSpy).toHaveBeenCalledTimes(1);
       expect(onUpdateSpy).toHaveBeenCalledWith('bd3f6188-d865-443d-8646-03e8f1c643cb', { foo: 'bar' });

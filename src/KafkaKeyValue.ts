@@ -66,6 +66,25 @@ async function parseResponse(res: Response, assumeGzipped: boolean): Promise<any
   else return res.json();
 }
 
+async function produceViaPixy(pixyHost: string, topic: string, key: string, value: any, gzip: boolean) {
+  const stringValue: string = JSON.stringify(value);
+  let valueReady: Promise<string | Buffer> = Promise.resolve(stringValue);
+  if (gzip) valueReady = compressGzipPayload(stringValue);
+
+  const res = await fetch(`${pixyHost}/topics/${topic}/messages?key=${key}&sync`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: await valueReady
+  });
+
+  const json = await res.json();
+  logger.debug({ res, json }, 'KafkaCache put returned');
+
+  return json.offset;
+}
+
 export async function streamResponseBody(body: NodeJS.ReadableStream, onValue: (value: any) => void) {
   return new Promise((resolve, reject) => {
 
@@ -246,22 +265,11 @@ export default class KafkaKeyValue {
   }
 
   async put(key: string, value: any): Promise<number> {
-    const stringValue: string = JSON.stringify(value);
-    let valueReady: Promise<string | Buffer> = Promise.resolve(stringValue);
-    if (this.config.gzip) valueReady = compressGzipPayload(stringValue);
+    return produceViaPixy(this.getPixyHost(), this.topic, key, value, this.config.gzip || false);
+  }
 
-    const res = await fetch(`${this.getPixyHost()}/topics/${this.topic}/messages?key=${key}&sync`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: await valueReady
-    });
-
-    const json = await res.json();
-    logger.debug({ res, json }, 'KafkaCache put returned');
-
-    return json.offset;
+  async putOther(topic: string, key: string, value: any, gzip = false): Promise<number> {
+    return produceViaPixy(this.getPixyHost(), topic, key, value, gzip);
   }
 
   on(event: 'put', fn: UpdateHandler): void {
