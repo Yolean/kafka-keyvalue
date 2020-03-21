@@ -52,7 +52,7 @@ RUN set -e; \
   stat target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/kafka-keyvalue-1.0-SNAPSHOT-runner.jar; \
   cat native-image.sh | sed 's| | \\\n  |g'
 
-FROM fabric8/java-alpine-openjdk8-jre@sha256:a5d31f17d618032812ae85d12426b112279f02951fa92a7ff8a9d69a6d3411b1 \
+FROM adoptopenjdk:11.0.6_10-jre-hotspot@sha256:08bc4a40504521d019c1497080a958f3377c1b4ffa023d0aaf0b1d74eecfa3d5 \
   as runtime-jre
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
@@ -75,7 +75,7 @@ ENTRYPOINT [ "java", \
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
 # https://github.com/quarkusio/quarkus/issues/2792
-FROM oracle/graalvm-ce:19.2.1@sha256:5ab434f12dc1a17c15107defd03de13c969a516dde022df2f737ec6002e7e7e1 \
+FROM oracle/graalvm-ce:20.0.0-java11@sha256:ef4ea583db18977ffc0258efee96f02a003abd0e260e397d10bc0fbe86fdc18b \
   as native-build
 RUN gu install native-image
 
@@ -112,7 +112,7 @@ RUN (cd target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/ && \
   )
 
 # The rest should be identical to src/main/docker/Dockerfile which is the recommended quarkus build
-FROM registry.access.redhat.com/ubi8/ubi-minimal@sha256:32fb8bae553bfba2891f535fa9238f79aafefb7eff603789ba8920f505654607
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.1@sha256:01b8fb7b3ad16a575651a4e007e8f4d95b68f727b3a41fc57996be9a790dc4fa
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
 ARG IMAGE_NAME
