@@ -15,7 +15,9 @@ RUN set -e; \
   cd kafka-quickstart; \
   mkdir -p src/test/java/org && echo 'package org; public class T { @org.junit.jupiter.api.Test public void t() { } }' > src/test/java/org/T.java; \
   mvn package; \
-  mvn package -Pnative || echo "# Build error is expected. Caching dependencies."; \
+  ln -s /bin/false ./native-image; \
+  PATH=$(pwd):$PATH mvn package -Pnative || echo "# Build error is expected. Caching dependencies."; \
+  rm native-image; \
   cd ..; \
   rm -r kafka-quickstart;
 
