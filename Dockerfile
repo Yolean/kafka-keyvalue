@@ -110,6 +110,8 @@ RUN (cd target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/ && \
   --no-server \
   -H:-UseServiceLoaderFeature \
   -H:+StackTrace \
+  # Despite jackson not being in mvn dependency:tree -Dscope=runtime builds without --allow-incomplete-classpath fail with com.oracle.graal.pointsto.constraints.UnresolvedElementException: Discovered unresolved type during parsing: com.fasterxml.jackson.databind.ObjectMapper
+  --allow-incomplete-classpath \
   kafka-keyvalue-1.0-SNAPSHOT-runner \
   )
 
