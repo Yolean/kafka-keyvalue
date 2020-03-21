@@ -97,7 +97,7 @@ RUN (cd target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/ && \
   -J-Duser.language=en \
   -J-Dfile.encoding=UTF-8 \
   --initialize-at-build-time= \
-  -H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
+  #-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
   -H:+JNI \
   -jar \
   kafka-keyvalue-1.0-SNAPSHOT-runner.jar \
@@ -106,7 +106,7 @@ RUN (cd target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/ && \
   -H:-AddAllCharsets \
   -H:-IncludeAllTimeZones \
   -H:EnableURLProtocols=http \
-  -H:NativeLinkerOption=-no-pie \
+  #-H:NativeLinkerOption=-no-pie \
   --no-server \
   -H:-UseServiceLoaderFeature \
   -H:+StackTrace \
