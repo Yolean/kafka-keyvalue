@@ -1,6 +1,6 @@
-FROM maven:3.6.3-jdk-8-slim@sha256:d8e01825867d1e4ddbb96e40b5f08183e2a7d7ff40521c49cd8e76e36d75d340 as maven
+FROM maven:3.6.3-jdk-11-slim@sha256:18f059e73cffdf1688093e2e82f1001a7cd2baa9de92e7b8d05bf34a8318ee92 as maven
 
-FROM openjdk:8-jdk-slim@sha256:71592a5c3eecf243b624f0a718402bb54d9ccb282b3ae3aa108f62b5cd5539d1 \
+FROM adoptopenjdk:11.0.6_10-jdk-hotspot@sha256:4be6d6e43ffb3ebac9ef4f4c2ea61e374690dd8ac39014bc7ca84c3ae2f26b6e \
   as dev
 
 COPY --from=maven /usr/share/maven /usr/share/maven
@@ -52,13 +52,13 @@ RUN set -e; \
   stat target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/kafka-keyvalue-1.0-SNAPSHOT-runner.jar; \
   cat native-image.sh | sed 's| | \\\n  |g'
 
-FROM adoptopenjdk:11.0.6_10-jre-hotspot@sha256:08bc4a40504521d019c1497080a958f3377c1b4ffa023d0aaf0b1d74eecfa3d5 \
+FROM adoptopenjdk:11.0.6_10-jdk-hotspot@sha256:4be6d6e43ffb3ebac9ef4f4c2ea61e374690dd8ac39014bc7ca84c3ae2f26b6e \
   as runtime-jre
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
 ARG IMAGE_NAME
 
-RUN apk add --no-cache snappy snappy lz4 zstd
+# RUN apk add --no-cache snappy snappy lz4 zstd
 
 WORKDIR /app
 COPY --from=maven-build /workspace/target/lib ./lib
