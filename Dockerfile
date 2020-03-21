@@ -24,7 +24,7 @@ COPY . .
 ENTRYPOINT [ "mvn", "compile", "quarkus:dev" ]
 CMD [ "-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090" ]
 
-FROM openjdk:8-jdk-slim@sha256:71592a5c3eecf243b624f0a718402bb54d9ccb282b3ae3aa108f62b5cd5539d1 \
+FROM adoptopenjdk:11.0.6_10-jdk-hotspot@sha256:4be6d6e43ffb3ebac9ef4f4c2ea61e374690dd8ac39014bc7ca84c3ae2f26b6e \
   as maven-build
 
 COPY --from=maven /usr/share/maven /usr/share/maven
@@ -52,7 +52,7 @@ RUN set -e; \
   stat target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/kafka-keyvalue-1.0-SNAPSHOT-runner.jar; \
   cat native-image.sh | sed 's| | \\\n  |g'
 
-FROM adoptopenjdk:11.0.6_10-jdk-hotspot@sha256:4be6d6e43ffb3ebac9ef4f4c2ea61e374690dd8ac39014bc7ca84c3ae2f26b6e \
+FROM adoptopenjdk:11.0.6_10-jre-hotspot@sha256:08bc4a40504521d019c1497080a958f3377c1b4ffa023d0aaf0b1d74eecfa3d5 \
   as runtime-jre
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
