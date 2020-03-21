@@ -88,23 +88,25 @@ COPY --from=maven-build /workspace/target/kafka-keyvalue-1.0-SNAPSHOT-native-ima
 # Native image args are printed in the prepare step in maven-build above
 RUN (cd target/kafka-keyvalue-1.0-SNAPSHOT-native-image-source-jar/ && \
   native-image \
-  -J-Dsun.nio.ch.maxUpdateArraySize=100 \
   -J-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
+  -J-Dsun.nio.ch.maxUpdateArraySize=100 \
   -J-Dvertx.logger-delegate-factory-class-name=io.quarkus.vertx.core.runtime.VertxLogDelegateFactory \
   -J-Dvertx.disableDnsResolver=true \
   -J-Dio.netty.leakDetection.level=DISABLED \
   -J-Dio.netty.allocator.maxOrder=1 \
+  -J-Duser.language=en \
+  -J-Dfile.encoding=UTF-8 \
   --initialize-at-build-time= \
-  # commented out due to "Error: policy com.oracle.svm.core.genscavenge.CollectionPolicy cannot be instantiated."
-  #-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
+  -H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime \
+  -H:+JNI \
   -jar \
   kafka-keyvalue-1.0-SNAPSHOT-runner.jar \
-  -J-Djava.util.concurrent.ForkJoinPool.common.parallelism=1 \
   -H:FallbackThreshold=0 \
   -H:+ReportExceptionStackTraces \
   -H:-AddAllCharsets \
+  -H:-IncludeAllTimeZones \
   -H:EnableURLProtocols=http \
-  -H:+JNI \
+  -H:NativeLinkerOption=-no-pie \
   --no-server \
   -H:-UseServiceLoaderFeature \
   -H:+StackTrace \
