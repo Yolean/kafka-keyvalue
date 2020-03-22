@@ -60,7 +60,15 @@ ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${I
 
 FROM gcr.io/distroless/base-debian10:nonroot@sha256:56da492c4800196c29f3e9fac3c0e66af146bfd31694f29f0958d6d568139dd9
 
-COPY --from=dev /lib/x86_64-linux-gnu/libz.so.* /lib/x86_64-linux-gnu/
+COPY --from=dev \
+  /lib/x86_64-linux-gnu/libz.so.* \
+  /lib/x86_64-linux-gnu/
+
+COPY --from=dev \
+  /usr/lib/x86_64-linux-gnu/libzstd.so.* \
+  /usr/lib/x86_64-linux-gnu/libsnappy.so.* \
+  /usr/lib/x86_64-linux-gnu/liblz4.so.* \
+  /usr/lib/x86_64-linux-gnu/
 
 COPY --from=dev /workspace/target/*-runner /usr/local/bin/kafka-keyvalue
 
