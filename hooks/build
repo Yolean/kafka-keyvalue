@@ -4,10 +4,13 @@ set -e
 echo "------ HOOK START - BUILD -------"
 printenv
 
-docker build -t $IMAGE_NAME-jre --build-arg build="package" --target=jvm \
+# Skip tests on docker hub because they time out, always have.
+[ ! -z "$BUILD_CODE" ] && echo "This looks like a docker hub build. Skipping tests." && mvnflags="-Dmaven.test.skip=true"
+
+docker build -t $IMAGE_NAME-jre --build-arg build="package $mvnflags" --target=jvm \
   --build-arg SOURCE_COMMIT=$SOURCE_COMMIT --build-arg SOURCE_BRANCH=$SOURCE_BRANCH --build-arg IMAGE_NAME=$IMAGE_NAME  .
 
-docker build -t $IMAGE_NAME \
+docker build -t $IMAGE_NAME  --build-arg build="package -Pnative $mvnflags" \
   --build-arg SOURCE_COMMIT=$SOURCE_COMMIT --build-arg SOURCE_BRANCH=$SOURCE_BRANCH --build-arg IMAGE_NAME=$IMAGE_NAME .
 
 [ ! -z "$SOURCE_COMMIT" ] && docker push $IMAGE_NAME-jre
