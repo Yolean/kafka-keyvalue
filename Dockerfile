@@ -37,7 +37,7 @@ ARG build="package -Pnative"
 RUN mvn --batch-mode $build | tee build.log; \
   set -ex; \
   grep '[INFO] BUILD SUCCESS' build.log || \
-    grep 'Native memory allocation (mmap) failed' build.log && \
+    grep 'Native memory allocation (mmap) failed\|Exit code was 137 which indicates an out of memory error' build.log && \
     grep --color=never 'NativeImageBuildStep] /opt/graalvm' build.log | cut -d ' ' -f 3- | \
       (cd target/*-source-jar; sh - ); \
   rm build.log
