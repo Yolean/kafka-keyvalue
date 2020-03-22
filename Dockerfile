@@ -34,12 +34,12 @@ RUN mvn package -Dmaven.test.skip=true
 # For a regular JRE image run: docker build --build-arg build="package" --target=jvm
 ARG build="package -Pnative"
 
-RUN set -ex; \
-  rm target/*-SNAPSHOT.jar; \
+RUN set -x; \
   mvn --batch-mode $build | tee build.log; \
-  ls target/*-SNAPSHOT.jar || \
+  grep '[INFO] BUILD SUCCESS' build.log || \
     grep 'Native memory allocation (mmap) failed' build.log && \
-    grep --color=never 'NativeImageBuildStep] /opt/graalvm' build.log | cut -d ' ' -f 3- | sh - ; \
+    grep --color=never 'NativeImageBuildStep] /opt/graalvm' build.log | cut -d ' ' -f 3- | \
+      (cd target/*-source-jar; sh - ); \
   rm build.log
 
 FROM solsson/kafka:jre-latest@sha256:4f880765690d7240f4b792ae16d858512cea89ee3d2a472b89cb22c9b5d5bd66 \
