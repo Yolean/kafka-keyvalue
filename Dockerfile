@@ -18,7 +18,7 @@ RUN set -e; \
   mv pom.tmp kafka-quickstart/pom.xml; \
   cd kafka-quickstart; \
   mkdir -p src/test/java/org && echo 'package org; public class T { @org.junit.jupiter.api.Test public void t() { } }' > src/test/java/org/T.java; \
-  echo "quarkus.native.additional-build-args=--dry-run" > src/main/resources/application.properties; \
+  printf "\nquarkus.native.additional-build-args=--dry-run\n" >> src/main/resources/application.properties; \
   mvn package -Pnative || echo "... Build error is expected. Caching dependencies."; \
   cd ..; \
   rm -r kafka-quickstart;
@@ -34,8 +34,13 @@ RUN mvn package -Dmaven.test.skip=true
 # For a regular JRE image run: docker build --build-arg build="package" --target=jvm
 ARG build="package -Pnative"
 
-RUN mvn $build | tee build.log \
-  || cat build.log | grep /bin/native-image | cut -d ' ' -f 3- | sh -
+RUN set -ex; \
+  rm target/*-SNAPSHOT.jar; \
+  mvn --batch-mode $build | tee build.log; \
+  ls target/*-SNAPSHOT.jar || \
+    grep 'Native memory allocation (mmap) failed' build.log && \
+    grep --color=never 'NativeImageBuildStep] /opt/graalvm' build.log | cut -d ' ' -f 3- | sh - ; \
+  rm build.log
 
 FROM solsson/kafka:jre-latest@sha256:4f880765690d7240f4b792ae16d858512cea89ee3d2a472b89cb22c9b5d5bd66 \
   as jvm
@@ -45,7 +50,7 @@ ARG IMAGE_NAME
 
 WORKDIR /app
 COPY --from=dev /workspace/target/lib ./lib
-COPY --from=dev /workspace/target/*-runner.jar ./quarkus-kafka.jar
+COPY --from=dev /workspace/target/*-runner.jar ./kafka-keyvalue.jar
 
 EXPOSE 8090
 ENTRYPOINT [ "java", \
@@ -53,7 +58,7 @@ ENTRYPOINT [ "java", \
   "-Dquarkus.http.port=8090", \
   "-Djava.util.logging.manager=org.jboss.logmanager.LogManager", \
   "-cp", "./lib/*", \
-  "-jar", "./quarkus-kafka.jar" ]
+  "-jar", "./kafka-keyvalue.jar" ]
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
