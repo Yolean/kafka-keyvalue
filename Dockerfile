@@ -18,10 +18,8 @@ RUN set -e; \
   mv pom.tmp kafka-quickstart/pom.xml; \
   cd kafka-quickstart; \
   mkdir -p src/test/java/org && echo 'package org; public class T { @org.junit.jupiter.api.Test public void t() { } }' > src/test/java/org/T.java; \
-  mvn package; \
-  ln -s /bin/false ./native-image; \
-  PATH=$(pwd):$PATH mvn package -Pnative || echo "# Build error is expected. Caching dependencies."; \
-  rm ./native-image; \
+  echo "quarkus.native.additional-build-args=--dry-run" > src/main/resources/application.properties; \
+  mvn package -Pnative || echo "... Build error is expected. Caching dependencies."; \
   cd ..; \
   rm -r kafka-quickstart;
 
@@ -36,7 +34,8 @@ RUN mvn package -Dmaven.test.skip=true
 # For a regular JRE image run: docker build --build-arg build="package" --target=jvm
 ARG build="package -Pnative"
 
-RUN mvn $build
+RUN mvn $build | tee build.log \
+  || cat build.log | grep /bin/native-image | cut -d ' ' -f 3- | sh -
 
 FROM solsson/kafka:jre-latest@sha256:4f880765690d7240f4b792ae16d858512cea89ee3d2a472b89cb22c9b5d5bd66 \
   as jvm
