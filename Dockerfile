@@ -21,7 +21,7 @@ RUN set -e; \
   mvn package; \
   ln -s /bin/false ./native-image; \
   PATH=$(pwd):$PATH mvn package -Pnative || echo "# Build error is expected. Caching dependencies."; \
-  rm native-image; \
+  rm ./native-image; \
   cd ..; \
   rm -r kafka-quickstart;
 
