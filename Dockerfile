@@ -1,3 +1,7 @@
+# An adoptopenjdk/ubuntu alternative to https://github.com/quarkusio/quarkus/blob/1.3.0.Final/docs/src/main/asciidoc/building-native-image.adoc
+# with an attempt to speed up repeated builds by caching maven deps
+# and support for jvm build in the same file, see ./hooks/build
+
 FROM solsson/kafka:graalvm-latest@sha256:1bda0d8bbb0baf089e6ce898247a9560ae26967aedf84f33208902a865694cfd \
   as dev
 
@@ -54,21 +58,14 @@ ENTRYPOINT [ "java", \
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
-# The rest should be identical to src/main/docker/Dockerfile.native
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.1@sha256:01b8fb7b3ad16a575651a4e007e8f4d95b68f727b3a41fc57996be9a790dc4fa
-# Do we want compression libs at runtime?
+FROM gcr.io/distroless/base-debian10:nonroot@sha256:56da492c4800196c29f3e9fac3c0e66af146bfd31694f29f0958d6d568139dd9
 
-WORKDIR /work/
-COPY --from=dev /workspace/target/*-runner /work/application
+COPY --from=dev /lib/x86_64-linux-gnu/libz.so.* /lib/x86_64-linux-gnu/
 
-# set up permissions for user `1001`
-RUN chmod 775 /work /work/application \
-  && chown -R 1001 /work \
-  && chmod -R "g+rwX" /work \
-  && chown -R 1001:root /work
+COPY --from=dev /workspace/target/*-runner /usr/local/bin/kafka-keyvalue
 
 EXPOSE 8090
-ENTRYPOINT ["./application", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager"]
+ENTRYPOINT ["kafka-keyvalue", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager"]
 CMD ["-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090"]
 
 ARG SOURCE_COMMIT
