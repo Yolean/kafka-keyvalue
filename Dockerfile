@@ -39,6 +39,7 @@ RUN mvn --batch-mode $build | tee build.log; \
   grep '[INFO] BUILD SUCCESS' build.log || \
     grep 'Native memory allocation (mmap) failed\|Exit code was 137 which indicates an out of memory error' build.log && \
     grep --color=never 'NativeImageBuildStep] /opt/graalvm' build.log | cut -d ' ' -f 3- | \
+      sed 's/-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime//' | \
       (cd target/*-source-jar; sh - ); \
   rm build.log
 
