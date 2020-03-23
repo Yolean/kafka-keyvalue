@@ -2,7 +2,7 @@
 # with an attempt to speed up repeated builds by caching maven deps
 # and support for jvm build in the same file, see ./hooks/build
 
-FROM solsson/kafka:graalvm-latest@sha256:1bda0d8bbb0baf089e6ce898247a9560ae26967aedf84f33208902a865694cfd \
+FROM solsson/kafka:graalvm@sha256:939ec9942d8a00303628c6a841ec3ff717eca29d2d19476bf2c829bc8beb0c12 \
   as dev
 
 WORKDIR /workspace

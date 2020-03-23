@@ -4,10 +4,20 @@ set -e
 echo "------ HOOK START - BUILD -------"
 printenv
 
+[ -z "$IMAGE_NAME" ] && echo "IMAGE_NAME is required" && exit 1;
+function imagename {
+  buildname=$1
+  case $IMAGE_NAME in
+    *:latest) echo -n $IMAGE_NAME | sed "s|:latest|:$buildname|" ;;
+    *:*) echo -n $IMAGE_NAME | sed "s|:\(.*\)|:\1-$buildname|" ;;
+    *) echo $IMAGE_NAME:$buildname ;;
+  esac
+}
+
 # Skip tests on docker hub because they time out, always have.
 [ ! -z "$BUILD_CODE" ] && echo "This looks like a docker hub build. Skipping tests." && mvnflags="-Dmaven.test.skip=true"
 
-docker build -t $IMAGE_NAME-jre --build-arg build="package $mvnflags" --target=jvm \
+docker build -t $(imagename jvm) --build-arg build="package $mvnflags" --target=jvm \
   --build-arg SOURCE_COMMIT=$SOURCE_COMMIT --build-arg SOURCE_BRANCH=$SOURCE_BRANCH --build-arg IMAGE_NAME=$IMAGE_NAME  .
 
 docker build -t $IMAGE_NAME  --build-arg build="package -Pnative $mvnflags" \
