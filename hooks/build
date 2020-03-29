@@ -23,6 +23,6 @@ docker build -t $(imagename jvm) --build-arg build="package $mvnflags" --target=
 docker build -t $IMAGE_NAME  --build-arg build="package -Pnative $mvnflags" \
   --build-arg SOURCE_COMMIT=$SOURCE_COMMIT --build-arg SOURCE_BRANCH=$SOURCE_BRANCH --build-arg IMAGE_NAME=$IMAGE_NAME .
 
-[ ! -z "$SOURCE_COMMIT" ] && docker push $IMAGE_NAME-jre
+[ ! -z "$SOURCE_COMMIT" ] && docker push $(imagename jvm)
 
 echo "------ HOOK END   - BUILD -------"
