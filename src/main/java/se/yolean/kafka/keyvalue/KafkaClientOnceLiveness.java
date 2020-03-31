@@ -20,6 +20,8 @@ import javax.inject.Singleton;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.Liveness;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Instead of catching and analyzing org.apache.kafka.common.errors.TimeoutException
@@ -31,6 +33,8 @@ import org.eclipse.microprofile.health.Liveness;
 @Singleton
 public class KafkaClientOnceLiveness implements HealthCheck {
 
+  private static final Logger logger = LoggerFactory.getLogger(KafkaClientOnceLiveness.class);
+
   @Inject
   ConsumerAtLeastOnce consumer;
 
@@ -39,6 +43,7 @@ public class KafkaClientOnceLiveness implements HealthCheck {
 
   @Override
   public HealthCheckResponse call() {
+    logger.trace("Health check start", consumer);
     if (consumer != null && consumer.stage != null) {
       if (consumer.stage.metricValue > ConsumerAtLeastOnce.Stage.Assigning.metricValue) {
         assigningSuccessWasSeen = true;

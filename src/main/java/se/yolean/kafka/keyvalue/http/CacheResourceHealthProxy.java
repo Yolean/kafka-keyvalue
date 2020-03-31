@@ -15,13 +15,19 @@
 package se.yolean.kafka.keyvalue.http;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.Liveness;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Liveness
+@Singleton
 public class CacheResourceHealthProxy implements HealthCheck {
+
+  private static final Logger logger = LoggerFactory.getLogger(CacheResourceHealthProxy.class);
 
   private CacheResource resource;
 
@@ -32,6 +38,7 @@ public class CacheResourceHealthProxy implements HealthCheck {
 
   @Override
   public HealthCheckResponse call() {
+    logger.trace("Health check start", this.resource);
     if (this.resource == null) {
       return HealthCheckResponse.builder()
           .name("REST resource existence, not really endpoint liveness")

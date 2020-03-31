@@ -19,6 +19,8 @@ import javax.inject.Singleton;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.Readiness;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 
@@ -32,11 +34,14 @@ import javax.inject.Inject;
 @Singleton
 public class ConsumerAtLeastOnceHealthProxy implements HealthCheck {
 
+  private static final Logger logger = LoggerFactory.getLogger(ConsumerAtLeastOnceHealthProxy.class);
+
   @Inject // Note that this can be null if cache is still in it's startup event handler
   ConsumerAtLeastOnce consumer;
 
   @Override
   public HealthCheckResponse call() {
+    logger.trace("Health check start", consumer);
     if (consumer == null) {
       return HealthCheckResponse.named("consume-loop").withData("stage", "NotStarted").build();
     }
