@@ -294,7 +294,12 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
       ConsumerRecords<String, byte[]> polled = consumer.poll(pollDuration);
       pollEndTime = System.currentTimeMillis();
-      logger.debug("Polled {} records", polled.count());
+      int count = polled.count();
+      if (count == 0) {
+        logger.debug("Polled {} records in {} after wait {} ms", count, pollDuration, wait);
+      } else {
+        logger.info( "Polled {} records in {} after wait {} ms", count, pollDuration, wait);
+      }
 
       Iterator<ConsumerRecord<String, byte[]>> records = polled.iterator();
       while (records.hasNext()) {
