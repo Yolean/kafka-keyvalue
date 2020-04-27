@@ -29,6 +29,7 @@ ENTRYPOINT [ "mvn", "compile", "quarkus:dev" ]
 CMD [ "-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090" ]
 
 # The jar and the lib folder is required for the jvm target even when the native target is the end result
+# MUST be followed by a real build, or we risk pushing images despite test failures
 RUN mvn package -Dmaven.test.skip=true
 
 # For a regular JRE image run: docker build --build-arg build="package" --target=jvm
