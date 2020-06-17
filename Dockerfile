@@ -1,8 +1,4 @@
-# An adoptopenjdk/ubuntu alternative to https://github.com/quarkusio/quarkus/blob/1.3.0.Final/docs/src/main/asciidoc/building-native-image.adoc
-# with an attempt to speed up repeated builds by caching maven deps
-# and support for jvm build in the same file, see ./hooks/build
-
-FROM solsson/kafka:graalvm@sha256:939ec9942d8a00303628c6a841ec3ff717eca29d2d19476bf2c829bc8beb0c12 \
+FROM solsson/kafka:graalvm@sha256:4fc9ebc324df2cf2fd1fdfdb8d86cf8dde33f3b90ec6420c70848f291a068eaa \
   as dev
 
 WORKDIR /workspace
@@ -40,7 +36,7 @@ RUN mvn --batch-mode $build | tee build.log; \
   grep '[INFO] BUILD SUCCESS' build.log || \
     grep 'Native memory allocation (mmap) failed\|Exit code was 137 which indicates an out of memory error' build.log && \
     grep --color=never 'NativeImageBuildStep] /opt/graalvm' build.log | cut -d ' ' -f 3- | \
-      sed 's/-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime//' | \
+      sed 's/-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime/--install-exit-handlers/' | \
       (cd target/*-source-jar; sh - ); \
   rm build.log
 
