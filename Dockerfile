@@ -14,8 +14,9 @@ RUN set -e; \
   mv pom.tmp kafka-quickstart/pom.xml; \
   cd kafka-quickstart; \
   mkdir -p src/test/java/org && echo 'package org; public class T { @org.junit.jupiter.api.Test public void t() { } }' > src/test/java/org/T.java; \
-  printf "\nquarkus.native.additional-build-args=--dry-run\n" >> src/main/resources/application.properties; \
-  mvn package -Pnative || echo "... Build error is expected. Caching dependencies."; \
+  mvn --batch-mode package; \
+  mvn --batch-mode package -Pnative -Dquarkus.native.additional-build-args=--dry-run \
+  || echo "= BUILD ERROR IS OK: Caching dependencies."; \
   cd ..; \
   rm -r kafka-quickstart;
 
@@ -36,11 +37,10 @@ RUN mvn --batch-mode $build | tee build.log; \
   grep '[INFO] BUILD SUCCESS' build.log || \
     grep 'Native memory allocation (mmap) failed\|Exit code was 137 which indicates an out of memory error' build.log && \
     grep --color=never 'NativeImageBuildStep] /opt/graalvm' build.log | cut -d ' ' -f 3- | \
-      sed 's/-H:InitialCollectionPolicy=com.oracle.svm.core.genscavenge.CollectionPolicy$BySpaceAndTime//' | \
       (cd target/*-source-jar; sh - ); \
   rm build.log
 
-FROM solsson/kafka:jre-latest@sha256:4f880765690d7240f4b792ae16d858512cea89ee3d2a472b89cb22c9b5d5bd66 \
+FROM solsson/kafka:2.5.0-jre@sha256:5d90c12f3ebae522daf35ed5f0bdcb845ee250b8f10da9c56f42da60800f975e \
   as jvm
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
