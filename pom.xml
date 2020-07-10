@@ -70,17 +70,6 @@
       <!-- Needed for native build to work with org.apache.kafka.kafka-clients -->
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-kafka-client</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.kafka</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka-clients</artifactId>
-      <version>2.4.1</version>
     </dependency>
     <dependency>
       <groupId>com.salesforce.kafka.test</groupId>
@@ -91,7 +80,7 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka_2.12</artifactId>
-      <version>2.4.1</version>
+      <version>2.5.0</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
