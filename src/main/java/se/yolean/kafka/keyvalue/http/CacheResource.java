@@ -36,10 +36,12 @@ import javax.ws.rs.core.UriInfo;
 
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
+import org.eclipse.microprofile.health.Liveness;
 
 import se.yolean.kafka.keyvalue.KafkaCache;
 
 @Path("/cache/v1")
+@Liveness
 public class CacheResource implements HealthCheck {
 
   @Inject // Note that this can be null if cache is still in it's startup event handler
