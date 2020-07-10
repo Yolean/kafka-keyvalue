@@ -1,4 +1,4 @@
-FROM solsson/kafka:graalvm@sha256:939ec9942d8a00303628c6a841ec3ff717eca29d2d19476bf2c829bc8beb0c12 \
+FROM solsson/kafka:graalvm@sha256:1664114a7d2526e6bfc6ec31516c2a362ad4879b9651042614e72755978d5b32 \
   as dev
 
 WORKDIR /workspace
