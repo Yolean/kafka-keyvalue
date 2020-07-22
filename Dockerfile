@@ -1,4 +1,4 @@
-FROM solsson/kafka:graalvm@sha256:1664114a7d2526e6bfc6ec31516c2a362ad4879b9651042614e72755978d5b32 \
+FROM solsson/kafka:graalvm@sha256:28505c768b7f8b44168b9df5bc27dc4735d1be75ea5a12eb94c34af2d661e66a \
   as dev
 
 WORKDIR /workspace
@@ -40,7 +40,7 @@ RUN mvn --batch-mode $build | tee build.log; \
       (cd target/*-source-jar; sh - ); \
   rm build.log
 
-FROM solsson/kafka:2.5.0-jre@sha256:5d90c12f3ebae522daf35ed5f0bdcb845ee250b8f10da9c56f42da60800f975e \
+FROM solsson/kafka:jre@sha256:9374540e6643ac577056e900872793cc4a96687025e3b492e93ad8d10c8e429b \
   as jvm
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
@@ -60,7 +60,7 @@ ENTRYPOINT [ "java", \
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
-FROM gcr.io/distroless/base-debian10:nonroot@sha256:26abe8d89163131be2a159a9d8082e921387f196127f42ce77fb96420dbecf88
+FROM gcr.io/distroless/base-debian10:nonroot@sha256:78f2372169e8d9c028da3856bce864749f2bb4bbe39c69c8960a6e40498f8a88
 
 COPY --from=dev \
   /lib/x86_64-linux-gnu/libz.so.* \
