@@ -1,24 +1,8 @@
-FROM solsson/kafka:graalvm@sha256:28505c768b7f8b44168b9df5bc27dc4735d1be75ea5a12eb94c34af2d661e66a \
+FROM yolean/builder-quarkus:3a9207474eea4e269b2dc214fa7d4d7c6a3b2481@sha256:21264cb6c62944f2ddc38818b0907cc0c854fe5c43004c3d4bceb188a86ebcce \
   as dev
 
-WORKDIR /workspace
 COPY pom.xml .
-RUN set -e; \
-  export QUARKUS_VERSION=$(cat pom.xml | grep '<quarkus.platform.version>' | sed 's/.*>\(.*\)<.*/\1/'); \
-  echo "Quarkus version: $QUARKUS_VERSION"; \
-  mv pom.xml pom.tmp; \
-  mvn io.quarkus:quarkus-maven-plugin:$QUARKUS_VERSION:create \
-    -DprojectGroupId=org.example.temp \
-    -DprojectArtifactId=kafka-quickstart \
-    -Dextensions="kafka"; \
-  mv pom.tmp kafka-quickstart/pom.xml; \
-  cd kafka-quickstart; \
-  mkdir -p src/test/java/org && echo 'package org; public class T { @org.junit.jupiter.api.Test public void t() { } }' > src/test/java/org/T.java; \
-  mvn --batch-mode package; \
-  mvn --batch-mode package -Pnative -Dquarkus.native.additional-build-args=--dry-run \
-  || echo "= BUILD ERROR IS OK: Caching dependencies."; \
-  cd ..; \
-  rm -r kafka-quickstart;
+RUN y-build-quarkus-cache
 
 COPY . .
 
