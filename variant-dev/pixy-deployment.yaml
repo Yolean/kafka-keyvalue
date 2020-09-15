@@ -29,8 +29,8 @@ spec:
         command:
         - kafka-pixy
         - -kafkaPeers
-        -  bootstrap.kafka:9092
+        -  bootstrap.kafka-v2:9092
         - -zookeeperPeers
-        -  zookeeper.kafka:2181
+        -  zookeeper.kafka-v2:2181
         - -tcpAddr
         -  0.0.0.0:80
