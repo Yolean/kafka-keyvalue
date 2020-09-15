@@ -24,7 +24,7 @@ spec:
             memory: 20Mi
         env:
         - name: ZOOKEEPER_CONNECT
-          value: pzoo.kafka:2181
+          value: zookeeper.kafka-v2:2181
         - name: REPLICATION_FACTOR
           value: "1"
         command:
@@ -74,7 +74,7 @@ spec:
           name: api
         env:
         - name: kafka_bootstrap
-          value: bootstrap.kafka:9092
+          value: bootstrap.kafka-v2:9092
         - name: kafka_group_id
           valueFrom:
             fieldRef:
@@ -113,7 +113,7 @@ spec:
           name: api
         env:
         - name: kafka_bootstrap
-          value: bootstrap.kafka:9092
+          value: bootstrap.kafka-v2:9092
         - name: kafka_group_id
           valueFrom:
             fieldRef:
