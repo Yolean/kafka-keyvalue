@@ -62,8 +62,8 @@ public class UpdateRecord implements Serializable {
   }
 
   /**
-   * Timestamp is just a value we carry during processing, not serialized to clients
-   * (at least not until we have a convincing use case for including it in onupdate).
+   * @return kafka's record timestamp
+   * @throws IllegalStateException indicating org.apache.kafka.common.record.TimestampType.NO_TIMESTAMP_TYPE
    */
   public long getTimestamp() {
     if (timestamp == NO_TIMESTAMP) {

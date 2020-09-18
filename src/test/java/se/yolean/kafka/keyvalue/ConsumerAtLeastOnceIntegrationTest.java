@@ -102,7 +102,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
 
     assertEquals(2, consumer.cache.size(), "Should have consumed two records with different key");
     assertTrue(consumer.cache.containsKey("k1"), "Should contain the first key");
-    assertEquals("v1", new String(consumer.cache.get("k1")), "Should have the first key's value");
+    assertEquals("v1", consumer.cache.get("k1").getVstr(), "Should have the first key's value");
 
     producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k1", "v2".getBytes())).get();
     // TODO per-test kafka topic: producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k3", "v2".getBytes())).get();
@@ -110,9 +110,9 @@ public class ConsumerAtLeastOnceIntegrationTest {
 
     consumer.run();
     // TODO per-test kafka topic: assertEquals(3, consumer.cache.size(), "Should have got the additional key from the last batch");
-    assertEquals("v2", new String(consumer.cache.get("k1")), "Value should come from the latest record");
+    assertEquals("v2", consumer.cache.get("k1").getVstr(), "Value should come from the latest record");
 
-    Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 2, 1, "k1"));
+    Mockito.verify(consumer.onupdate).handle(new UpdateRecord(TOPIC, 2, 1, "k1", 1));
 
     // API extended after this test was written. We should probably verify order too.
     Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollStart(Collections.singletonList(TOPIC));
@@ -124,7 +124,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
 
     // verify KafkaCache interface methods, as the REST resource uses that API
     KafkaCache cache = (KafkaCache) consumer;
-    assertEquals("v2", new String(cache.getValue("k1")));
+    assertEquals("v2", cache.getValue("k1").getVstr());
 
     // TODO assertEquals(1, cache.getCurrentOffset(TOPIC, 0));
     // TODO assertEquals(null, cache.getCurrentOffset(TOPIC, 1));
@@ -137,11 +137,11 @@ public class ConsumerAtLeastOnceIntegrationTest {
     assertEquals("k2", keys.next());
     assertFalse(keys.hasNext());
 
-    Iterator<byte[]> values = cache.getValues();
+    Iterator<CacheRecord> values = cache.getValues();
     assertTrue(values.hasNext());
-    assertEquals("v2", new String(values.next()));
+    assertEquals("v2", values.next().getVstr());
     assertTrue(values.hasNext());
-    assertEquals("v1", new String(values.next()));
+    assertEquals("v1", values.next().getVstr());
   }
 
   @Test

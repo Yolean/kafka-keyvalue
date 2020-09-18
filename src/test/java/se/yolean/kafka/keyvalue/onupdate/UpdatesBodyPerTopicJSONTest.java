@@ -41,7 +41,7 @@ class UpdatesBodyPerTopicJSONTest {
   @Test
   void test1() throws UnsupportedEncodingException {
     UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t1");
-    body.handle(new UpdateRecord("t", 1, 3, "k1"));
+    body.handle(new UpdateRecord("t", 1, 3, "k1", 1));
     Map<String, String> headers = body.getHeaders();
     ByteArrayOutputStream content = new ByteArrayOutputStream();
     body.getContent(content);
@@ -55,8 +55,8 @@ class UpdatesBodyPerTopicJSONTest {
   @Test
   void test2() throws UnsupportedEncodingException {
     UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t2");
-    body.handle(new UpdateRecord("t", 0, 10, "k1"));
-    body.handle(new UpdateRecord("t", 0, 11, "k2"));
+    body.handle(new UpdateRecord("t", 0, 10, "k1", 2));
+    body.handle(new UpdateRecord("t", 0, 11, "k2", 3));
     body.getHeaders();
     assertEquals(
         "{\"v\":1,\"topic\":\"t2\",\"offsets\":{\"0\":11},\"updates\":{\"k1\":{},\"k2\":{}}}",
