@@ -36,6 +36,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.record.TimestampType;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
@@ -304,7 +305,10 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       Iterator<ConsumerRecord<String, byte[]>> records = polled.iterator();
       while (records.hasNext()) {
         ConsumerRecord<String, byte[]> record = records.next();
-        UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
+        if (record.timestampType() == TimestampType.NO_TIMESTAMP_TYPE) {
+          logger.error("NO_TIMESTAMP_TYPE not supported, try an earlier KKV release", record.timestampType());
+        }
+        UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key(), record.timestamp());
         toStats(update);
         cache.put(record.key(), record.value());
 		    Long start = nextUncommitted.get(update.getTopicPartition());

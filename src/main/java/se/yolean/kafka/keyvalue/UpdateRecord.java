@@ -22,7 +22,7 @@ public class UpdateRecord implements Serializable {
 
   private static final long serialVersionUID = 1L;
 
-  private static final long NO_TIMESTAMP = -1;
+  public static final long NO_TIMESTAMP = -1;
 
   private final TopicPartition topicPartition;
   private final long offset;
@@ -32,20 +32,12 @@ public class UpdateRecord implements Serializable {
 
   private long timestamp = NO_TIMESTAMP;
 
-  public UpdateRecord(
-      String topic,
-      int partition,
-      long offset,
-      String key) {
+  public UpdateRecord(String topic, int partition, long offset, String key, long timestamp) {
     this.topicPartition = new TopicPartition(topic, partition);
     this.offset = offset;
     this.key = key;
     this.string = topicPartition.toString() + '-' + offset + '[' + key + ']';
     this.hashCode = string.hashCode();
-  }
-
-  public UpdateRecord(String topic, int partition, long offset, String key, long timestamp) {
-    this(topic, partition, offset, key);
     this.timestamp  = timestamp;
   }
 
