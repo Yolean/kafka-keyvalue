@@ -46,16 +46,6 @@ ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${I
 
 FROM yolean/runtime-quarkus:f63772d02556021dbcb9f49fb9eff3d3dbe1b636@sha256:5619b52835239a57ab324500f8d17bc935c4e38e9f0f1a5d28348955df0a33b0
 
-COPY --from=dev \
-  /lib/x86_64-linux-gnu/libz.so.* \
-  /lib/x86_64-linux-gnu/
-
-COPY --from=dev \
-  /usr/lib/x86_64-linux-gnu/libzstd.so.* \
-  /usr/lib/x86_64-linux-gnu/libsnappy.so.* \
-  /usr/lib/x86_64-linux-gnu/liblz4.so.* \
-  /usr/lib/x86_64-linux-gnu/
-
 COPY --from=dev /workspace/target/*-runner /usr/local/bin/quarkus
 
 EXPOSE 8090
