@@ -1,4 +1,4 @@
-FROM yolean/builder-quarkus:3a9207474eea4e269b2dc214fa7d4d7c6a3b2481@sha256:21264cb6c62944f2ddc38818b0907cc0c854fe5c43004c3d4bceb188a86ebcce \
+FROM yolean/builder-quarkus:f63772d02556021dbcb9f49fb9eff3d3dbe1b636@sha256:6817137412415bc62dea3869824c424abc9c0246e3ac684b7454d4d29ba0b946 \
   as dev
 
 COPY pom.xml .
@@ -24,7 +24,7 @@ RUN mvn --batch-mode $build | tee build.log; \
       (cd target/*-source-jar; sh - ); \
   rm build.log
 
-FROM solsson/kafka:jre@sha256:9374540e6643ac577056e900872793cc4a96687025e3b492e93ad8d10c8e429b \
+FROM yolean/java:f63772d02556021dbcb9f49fb9eff3d3dbe1b636@sha256:1bc5b3456a64fb70c85825682777c55a0999d9be56aca9bb1f507fe9b9171f83 \
   as jvm
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
@@ -44,7 +44,7 @@ ENTRYPOINT [ "java", \
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
-FROM gcr.io/distroless/base-debian10:nonroot@sha256:78f2372169e8d9c028da3856bce864749f2bb4bbe39c69c8960a6e40498f8a88
+FROM yolean/runtime-quarkus:f63772d02556021dbcb9f49fb9eff3d3dbe1b636@sha256:5619b52835239a57ab324500f8d17bc935c4e38e9f0f1a5d28348955df0a33b0
 
 COPY --from=dev \
   /lib/x86_64-linux-gnu/libz.so.* \
@@ -56,10 +56,9 @@ COPY --from=dev \
   /usr/lib/x86_64-linux-gnu/liblz4.so.* \
   /usr/lib/x86_64-linux-gnu/
 
-COPY --from=dev /workspace/target/*-runner /usr/local/bin/kafka-keyvalue
+COPY --from=dev /workspace/target/*-runner /usr/local/bin/quarkus
 
 EXPOSE 8090
-ENTRYPOINT ["kafka-keyvalue", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager"]
 CMD ["-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090"]
 
 ARG SOURCE_COMMIT
