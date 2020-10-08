@@ -40,6 +40,10 @@ export interface IKafkaKeyValueMetrics {
 
 export type UpdateHandler = (key: string, value: any) => any
 
+export class NotFoundError extends Error {
+  notFound = true
+}
+
 export async function decompressGzipResponse(buffer: Buffer): Promise<any> {
   let msg;
   try {
@@ -234,10 +238,7 @@ export default class KafkaKeyValue {
     const parseTiming = this.metrics.kafka_key_value_parse_latency_seconds.startTimer({ cache_name: this.getCacheName() });
 
     if (res.status === 404) {
-      const notFoundErr = new Error('Cache does not contain key: ' + key);
-      // TODO
-      // notFoundErr.notFound = true;
-      throw notFoundErr;
+      throw new NotFoundError('Cache does not contain key: ' + key);
     } else if (!res.ok) {
       const msg = 'Unknown status response: ' + res.status;
       logger.error({ res }, msg);
