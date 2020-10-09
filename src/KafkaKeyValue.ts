@@ -1,4 +1,4 @@
-import fetch, { Response } from 'node-fetch';
+import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
 import { Counter, Gauge, CounterConfiguration, GaugeConfiguration, HistogramConfiguration, Histogram } from 'prom-client';
 import getLogger from './logger';
 import { gunzip, gzip, InputType } from 'zlib';
@@ -17,6 +17,7 @@ export interface IKafkaKeyValue {
   pixyHost: string
   gzip?: boolean
   metrics: IKafkaKeyValueMetrics
+  fetchImpl?: IFetchImpl
 }
 
 export interface CounterConstructor {
@@ -70,12 +71,12 @@ async function parseResponse(res: Response, assumeGzipped: boolean): Promise<any
   else return res.json();
 }
 
-async function produceViaPixy(pixyHost: string, topic: string, key: string, value: any, gzip: boolean) {
+async function produceViaPixy(fetchImpl: IFetchImpl, pixyHost: string, topic: string, key: string, value: any, gzip: boolean) {
   const stringValue: string = JSON.stringify(value);
   let valueReady: Promise<string | Buffer> = Promise.resolve(stringValue);
   if (gzip) valueReady = compressGzipPayload(stringValue);
 
-  const res = await fetch(`${pixyHost}/topics/${topic}/messages?key=${key}&sync`, {
+  const res = await fetchImpl(`${pixyHost}/topics/${topic}/messages?key=${key}&sync`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -114,6 +115,14 @@ export async function streamResponseBody(body: NodeJS.ReadableStream, onValue: (
   });
 }
 
+export type IFetchImpl = (url: RequestInfo, init?: RequestInit | undefined) => Promise<Response>;
+
+function getFetchImpl(config: IKafkaKeyValue): IFetchImpl {
+  let fetchImpl = config.fetchImpl;
+  if (fetchImpl) return fetchImpl;
+  else return fetch;
+}
+
 export default class KafkaKeyValue {
 
   static createMetrics(counterCtr: CounterConstructor, gaugeCtr: GaugeConstructor, histogramCtr: HistogramConstructor): IKafkaKeyValueMetrics {
@@ -145,11 +154,13 @@ export default class KafkaKeyValue {
   private readonly config: IKafkaKeyValue
   private readonly updateHandlers: UpdateHandler[] = [];
   private readonly metrics: IKafkaKeyValueMetrics;
+  private readonly fetchImpl: IFetchImpl;
 
   constructor(config: IKafkaKeyValue) {
     this.config = config;
     this.topic = config.topicName;
     this.metrics = config.metrics;
+    this.fetchImpl = getFetchImpl(config);
 
     updateEvents.on('update', async (requestBody) => {
       if (requestBody.v !== 1) throw new Error(`Unknown kkv onupdate protocol ${requestBody.v}!`);
@@ -198,7 +209,7 @@ export default class KafkaKeyValue {
     logger.info({ attempt, cacheHost: this.getCacheHost() }, 'Polling cache for readiness');
     let res;
     try {
-      res = await fetch(this.getCacheHost() + '/health/ready', {
+      res = await this.fetchImpl(this.getCacheHost() + '/health/ready', {
         headers: { 'Content-Type': 'application/json' }
       });
     } catch (e) {
@@ -232,7 +243,7 @@ export default class KafkaKeyValue {
   async get(key: string): Promise<any> {
     // NOTE: Expects raw=json|gzipped-json
     const httpGetTiming = this.metrics.kafka_key_value_get_latency_seconds.startTimer({ cache_name: this.getCacheName() })
-    const res = await fetch(`${this.getCacheHost()}/cache/v1/raw/${key}`);
+    const res = await this.fetchImpl(`${this.getCacheHost()}/cache/v1/raw/${key}`);
     httpGetTiming();
 
     const parseTiming = this.metrics.kafka_key_value_parse_latency_seconds.startTimer({ cache_name: this.getCacheName() });
@@ -257,7 +268,7 @@ export default class KafkaKeyValue {
     logger.debug({ cache_name: this.getCacheName() }, 'Streaming values for cache started');
 
     const streamTiming = this.metrics.kafka_key_value_stream_latency_seconds.startTimer({ cache_name: this.getCacheName() });
-    const res = await fetch(`${this.getCacheHost()}/cache/v1/values`);
+    const res = await this.fetchImpl(`${this.getCacheHost()}/cache/v1/values`);
 
     await streamResponseBody(res.body, onValue);
 
@@ -266,11 +277,11 @@ export default class KafkaKeyValue {
   }
 
   async put(key: string, value: any): Promise<number> {
-    return produceViaPixy(this.getPixyHost(), this.topic, key, value, this.config.gzip || false);
+    return produceViaPixy(this.fetchImpl, this.getPixyHost(), this.topic, key, value, this.config.gzip || false);
   }
 
   async putOther(topic: string, key: string, value: any, gzip = false): Promise<number> {
-    return produceViaPixy(this.getPixyHost(), topic, key, value, gzip);
+    return produceViaPixy(this.fetchImpl, this.getPixyHost(), topic, key, value, gzip);
   }
 
   on(event: 'put', fn: UpdateHandler): void {
