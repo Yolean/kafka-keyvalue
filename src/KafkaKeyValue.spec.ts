@@ -1,6 +1,7 @@
 import KafkaKeyValue, { streamResponseBody, compressGzipPayload, decompressGzipResponse } from './KafkaKeyValue';
 import updateEvents from './update-events';
 import { EventEmitter } from 'events';
+import { fail } from 'assert';
 
 const promClientMock = {
   Counter: class Counter {
@@ -61,6 +62,66 @@ const promClientMock = {
 };
 
 describe('KafkaKeyValue', function () {
+
+  describe('Sending put requests reliably to pixy', function () {
+
+    it('needs to retry for a while before failing', async function () {
+
+      const failedResponse = {
+        status: 503,
+        json: () => {}
+      };
+
+      const successResponse = {
+        status: 200,
+        json: async () => ({ offset: 3 })
+      };
+
+      const fetchMock = jest.fn();
+      fetchMock.mockResolvedValueOnce(failedResponse);
+      fetchMock.mockResolvedValueOnce(successResponse);
+
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic01',
+        fetchImpl: fetchMock
+      });
+
+      const offset = await kkv.put('key1', 'value1');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(offset).toEqual(3);
+    });
+
+    it('rejects after a number of times', async function () {
+
+      const failedResponse = {
+        status: 503,
+        json: () => {}
+      };
+
+      const fetchMock = jest.fn();
+      fetchMock.mockResolvedValue(failedResponse);
+
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic01',
+        fetchImpl: fetchMock
+      });
+
+      try {
+        await kkv.put('key1', 'value1', { intervalMs: 100, nRetries: 10 });
+        fail('Put should have rejected eventually if we never get 200 back');
+      } catch (err) {
+        expect(fetchMock).toHaveBeenCalledTimes(11);
+      }
+    });
+  });
 
   describe('gzipping payloads pre-put', function () {
 

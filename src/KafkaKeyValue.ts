@@ -84,6 +84,10 @@ async function produceViaPixy(fetchImpl: IFetchImpl, pixyHost: string, topic: st
     body: await valueReady
   });
 
+  if (res.status !== 200) {
+    throw new Error('Invalid statusCode: ' + res.status);
+  }
+
   const json = await res.json();
   logger.debug({ res, json }, 'KafkaCache put returned');
 
@@ -117,11 +121,32 @@ export async function streamResponseBody(body: NodeJS.ReadableStream, onValue: (
 
 export type IFetchImpl = (url: RequestInfo, init?: RequestInit | undefined) => Promise<Response>;
 
+export interface IRetryOptions {
+  nRetries: number,
+  intervalMs: number
+}
+
 function getFetchImpl(config: IKafkaKeyValue): IFetchImpl {
   let fetchImpl = config.fetchImpl;
   if (fetchImpl) return fetchImpl;
   else return fetch;
 }
+
+async function retryTimes<T>(fn: () => Promise<T>, options: IRetryOptions): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (options.nRetries === 0) throw err;
+
+    await new Promise(resolve => setTimeout(resolve, options.intervalMs));
+    return retryTimes(fn, { nRetries: options.nRetries - 1, intervalMs: options.intervalMs });
+  }
+}
+
+export const PUT_RETRY_DEFAULTS: IRetryOptions = {
+  nRetries: 10,
+  intervalMs: 1000
+};
 
 export default class KafkaKeyValue {
 
@@ -276,12 +301,12 @@ export default class KafkaKeyValue {
     logger.debug({ cache_name: this.getCacheName() }, 'Streaming values for cache finished');
   }
 
-  async put(key: string, value: any): Promise<number> {
-    return produceViaPixy(this.fetchImpl, this.getPixyHost(), this.topic, key, value, this.config.gzip || false);
+  async put(key: string, value: any, options: IRetryOptions = PUT_RETRY_DEFAULTS): Promise<number> {
+    return retryTimes<number>(() => produceViaPixy(this.fetchImpl, this.getPixyHost(), this.topic, key, value, this.config.gzip || false), options);
   }
 
-  async putOther(topic: string, key: string, value: any, gzip = false): Promise<number> {
-    return produceViaPixy(this.fetchImpl, this.getPixyHost(), topic, key, value, gzip);
+  async putOther(topic: string, key: string, value: any, gzip = false, options: IRetryOptions = PUT_RETRY_DEFAULTS): Promise<number> {
+    return retryTimes<number>(() => produceViaPixy(this.fetchImpl, this.getPixyHost(), topic, key, value, gzip), options);
   }
 
   on(event: 'put', fn: UpdateHandler): void {
