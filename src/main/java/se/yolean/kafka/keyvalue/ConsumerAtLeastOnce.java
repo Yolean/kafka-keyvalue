@@ -113,7 +113,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   HealthCheckResponseBuilder health = HealthCheckResponse
       .named("consume-loop")
-      .up();
+      .down();
 
   Map<TopicPartition,Long> currentOffsets = new HashMap<>(1);
 
@@ -189,7 +189,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
    */
   @Override
   public HealthCheckResponse call() {
-    if (runner != null && runner.isAlive()) {
+    if (this.isReady()) {
       health = health.up();
     } else {
       health = health.down();

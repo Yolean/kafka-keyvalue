@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+GIT_STATUS=$(git status --untracked-files=no --porcelain=v2)
+[ ! -z "$SOURCE_COMMIT" ] || export SOURCE_COMMIT=$(git rev-parse --verify HEAD)
+[ -z "$GIT_STATUS" ] || export SOURCE_COMMIT="$SOURCE_COMMIT-dirty"
+[ ! -z "$SOURCE_BRANCH" ] || export SOURCE_BRANCH=$(git branch --show-current)
+[ ! -z "$IMAGE_NAME" ] || export IMAGE_NAME="yolean/kafka-keyvalue:$SOURCE_COMMIT"
+
 echo "------ HOOK START - BUILD -------"
 printenv
 
@@ -23,6 +29,8 @@ docker build -t $(imagename jvm) --build-arg build="package $mvnflags" --target=
 docker build -t $IMAGE_NAME  --build-arg build="package -Pnative $mvnflags" \
   --build-arg SOURCE_COMMIT=$SOURCE_COMMIT --build-arg SOURCE_BRANCH=$SOURCE_BRANCH --build-arg IMAGE_NAME=$IMAGE_NAME .
 
-[ ! -z "$SOURCE_COMMIT" ] && docker push $(imagename jvm)
+[ ! -z "$SOURCE_COMMIT" ] && [ -z "$GIT_STATUS" ] && [ -z "$NOPUSH" ] && \
+  docker push $IMAGE_NAME && \
+  docker push $(imagename jvm)
 
 echo "------ HOOK END   - BUILD -------"
