@@ -127,7 +127,7 @@ describe('KafkaKeyValue', function () {
 
     it('works', async function () {
       const buffer: Buffer = await compressGzipPayload(JSON.stringify({ foo: 'bar' }));
-      const response = await decompressGzipResponse(buffer);
+      const response = await decompressGzipResponse(console, buffer);
       expect(response).toEqual({ foo: 'bar' });
     });
   });
@@ -139,7 +139,7 @@ describe('KafkaKeyValue', function () {
 
 
       const onValue = jest.fn();
-      const streamCompleted = streamResponseBody(<any>bodyStream, onValue);
+      const streamCompleted = streamResponseBody(console, <any>bodyStream, onValue);
 
       bodyStream.emit('data', JSON.stringify({ foo: 'bar' }) + '\n');
       bodyStream.emit('data', JSON.stringify({ foo: 'bar2' }).substr(0, 4));
