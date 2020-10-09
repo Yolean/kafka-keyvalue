@@ -189,7 +189,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
    */
   @Override
   public HealthCheckResponse call() {
-    if (runner != null && runner.isAlive()) {
+    if (this.isReady()) {
       health = health.up();
     } else {
       health = health.down();
