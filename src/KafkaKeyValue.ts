@@ -1,11 +1,10 @@
-import fetch, { Response } from 'node-fetch';
+import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
 import { Counter, Gauge, CounterConfiguration, GaugeConfiguration, HistogramConfiguration, Histogram } from 'prom-client';
 import getLogger from './logger';
 import { gunzip, gzip, InputType } from 'zlib';
 import { promisify } from 'util';
 import updateEvents from './update-events';
 
-const logger = getLogger({ __filename });
 const pGunzip = promisify<InputType, Buffer>(gunzip);
 const pGzip = promisify<InputType, Buffer>(gzip);
 
@@ -17,6 +16,7 @@ export interface IKafkaKeyValue {
   pixyHost: string
   gzip?: boolean
   metrics: IKafkaKeyValueMetrics
+  fetchImpl?: IFetchImpl
 }
 
 export interface CounterConstructor {
@@ -44,7 +44,7 @@ export class NotFoundError extends Error {
   notFound = true
 }
 
-export async function decompressGzipResponse(buffer: Buffer): Promise<any> {
+export async function decompressGzipResponse(logger, buffer: Buffer): Promise<any> {
   let msg;
   try {
     msg = await pGunzip(buffer);
@@ -65,17 +65,17 @@ export async function compressGzipPayload(payload: string): Promise<Buffer> {
   return pGzip(payload);
 }
 
-async function parseResponse(res: Response, assumeGzipped: boolean): Promise<any> {
-  if (assumeGzipped) return decompressGzipResponse(await res.buffer());
+async function parseResponse(logger, res: Response, assumeGzipped: boolean): Promise<any> {
+  if (assumeGzipped) return decompressGzipResponse(logger, await res.buffer());
   else return res.json();
 }
 
-async function produceViaPixy(pixyHost: string, topic: string, key: string, value: any, gzip: boolean) {
+async function produceViaPixy(fetchImpl: IFetchImpl, logger, pixyHost: string, topic: string, key: string, value: any, gzip: boolean) {
   const stringValue: string = JSON.stringify(value);
   let valueReady: Promise<string | Buffer> = Promise.resolve(stringValue);
   if (gzip) valueReady = compressGzipPayload(stringValue);
 
-  const res = await fetch(`${pixyHost}/topics/${topic}/messages?key=${key}&sync`, {
+  const res = await fetchImpl(`${pixyHost}/topics/${topic}/messages?key=${key}&sync`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -83,13 +83,17 @@ async function produceViaPixy(pixyHost: string, topic: string, key: string, valu
     body: await valueReady
   });
 
+  if (res.status !== 200) {
+    throw new Error('Invalid statusCode: ' + res.status);
+  }
+
   const json = await res.json();
   logger.debug({ res, json }, 'KafkaCache put returned');
 
   return json.offset;
 }
 
-export async function streamResponseBody(body: NodeJS.ReadableStream, onValue: (value: any) => void) {
+export async function streamResponseBody(logger, body: NodeJS.ReadableStream, onValue: (value: any) => void) {
   return new Promise((resolve, reject) => {
 
     let payload = '';
@@ -113,6 +117,35 @@ export async function streamResponseBody(body: NodeJS.ReadableStream, onValue: (
     body.on('error', reject);
   });
 }
+
+export type IFetchImpl = (url: RequestInfo, init?: RequestInit | undefined) => Promise<Response>;
+
+export interface IRetryOptions {
+  nRetries: number,
+  intervalMs: number
+}
+
+function getFetchImpl(config: IKafkaKeyValue): IFetchImpl {
+  let fetchImpl = config.fetchImpl;
+  if (fetchImpl) return fetchImpl;
+  else return fetch;
+}
+
+async function retryTimes<T>(fn: () => Promise<T>, options: IRetryOptions): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (options.nRetries === 0) throw err;
+
+    await new Promise(resolve => setTimeout(resolve, options.intervalMs));
+    return retryTimes(fn, { nRetries: options.nRetries - 1, intervalMs: options.intervalMs });
+  }
+}
+
+export const PUT_RETRY_DEFAULTS: IRetryOptions = {
+  nRetries: 10,
+  intervalMs: 1000
+};
 
 export default class KafkaKeyValue {
 
@@ -145,11 +178,15 @@ export default class KafkaKeyValue {
   private readonly config: IKafkaKeyValue
   private readonly updateHandlers: UpdateHandler[] = [];
   private readonly metrics: IKafkaKeyValueMetrics;
+  private readonly fetchImpl: IFetchImpl;
+  private readonly logger;
 
   constructor(config: IKafkaKeyValue) {
     this.config = config;
     this.topic = config.topicName;
     this.metrics = config.metrics;
+    this.fetchImpl = getFetchImpl(config);
+    this.logger = getLogger({ name: `kkv:${this.getCacheName()}` });
 
     updateEvents.on('update', async (requestBody) => {
       if (requestBody.v !== 1) throw new Error(`Unknown kkv onupdate protocol ${requestBody.v}!`);
@@ -159,22 +196,22 @@ export default class KafkaKeyValue {
       } = requestBody;
 
       const expectedTopic = this.topic;
-      logger.debug({ topic, expectedTopic }, 'Matching update event against expected topic');
+      this.logger.debug({ topic, expectedTopic }, 'Matching update event against expected topic');
       if (topic !== expectedTopic) {
-        logger.debug({ topic, expectedTopic }, 'Update event ignored due to topic mismatch. Business as usual.');
+        this.logger.debug({ topic, expectedTopic }, 'Update event ignored due to topic mismatch. Business as usual.');
         return;
       }
 
       if (this.updateHandlers.length > 0) {
         const updatesBeingPropagated = Object.keys(updates).map(async key => {
-          logger.debug({ key }, 'Received update event for key');
+          this.logger.debug({ key }, 'Received update event for key');
           const value = await this.get(key);
           this.updateHandlers.forEach(fn => fn(key, value));
         });
 
         await Promise.all(updatesBeingPropagated);
       } else {
-        logger.debug({ topic }, 'No update handlers registered, update event has no effect');
+        this.logger.debug({ topic }, 'No update handlers registered, update event has no effect');
       }
 
       // NOTE: Letting all handlers complete before updating the metric
@@ -195,26 +232,26 @@ export default class KafkaKeyValue {
       return this.onReady(attempt + 1);
     };
 
-    logger.info({ attempt, cacheHost: this.getCacheHost() }, 'Polling cache for readiness');
+    this.logger.info({ attempt, cacheHost: this.getCacheHost() }, 'Polling cache for readiness');
     let res;
     try {
-      res = await fetch(this.getCacheHost() + '/health/ready', {
+      res = await this.fetchImpl(this.getCacheHost() + '/health/ready', {
         headers: { 'Content-Type': 'application/json' }
       });
     } catch (e) {
       if (e.errno === 'ECONNREFUSED') {
-        logger.info({ err: e }, 'Identified as retryable');
+        this.logger.info({ err: e }, 'Identified as retryable');
         return retry();
       }
       throw e;
     }
 
     if (res.status !== 200) {
-      logger.info({ responseBody: await res.text(), statusCode: res.status }, 'Cache not ready yet');
+      this.logger.info({ responseBody: await res.text(), statusCode: res.status }, 'Cache not ready yet');
       return retry();
     }
 
-    logger.info('200 received, cache ready');
+    this.logger.info('200 received, cache ready');
   }
 
   private getCacheHost() {
@@ -232,7 +269,7 @@ export default class KafkaKeyValue {
   async get(key: string): Promise<any> {
     // NOTE: Expects raw=json|gzipped-json
     const httpGetTiming = this.metrics.kafka_key_value_get_latency_seconds.startTimer({ cache_name: this.getCacheName() })
-    const res = await fetch(`${this.getCacheHost()}/cache/v1/raw/${key}`);
+    const res = await this.fetchImpl(`${this.getCacheHost()}/cache/v1/raw/${key}`);
     httpGetTiming();
 
     const parseTiming = this.metrics.kafka_key_value_parse_latency_seconds.startTimer({ cache_name: this.getCacheName() });
@@ -241,36 +278,36 @@ export default class KafkaKeyValue {
       throw new NotFoundError('Cache does not contain key: ' + key);
     } else if (!res.ok) {
       const msg = 'Unknown status response: ' + res.status;
-      logger.error({ res }, msg);
+      this.logger.error({ res }, msg);
       throw new Error(msg);
     }
 
-    const value = parseResponse(res, this.config.gzip || false);
+    const value = parseResponse(this.logger, res, this.config.gzip || false);
 
     parseTiming();
-    logger.debug({ key, value }, 'KafkaCache get value returned')
+    this.logger.debug({ key, value }, 'KafkaCache get value returned')
     return value;
   }
 
   async streamValues(onValue: (value: any) => void): Promise<void> {
     if (this.config.gzip) throw new Error('Unsuported method for gzipped topics!');
-    logger.debug({ cache_name: this.getCacheName() }, 'Streaming values for cache started');
+    this.logger.debug({ cache_name: this.getCacheName() }, 'Streaming values for cache started');
 
     const streamTiming = this.metrics.kafka_key_value_stream_latency_seconds.startTimer({ cache_name: this.getCacheName() });
-    const res = await fetch(`${this.getCacheHost()}/cache/v1/values`);
+    const res = await this.fetchImpl(`${this.getCacheHost()}/cache/v1/values`);
 
-    await streamResponseBody(res.body, onValue);
+    await streamResponseBody(this.logger, res.body, onValue);
 
     streamTiming();
-    logger.debug({ cache_name: this.getCacheName() }, 'Streaming values for cache finished');
+    this.logger.debug({ cache_name: this.getCacheName() }, 'Streaming values for cache finished');
   }
 
-  async put(key: string, value: any): Promise<number> {
-    return produceViaPixy(this.getPixyHost(), this.topic, key, value, this.config.gzip || false);
+  async put(key: string, value: any, options: IRetryOptions = PUT_RETRY_DEFAULTS): Promise<number> {
+    return retryTimes<number>(() => produceViaPixy(this.fetchImpl, this.logger, this.getPixyHost(), this.topic, key, value, this.config.gzip || false), options);
   }
 
-  async putOther(topic: string, key: string, value: any, gzip = false): Promise<number> {
-    return produceViaPixy(this.getPixyHost(), topic, key, value, gzip);
+  async putOther(topic: string, key: string, value: any, gzip = false, options: IRetryOptions = PUT_RETRY_DEFAULTS): Promise<number> {
+    return retryTimes<number>(() => produceViaPixy(this.fetchImpl, this.logger, this.getPixyHost(), topic, key, value, gzip), options);
   }
 
   on(event: 'put', fn: UpdateHandler): void {
