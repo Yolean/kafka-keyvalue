@@ -1,4 +1,4 @@
-FROM yolean/builder-quarkus:f63772d02556021dbcb9f49fb9eff3d3dbe1b636@sha256:6817137412415bc62dea3869824c424abc9c0246e3ac684b7454d4d29ba0b946 \
+FROM yolean/builder-quarkus:07ebabe607a117c8b6446c74d16eba9afe773ef4@sha256:ee3216eca700410d3f52d773d38394484f971e5bfdd38bb00a4f2de4e2db9eb9 \
   as dev
 
 COPY pom.xml .
