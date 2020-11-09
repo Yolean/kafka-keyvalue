@@ -36,6 +36,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.record.TimestampType;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
@@ -98,7 +99,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   @Inject
   //@javax.inject.Named("cache")
-  Map<String, byte[]> cache;
+  Map<String, CacheRecord> cache;
 
   @Inject
   OnUpdate onupdate;
@@ -237,7 +238,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     }
   }
 
-  void run(final KafkaConsumer<String, byte[]> consumer, final Map<String, byte[]> cache, final long polls) throws
+  void run(final KafkaConsumer<String, byte[]> consumer, final Map<String, CacheRecord> cache, final long polls) throws
       InterruptedException,
       org.apache.kafka.common.errors.TimeoutException,
       org.apache.kafka.clients.consumer.NoOffsetForPartitionException,
@@ -304,9 +305,10 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       Iterator<ConsumerRecord<String, byte[]>> records = polled.iterator();
       while (records.hasNext()) {
         ConsumerRecord<String, byte[]> record = records.next();
-        UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
+        UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key(),
+            record.timestampType() == TimestampType.NO_TIMESTAMP_TYPE ? UpdateRecord.NO_TIMESTAMP : record.timestamp());
         toStats(update);
-        cache.put(record.key(), record.value());
+        cache.put(record.key(), new CacheRecord(record.value(), update));
 		    Long start = nextUncommitted.get(update.getTopicPartition());
         if (start == null) {
           throw new IllegalStateException("There's no start offset for " + update.getTopicPartition() + ", at consumed offset " + update.getOffset() + " key " + update.getKey());
@@ -349,7 +351,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   }
 
   @Override
-  public byte[] getValue(String key) {
+  public CacheRecord getValue(String key) {
     return cache.get(key);
   }
 
@@ -359,7 +361,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   }
 
   @Override
-  public Iterator<byte[]> getValues() {
+  public Iterator<CacheRecord> getValues() {
     return cache.values().iterator();
   }
 

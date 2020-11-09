@@ -22,7 +22,7 @@ public class UpdateRecord implements Serializable {
 
   private static final long serialVersionUID = 1L;
 
-  private static final long NO_TIMESTAMP = -1;
+  public static final long NO_TIMESTAMP = -1;
 
   private final TopicPartition topicPartition;
   private final long offset;
@@ -32,20 +32,12 @@ public class UpdateRecord implements Serializable {
 
   private long timestamp = NO_TIMESTAMP;
 
-  public UpdateRecord(
-      String topic,
-      int partition,
-      long offset,
-      String key) {
+  public UpdateRecord(String topic, int partition, long offset, String key, long timestamp) {
     this.topicPartition = new TopicPartition(topic, partition);
     this.offset = offset;
     this.key = key;
     this.string = topicPartition.toString() + '-' + offset + '[' + key + ']';
     this.hashCode = string.hashCode();
-  }
-
-  public UpdateRecord(String topic, int partition, long offset, String key, long timestamp) {
-    this(topic, partition, offset, key);
     this.timestamp  = timestamp;
   }
 
@@ -70,8 +62,8 @@ public class UpdateRecord implements Serializable {
   }
 
   /**
-   * Timestamp is just a value we carry during processing, not serialized to clients
-   * (at least not until we have a convincing use case for including it in onupdate).
+   * @return kafka's record timestamp
+   * @throws IllegalStateException indicating org.apache.kafka.common.record.TimestampType.NO_TIMESTAMP_TYPE
    */
   public long getTimestamp() {
     if (timestamp == NO_TIMESTAMP) {

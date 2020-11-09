@@ -37,11 +37,13 @@ import javax.ws.rs.core.UriInfo;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 
+import se.yolean.kafka.keyvalue.CacheRecord;
 import se.yolean.kafka.keyvalue.KafkaCache;
 
 @Path("/cache/v1")
 public class CacheResource implements HealthCheck {
 
+  private static final String TIMESTAMP_RESPONSE_HEADER = "x-kkv-record-timestamp";
   @Inject // Note that this can be null if cache is still in it's startup event handler
   KafkaCache cache = null;
 
@@ -69,7 +71,7 @@ public class CacheResource implements HealthCheck {
    * @throws NotFoundException If the key wasn't in the cache or if the value
    *                           somehow was null
    */
-  byte[] getCacheValue(String key) throws NotFoundException {
+  CacheRecord getCacheValue(String key) throws NotFoundException {
     requireUpToDateCache();
     if (key == null) {
       throw new javax.ws.rs.BadRequestException("Request key can not be null");
@@ -77,7 +79,7 @@ public class CacheResource implements HealthCheck {
     if (key == "") {
       throw new javax.ws.rs.BadRequestException("Request key can not be empty");
     }
-    final byte[] value = cache.getValue(key);
+    final CacheRecord value = cache.getValue(key);
     if (value == null) {
       throw new NotFoundException();
     }
@@ -87,9 +89,10 @@ public class CacheResource implements HealthCheck {
   @GET
   @Path("/raw/{key}")
   @Produces(MediaType.APPLICATION_OCTET_STREAM)
-  public byte[] valueByKey(@PathParam("key") final String key, @Context UriInfo uriInfo) {
+  public Response valueByKey(@PathParam("key") final String key, @Context UriInfo uriInfo) {
     requireUpToDateCache();
-    return getCacheValue(key);
+    CacheRecord value = getCacheValue(key);
+    return Response.ok().header(TIMESTAMP_RESPONSE_HEADER, Long.toString(value.getTimestamp())).entity(value.getValue()).build();
   }
 
   @GET
@@ -163,13 +166,13 @@ public class CacheResource implements HealthCheck {
   @Produces(MediaType.TEXT_PLAIN)
   public Response values() {
     requireUpToDateCache();
-    Iterator<byte[]> values = cache.getValues();
+    Iterator<CacheRecord> values = cache.getValues();
 
     StreamingOutput stream = new StreamingOutput() {
       @Override
       public void write(OutputStream out) throws IOException, WebApplicationException {
         while (values.hasNext()) {
-          out.write(values.next());
+          out.write(values.next().getValue());
           out.write('\n');
         }
       }

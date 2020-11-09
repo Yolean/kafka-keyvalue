@@ -80,7 +80,7 @@ public class ErrorHandlingKafkaIntegrationTest {
     assertEquals(Stage.Polling, consumer.stage); // To be able to see where we exited we're not resetting stage at the end of runs
 
     assertEquals(1, consumer.cache.size(), "Should be operational now, before we mess with connections");
-    assertEquals("v1", new String(consumer.cache.get("k1")), "Should have the first key's value");
+    assertEquals("v1", consumer.cache.get("k1").getVstr(), "Should have the first key's value");
 
     KafkaBroker broker = kafka.getKafkaBrokers().iterator().next();
 
@@ -97,7 +97,7 @@ public class ErrorHandlingKafkaIntegrationTest {
     consumer.run();
 
     assertEquals(2, consumer.cache.size(), "Cache should be operational again, after the broker was restarted");
-    assertEquals("v1", new String(consumer.cache.get("k2")), "Should have the first key's value");
+    assertEquals("v1", consumer.cache.get("k2").getVstr(), "Should have the first key's value");
 
     producer.close();
   }

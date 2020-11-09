@@ -30,7 +30,7 @@ public interface KafkaCache {
    */
   boolean isReady();
 
-  byte[] getValue(String key);
+  CacheRecord getValue(String key);
 
   /**
    * @param topicName
@@ -41,6 +41,6 @@ public interface KafkaCache {
 
   Iterator<String> getKeys();
 
-  Iterator<byte[]> getValues();
+  Iterator<CacheRecord> getValues();
 
 }

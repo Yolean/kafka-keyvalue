@@ -22,17 +22,17 @@ class UpdateRecordTest {
 
   @Test
   void testToString() {
-    assertEquals("t1-123-45678[kx]", new UpdateRecord("t1", 123, 45678, "kx").toString());
+    assertEquals("t1-123-45678[kx]", new UpdateRecord("t1", 123, 45678, "kx", 1).toString());
   }
 
   @Test
   void testHashCode() {
-    assertEquals("t1-123-45678[kx]".hashCode(), new UpdateRecord("t1", 123, 45678, "kx").hashCode());
+    assertEquals("t1-123-45678[kx]".hashCode(), new UpdateRecord("t1", 123, 45678, "kx", 2).hashCode());
   }
 
   @Test
   void testGetTopicPartition() {
-    UpdateRecord u = new UpdateRecord("t1", 123, 45678, "kx");
+    UpdateRecord u = new UpdateRecord("t1", 123, 45678, "kx", 3);
     assertEquals("t1", u.getTopicPartition().topic());
     assertEquals(123, u.getTopicPartition().partition());
     assertEquals("t1-123", u.getTopicPartition().toString());
@@ -41,9 +41,9 @@ class UpdateRecordTest {
 
   @Test
   void testEquals() {
-    assertTrue(new UpdateRecord("1", 1, 2, "x").equals(new UpdateRecord("1", 1, 2, "x")));
-    assertFalse(new UpdateRecord("1", 1, 2, "x").equals(new UpdateRecord("1", 1, 2, "x2")));
-    assertFalse(new UpdateRecord("1", 1, 2, "x").equals(new UpdateRecord("1", 12, 2, "x")));
+    assertTrue(new UpdateRecord("1", 1, 2, "x", 4).equals(new UpdateRecord("1", 1, 2, "x", 4)));
+    assertFalse(new UpdateRecord("1", 1, 2, "x", 5).equals(new UpdateRecord("1", 1, 2, "x2", 5)));
+    assertFalse(new UpdateRecord("1", 1, 2, "x", 6).equals(new UpdateRecord("1", 12, 2, "x", 6)));
   }
 
   /* We no longer exchange these objects over HTTP so jackson annotations were removed
