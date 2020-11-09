@@ -122,8 +122,8 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   private final Counter meterNullKeys;
 
   public ConsumerAtLeastOnce(MeterRegistry registry) {
-    registry.gauge("kkv_stage", this, ConsumerAtLeastOnce::getStageMetric);
-    this.meterNullKeys = registry.counter("kkv_null_keys");
+    registry.gauge("kkv.stage", this, ConsumerAtLeastOnce::getStageMetric);
+    this.meterNullKeys = registry.counter("kkv.null.keys");
   }
 
   Integer getStageMetric() {
