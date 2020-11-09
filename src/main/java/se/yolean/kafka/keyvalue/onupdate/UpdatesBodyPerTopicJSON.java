@@ -82,6 +82,9 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
     if (offsetsBuilt != null) {
       throw new IllegalStateException("This update has already been retrieved for dispatch and can no longer be updated");
     }
+    if (update.getKey() == null) {
+      throw new IllegalArgumentException("Null key rejected, partition " + update.getPartition() + " offset " + update.getOffset());
+    }
     offsets.add(Integer.toString(update.getPartition()), Json.createValue(update.getOffset()));
     updates.add(update.getKey(), JsonObject.EMPTY_JSON_OBJECT);
   }

@@ -76,7 +76,11 @@ class UpdatesBodyPerTopicJSONTest {
   @Test
   public void testNullKey() {
     UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t");
-    body.handle(new UpdateRecord("t", 0, 1234, null));
+    try {
+      body.handle(new UpdateRecord("t", 0, 1234, null));
+    } catch (IllegalArgumentException e) {
+      assertEquals("Null key rejected, partition 0 offset 1234", e.getMessage());
+    }
   }
 
 }
