@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import se.yolean.kafka.keyvalue.ConsumerAtLeastOnce.Stage;
@@ -56,7 +57,7 @@ public class ErrorHandlingIntegrationTest {
   @Test
   void testMetadataTimeout() throws InterruptedException, ExecutionException {
 
-    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce(new SimpleMeterRegistry());
     final String TOPIC = "topic1";
     final String GROUP = this.getClass().getSimpleName() + "_testMetadataTimeout_" + System.currentTimeMillis();
     final String BOOTSTRAP = bootstrap;
@@ -90,7 +91,7 @@ public class ErrorHandlingIntegrationTest {
 
   @Test
   void testIsAlive() throws InterruptedException {
-    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce() {
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce(new SimpleMeterRegistry()) {
       @Override
       public void run() {
         try {
@@ -107,7 +108,7 @@ public class ErrorHandlingIntegrationTest {
 
   @Test
   void testIsAliveAfterException() throws InterruptedException {
-    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce() {
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce(new SimpleMeterRegistry()) {
       @Override
       public void run() {
         try {
@@ -131,7 +132,7 @@ public class ErrorHandlingIntegrationTest {
 
     // Based on that this behavior is asserted above
     RuntimeException error = new org.apache.kafka.common.errors.TimeoutException();
-    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce() {
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce(new SimpleMeterRegistry()) {
       @Override void topicsFromConfig() {}
       @Override
       public void run() {

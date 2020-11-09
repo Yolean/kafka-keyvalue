@@ -41,6 +41,7 @@ import org.mockito.Mockito;
 
 import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import se.yolean.kafka.keyvalue.ConsumerAtLeastOnce.Stage;
 
 public class ConsumerAtLeastOnceIntegrationTest {
@@ -72,7 +73,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
   @Test
   void testSingleRun() throws InterruptedException, ExecutionException {
 
-    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce(new SimpleMeterRegistry());
     final String TOPIC = "topic1";
     final String GROUP = this.getClass().getSimpleName() + "_testSingleRun_" + System.currentTimeMillis();
     final String BOOTSTRAP = kafka.getKafkaConnectString();
@@ -162,7 +163,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
   @Test
   void testTopicNonexistent() throws InterruptedException, ExecutionException {
 
-    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce(new SimpleMeterRegistry());
     final String TOPIC = "test-nonexistence";
     final String GROUP = this.getClass().getSimpleName() + "_testTopicNonexistent_" + System.currentTimeMillis();
     final String BOOTSTRAP = kafka.getKafkaConnectString();
@@ -194,7 +195,7 @@ public class ConsumerAtLeastOnceIntegrationTest {
   @Test
   void testNoOffsetReset() {
 
-    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce(new SimpleMeterRegistry());
     final String TOPIC = "test-nooffsetreset";
     final String GROUP = this.getClass().getSimpleName() + "_testNoOffsetReset_" + System.currentTimeMillis();
     final String BOOTSTRAP = kafka.getKafkaConnectString();
