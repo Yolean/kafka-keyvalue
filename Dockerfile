@@ -1,4 +1,4 @@
-FROM yolean/builder-quarkus:07ebabe607a117c8b6446c74d16eba9afe773ef4@sha256:ee3216eca700410d3f52d773d38394484f971e5bfdd38bb00a4f2de4e2db9eb9 \
+FROM yolean/builder-quarkus:b0095ce7f26bf362a9adb8fe4670ad3c038ae932@sha256:c14ddaa7d79af07ef788cf87df5ea69a9494f7385fd9426659aca2ff84376196 \
   as dev
 
 COPY pom.xml .
@@ -44,7 +44,7 @@ ENTRYPOINT [ "java", \
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
-FROM yolean/runtime-quarkus:f63772d02556021dbcb9f49fb9eff3d3dbe1b636@sha256:5619b52835239a57ab324500f8d17bc935c4e38e9f0f1a5d28348955df0a33b0
+FROM yolean/runtime-quarkus:b0095ce7f26bf362a9adb8fe4670ad3c038ae932@sha256:34abf0213998f11fcca26b9a3313577d0cc0c442b7df3669d200d2dc10f6436c
 
 COPY --from=dev /workspace/target/*-runner /usr/local/bin/quarkus
 
