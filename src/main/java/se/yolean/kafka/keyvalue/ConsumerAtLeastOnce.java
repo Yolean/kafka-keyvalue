@@ -316,15 +316,17 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
         toStats(update);
         if (update.getKey() != null) {
           cache.put(record.key(), record.value());
-        } else {
-          onNullKey(update);
         }
         Long start = nextUncommitted.get(update.getTopicPartition());
         if (start == null) {
           throw new IllegalStateException("There's no start offset for " + update.getTopicPartition() + ", at consumed offset " + update.getOffset() + " key " + update.getKey());
         }
-        if (update.getKey() != null && record.offset() >= start) {
-          onupdate.handle(update);
+        if (record.offset() >= start) {
+          if (update.getKey() != null) {
+            onupdate.handle(update);
+          } else {
+            onNullKey(update);
+          }
         } else {
           if (record.offset() == start - 1) {
             logger.info("Reached last historical message for {} at offset {}", update.getTopicPartition(), update.getOffset());
