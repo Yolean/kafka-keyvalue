@@ -118,6 +118,22 @@ public class ConsumerAtLeastOnceIntegrationTest {
     Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollStart(Collections.singletonList(TOPIC));
     Mockito.verify(consumer.onupdate, Mockito.atLeast(3)).pollEndBlockingUntilTargetsAck();
 
+    // Test null keys, should be ignored and counted
+    producer.send(new ProducerRecord<String,byte[]>(TOPIC, null, "v1".getBytes())).get();
+    consumer.run();
+    assertFalse(consumer.cache.containsKey(null));
+    Mockito.verify(consumer.onupdate, Mockito.times(0)).handle(new UpdateRecord(TOPIC, 0, 0, null) {
+      private static final long serialVersionUID = 1L;
+      @Override
+      public boolean equals(Object obj) {
+        return obj instanceof UpdateRecord && ((UpdateRecord) obj).getKey() == null;
+      }
+    });
+    producer.send(new ProducerRecord<String,byte[]>(TOPIC, "k3", "v1".getBytes())).get();
+    consumer.run();
+    assertEquals("v1", new String(consumer.cache.get("k3")), "Value should come from the record after the null key");
+    Mockito.verify(consumer.onupdate, Mockito.times(0)).handle(new UpdateRecord(TOPIC, 0, 1, "k3"));
+
     producer.close();
 
     assertEquals(null, consumer.call().getData().orElse(Collections.emptyMap()).get("error-message"));
@@ -135,7 +151,6 @@ public class ConsumerAtLeastOnceIntegrationTest {
     assertEquals("k1", keys.next());
     assertTrue(keys.hasNext());
     assertEquals("k2", keys.next());
-    assertFalse(keys.hasNext());
 
     Iterator<byte[]> values = cache.getValues();
     assertTrue(values.hasNext());
