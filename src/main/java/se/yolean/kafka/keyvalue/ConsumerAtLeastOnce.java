@@ -312,7 +312,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
         } else {
           onNullKey(update);
         }
-		    Long start = nextUncommitted.get(update.getTopicPartition());
+        Long start = nextUncommitted.get(update.getTopicPartition());
         if (start == null) {
           throw new IllegalStateException("There's no start offset for " + update.getTopicPartition() + ", at consumed offset " + update.getOffset() + " key " + update.getKey());
         }
