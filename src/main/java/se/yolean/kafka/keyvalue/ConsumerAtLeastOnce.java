@@ -40,6 +40,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
+import org.eclipse.microprofile.metrics.annotation.Counted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -306,6 +307,10 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
         ConsumerRecord<String, byte[]> record = records.next();
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
         toStats(update);
+        if (update.getKey() == null) {
+          onNullKey(update);
+          continue;
+        }
         cache.put(record.key(), record.value());
 		    Long start = nextUncommitted.get(update.getTopicPartition());
         if (start == null) {
@@ -341,6 +346,11 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   private void toStats(UpdateRecord update) {
     currentOffsets.put(update.getTopicPartition(), update.getOffset());
+  }
+
+  @Counted(name = "kkv_null_keys", description = "Counts records that have been ignored due to a null key")
+  void onNullKey(UpdateRecord update) {
+    logger.error("Ignoring null key at {}", update);
   }
 
   @Override
