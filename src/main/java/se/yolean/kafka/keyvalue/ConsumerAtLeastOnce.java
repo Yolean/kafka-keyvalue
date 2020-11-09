@@ -40,10 +40,11 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
-import org.eclipse.microprofile.metrics.annotation.Counted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 
@@ -118,8 +119,14 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   Map<TopicPartition,Long> currentOffsets = new HashMap<>(1);
 
-  //@Gauge(name="stage", unit = MetricUnits.NONE, description="The stage this instance is at")
-  public Integer getStageMetric() {
+  private final Counter meterNullKeys;
+
+  public ConsumerAtLeastOnce(MeterRegistry registry) {
+    registry.gauge("kkv_stage", this, ConsumerAtLeastOnce::getStageMetric);
+    this.meterNullKeys = registry.counter("kkv_null_keys");
+  }
+
+  Integer getStageMetric() {
     return stage.metricValue;
   }
 
@@ -348,8 +355,8 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     currentOffsets.put(update.getTopicPartition(), update.getOffset());
   }
 
-  @Counted(name = "kkv_null_keys", description = "Counts records that have been ignored due to a null key")
   void onNullKeyUpdate(UpdateRecord update) {
+    meterNullKeys.increment();
     logger.error("Ignoring null key at {}", update);
   }
 
