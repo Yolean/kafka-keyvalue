@@ -309,14 +309,14 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
         toStats(update);
         if (update.getKey() != null) {
           cache.put(record.key(), record.value());
-        } else {
-          onNullKey(update);
         }
         Long start = nextUncommitted.get(update.getTopicPartition());
         if (start == null) {
           throw new IllegalStateException("There's no start offset for " + update.getTopicPartition() + ", at consumed offset " + update.getOffset() + " key " + update.getKey());
         }
-        if (update.getKey() != null && record.offset() >= start) {
+        if (update.getKey() == null) {
+          onNullKeyUpdate(update);
+        } else if (record.offset() >= start) {
           onupdate.handle(update);
         } else {
           if (record.offset() == start - 1) {
@@ -349,7 +349,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
   }
 
   @Counted(name = "kkv_null_keys", description = "Counts records that have been ignored due to a null key")
-  void onNullKey(UpdateRecord update) {
+  void onNullKeyUpdate(UpdateRecord update) {
     logger.error("Ignoring null key at {}", update);
   }
 
