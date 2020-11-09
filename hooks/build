@@ -1,5 +1,6 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+[ -z "$DEBUG" ] || set -x
+set -eo pipefail
 
 GIT_STATUS=$(git status --untracked-files=no --porcelain=v2)
 [ ! -z "$SOURCE_COMMIT" ] || export SOURCE_COMMIT=$(git rev-parse --verify HEAD)
