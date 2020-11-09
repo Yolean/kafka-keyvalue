@@ -73,4 +73,10 @@ class UpdatesBodyPerTopicJSONTest {
     }
   }
 
+  @Test
+  public void testNullKey() {
+    UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("t");
+    body.handle(new UpdateRecord("t", 0, 1234, null));
+  }
+
 }

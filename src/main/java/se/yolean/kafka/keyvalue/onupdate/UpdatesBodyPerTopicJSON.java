@@ -27,7 +27,7 @@ import javax.json.JsonWriter;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 
 // NOTE javax.json is unfit for what this class tried to do -- incrementally update a JSON.
-// Unless we find a lib that is designed to keep state as json, not on-off conversions of object trees,
+// Unless we find a lib that is designed to keep state as json, not one-off conversions of object trees,
 // we should drop this impl and go for the object tree strategy
 public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
 
