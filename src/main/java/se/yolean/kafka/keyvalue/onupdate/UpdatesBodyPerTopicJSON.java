@@ -27,7 +27,7 @@ import javax.json.JsonWriter;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 
 // NOTE javax.json is unfit for what this class tried to do -- incrementally update a JSON.
-// Unless we find a lib that is designed to keep state as json, not on-off conversions of object trees,
+// Unless we find a lib that is designed to keep state as json, not one-off conversions of object trees,
 // we should drop this impl and go for the object tree strategy
 public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
 
@@ -81,6 +81,9 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
   public void handle(UpdateRecord update) {
     if (offsetsBuilt != null) {
       throw new IllegalStateException("This update has already been retrieved for dispatch and can no longer be updated");
+    }
+    if (update.getKey() == null) {
+      throw new IllegalArgumentException("Null key rejected, partition " + update.getPartition() + " offset " + update.getOffset());
     }
     offsets.add(Integer.toString(update.getPartition()), Json.createValue(update.getOffset()));
     updates.add(update.getKey(), JsonObject.EMPTY_JSON_OBJECT);

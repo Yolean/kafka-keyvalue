@@ -43,6 +43,8 @@ import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 
@@ -117,8 +119,14 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   Map<TopicPartition,Long> currentOffsets = new HashMap<>(1);
 
-  //@Gauge(name="stage", unit = MetricUnits.NONE, description="The stage this instance is at")
-  public Integer getStageMetric() {
+  private final Counter meterNullKeys;
+
+  public ConsumerAtLeastOnce(MeterRegistry registry) {
+    registry.gauge("kkv.stage", this, ConsumerAtLeastOnce::getStageMetric);
+    this.meterNullKeys = registry.counter("kkv.null.keys");
+  }
+
+  Integer getStageMetric() {
     return stage.metricValue;
   }
 
@@ -306,13 +314,19 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
         ConsumerRecord<String, byte[]> record = records.next();
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
         toStats(update);
-        cache.put(record.key(), record.value());
-		    Long start = nextUncommitted.get(update.getTopicPartition());
+        if (update.getKey() != null) {
+          cache.put(record.key(), record.value());
+        }
+        Long start = nextUncommitted.get(update.getTopicPartition());
         if (start == null) {
           throw new IllegalStateException("There's no start offset for " + update.getTopicPartition() + ", at consumed offset " + update.getOffset() + " key " + update.getKey());
         }
         if (record.offset() >= start) {
-          onupdate.handle(update);
+          if (update.getKey() != null) {
+            onupdate.handle(update);
+          } else {
+            onNullKey(update);
+          }
         } else {
           if (record.offset() == start - 1) {
             logger.info("Reached last historical message for {} at offset {}", update.getTopicPartition(), update.getOffset());
@@ -341,6 +355,11 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   private void toStats(UpdateRecord update) {
     currentOffsets.put(update.getTopicPartition(), update.getOffset());
+  }
+
+  void onNullKey(UpdateRecord update) {
+    meterNullKeys.increment();
+    logger.error("Ignoring null key at {}", update);
   }
 
   @Override

@@ -23,6 +23,7 @@ import org.mockito.Mockito;
 import com.salesforce.kafka.test.KafkaBroker;
 import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import se.yolean.kafka.keyvalue.ConsumerAtLeastOnce.Stage;
 
 public class ErrorHandlingKafkaIntegrationTest {
@@ -54,7 +55,7 @@ public class ErrorHandlingKafkaIntegrationTest {
   @Test
   void testBrokerDisconnect() throws Exception {
 
-    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce();
+    ConsumerAtLeastOnce consumer = new ConsumerAtLeastOnce(new SimpleMeterRegistry());
     final String TOPIC = "topicx";
     final String GROUP = this.getClass().getSimpleName() + "_testBrokerDisconnect_" + System.currentTimeMillis();
     final String BOOTSTRAP = kafka.getKafkaConnectString();

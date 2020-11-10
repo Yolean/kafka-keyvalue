@@ -16,13 +16,7 @@ RUN mvn package -Dmaven.test.skip=true
 # For a regular JRE image run: docker build --build-arg build="package" --target=jvm
 ARG build="package -Pnative"
 
-RUN mvn --batch-mode $build | tee build.log; \
-  set -ex; \
-  grep '[INFO] BUILD SUCCESS' build.log || \
-    grep 'Native memory allocation (mmap) failed\|Exit code was 137 which indicates an out of memory error' build.log && \
-    grep --color=never 'NativeImageBuildStep] /opt/graalvm' build.log | cut -d ' ' -f 3- | \
-      (cd target/*-source-jar; sh - ); \
-  rm build.log
+RUN mvn --batch-mode $build
 
 FROM yolean/java:f63772d02556021dbcb9f49fb9eff3d3dbe1b636@sha256:1bc5b3456a64fb70c85825682777c55a0999d9be56aca9bb1f507fe9b9171f83 \
   as jvm
