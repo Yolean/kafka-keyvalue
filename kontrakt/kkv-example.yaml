@@ -46,11 +46,11 @@ spec:
         #  value: http://127.0.0.1:23456/expectingconnectionrefused?topic=__TOPIC__
         readinessProbe:
           httpGet:
-            path: /health/ready
+            path: /q/health/ready
             port: api
         livenessProbe:
           httpGet:
-            path: /health/live
+            path: /q/health/live
             port: api
           initialDelaySeconds: 30
       - name: envoy
