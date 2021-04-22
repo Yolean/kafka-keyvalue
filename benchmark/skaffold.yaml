@@ -1,0 +1,24 @@
+apiVersion: skaffold/v2beta14
+kind: Config
+metadata:
+  name: kkv-benchmark
+build:
+  artifacts:
+  - image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
+    context: ..
+    docker:
+      dockerfile: Dockerfile
+      target: jvm
+  - image: builds-registry.ystack.svc.cluster.local/yolean/kkv-benchmark-kafkaproxy
+    context: ./kafkaproxy
+    docker:
+      dockerfile: Dockerfile
+deploy:
+  kustomize:
+    paths:
+    - kustomize
+portForward:
+- resourceType: deployment
+  resourceName: kkv
+  port: 9094
+  localPort: 9094

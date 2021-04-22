@@ -1,0 +1,62 @@
+# apiVersion: apps/v1
+# kind: StatefulSet
+# metadata:
+#   name: kkv
+#   labels: &labels
+#     app: kkv
+# spec:
+#   replicas: 1
+#   serviceName: kkv-example
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kkv
+  labels: &labels
+    app: kkv
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *labels
+  template:
+    metadata:
+      labels: *labels
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/stats/prometheus"
+    spec:
+      containers:
+      - name: kafkaproxy
+        image: builds-registry.ystack.svc.cluster.local/yolean/kkv-benchmark-kafkaproxy
+        ports:
+        - containerPort: 9094
+          name: kafka-localhost
+      - name: kkv
+        image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
+        ports:
+        - containerPort: 8090
+          name: api
+        - containerPort: 5005
+          name: debugger
+        env:
+        - name: kafka_bootstrap
+          value: localhost:9094
+        - name: kafka_group_id
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: topic
+          value: kkv-benchmark
+        - name: kafka_offset_reset
+          value: earliest
+        - name: target
+          value: http://127.0.0.1:8080/204/__TOPIC__
+        readinessProbe:
+          httpGet:
+            path: /q/health/ready
+            port: api
+        livenessProbe:
+          httpGet:
+            path: /q/health/live
+            port: api
+          initialDelaySeconds: 30
