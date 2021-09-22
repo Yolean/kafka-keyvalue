@@ -132,12 +132,14 @@ public class ConsumerAtLeastOnce implements KafkaCache, HealthCheck {
         }
         long start = rebalanceListener.getEndOffset(update.getTopicPartition());
         if (record.offset() >= start) {
+          this.stage = Stage.Polling;
           if (update.getKey() != null) {
             onupdate.handle(update);
           } else {
             onNullKey(update);
           }
         } else {
+          this.stage = Stage.PollingHistorical;
           if (record.offset() == start - 1) {
             logger.info("Reached last historical message for {} at offset {}", update.getTopicPartition(), update.getOffset());
             // TODO do we want to restore this tracking from the old consumer logic?
