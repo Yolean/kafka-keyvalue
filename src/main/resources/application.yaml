@@ -1,0 +1,65 @@
+
+mp:
+  messaging:
+    incoming:
+      topic:
+        connector:
+          smallrye-kafka
+        bootstrap:
+          servers: ${kafka_bootstrap}
+        topic: ${topic}
+        enable:
+          auto:
+            commit: false
+        auto:
+          offset:
+            reset: ${kafka_offset_reset:latest}
+        group:
+          id: ${kafka_group_id}
+        consumer-rebalance-listener:
+          name: kkv.rebalancer
+        key:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value:
+          deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+
+quarkus:
+
+  log:
+    category:
+      "se.yolean":
+        level: DEBUG
+      "org.apache.kafka.clients.Metadata":
+        level: DEBUG
+
+  kafka:
+    snappy:
+      enabled: true
+    devservices:
+      # topic-partitions:
+      #   operations: 1
+      enabled: false
+
+  # Build config
+  jib:
+    base-jvm-image: ${IMAGE_BASE_JRE:docker.io/yolean/java:7a281dfc9eb329c14dd6e5814071a37885554f9c@sha256:22558ae49c81976b51393e5cf733ace98859232c269170700f918356cfafcaea}
+    base-native-image: ${IMAGE_BASE_NATIVE:docker.io/yolean/runtime-quarkus-ubuntu:7a281dfc9eb329c14dd6e5814071a37885554f9c@sha256:c8edba8447e8d716d437e75f48e8484bb6d631f1be3e57175ff3600099474501}
+
+  container-image:
+    image: ${IMAGE:ERROR-set-the-image-env-or-build-using-skaffold}
+    # Docs say "image Represents the entire image string. If set, then group, name, registry, tags, additionalTags are ignored" but builds log "[io.quarkus.container.image.jib.deployment.JibProcessor] No container image registry was set, so 'docker.io' will be used"
+    registry: builds-registry.ystack.svc.cluster.local
+    insecure: true
+
+  native:
+    builder-image: ${IMAGE_BUILDER_NATIVE:ERROR-we-depend-on-a-local-native-image-executable}
+    native-image-xmx: 4g
+    additional-build-args: >-
+      --install-exit-handlers,
+      --no-fallback
+
+  ssl:
+    native: false
+
+build:
+  tag: ${IMAGE_TAG:ERROR-not-built-through-skaffold}
