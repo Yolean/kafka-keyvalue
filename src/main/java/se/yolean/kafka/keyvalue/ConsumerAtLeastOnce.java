@@ -123,6 +123,8 @@ public class ConsumerAtLeastOnce implements KafkaCache, HealthCheck {
   @Incoming("topic")
   public void consume(ConsumerRecord<String, byte[]> record) {
 
+    logger.debug("Processing offset {} for topic {}", record.offset(), record.topic());
+
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
         toStats(update);
         if (update.getKey() != null) {
