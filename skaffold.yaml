@@ -14,6 +14,9 @@ build:
     #  manual:
     #  - src: src/main/**
     #    dest: .
-deploy:
-  kustomize:
-    path: ./kontrakt
+profiles:
+- name: prod-build
+  patches:
+  - op: replace
+    path: /build/artifacts/0/custom/buildCommand
+    value: y-build

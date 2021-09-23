@@ -92,10 +92,6 @@
       <version>2.13.5</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-container-image-jib</artifactId>
-    </dependency>
   </dependencies>
   <build>
     <plugins>

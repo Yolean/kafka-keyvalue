@@ -1,4 +1,4 @@
-FROM docker.io/yolean/builder-quarkus:2f4d4144b6f5859d7265e5bd318cfa957a84ed10@sha256:c8b4f35bc879fc81017b42a34f42df9dd54b030d98b5c8b86affe8bd0579ddba \
+FROM docker.io/yolean/builder-quarkus-mvncache:b7d518582a973bc4db7dbc884854190881993f3e@sha256:a91ad37aec282c2c37f75cf74f24827b8ee500ce758f52d03c41504022c86220 \
   as dev
 
 COPY pom.xml .
@@ -41,7 +41,7 @@ ENTRYPOINT [ "java", \
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
-FROM docker.io/yolean/runtime-quarkus-ubuntu:2f4d4144b6f5859d7265e5bd318cfa957a84ed10@sha256:452f1bb6fe9cb3802bcf40012ae0dddf533e1a43cfbd23164aaa1bbeb64b3061
+FROM docker.io/yolean/runtime-quarkus-ubuntu:b7d518582a973bc4db7dbc884854190881993f3e@sha256:c8edba8447e8d716d437e75f48e8484bb6d631f1be3e57175ff3600099474501
 
 COPY --from=dev /workspace/target/*-runner /usr/local/bin/quarkus
 
