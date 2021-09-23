@@ -43,12 +43,12 @@ public class ConsumerAtLeastOnce implements KafkaCache, HealthCheck {
 
   public enum Stage {
     Created (10),
-    CreatingConsumer (20),
-    Initializing (30),
-    WaitingForKafkaConnection (40),
-    Assigning (50),
-    Resetting (60),
-    InitialPoll (70),
+    //CreatingConsumer (20),
+    //Initializing (30),
+    //WaitingForKafkaConnection (40),
+    //Assigning (50),
+    //Resetting (60),
+    //InitialPoll (70),
     PollingHistorical (80),
     Polling (90);
 

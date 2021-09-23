@@ -44,6 +44,7 @@ public class KafkaClientOnceLiveness implements HealthCheck {
   @Override
   public HealthCheckResponse call() {
     logger.trace("Health check start", consumer);
+    /* We'd need the rebalance listener to update stage to Assigning, until then
     if (consumer != null && consumer.stage != null) {
       if (consumer.stage.metricValue > ConsumerAtLeastOnce.Stage.Assigning.metricValue) {
         assigningSuccessWasSeen = true;
@@ -52,6 +53,7 @@ public class KafkaClientOnceLiveness implements HealthCheck {
         return HealthCheckResponse.builder().name("Had a Kafka connection").down().build();
       }
     }
+    */
     return ok;
   }
 
