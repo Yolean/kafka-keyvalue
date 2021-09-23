@@ -13,7 +13,7 @@ RUN mkdir -p src/main/resources/org/xerial/snappy/native/Linux/x86_64 \
   && ldd -v src/main/resources/org/xerial/snappy/native/Linux/x86_64/libsnappyjava.so
 
 ENTRYPOINT [ "mvn", "compile", "quarkus:dev" ]
-CMD [ "-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090" ]
+CMD [ "-Dquarkus.http.host=0.0.0.0" ]
 
 # The jar and the lib folder is required for the jvm target even when the native target is the end result
 # MUST be followed by a real build, or we risk pushing images despite test failures
@@ -36,7 +36,6 @@ COPY --from=dev /workspace/target/quarkus-app /app
 EXPOSE 8090
 ENTRYPOINT [ "java", \
   "-Dquarkus.http.host=0.0.0.0", \
-  "-Dquarkus.http.port=8090", \
   "-Djava.util.logging.manager=org.jboss.logmanager.LogManager", \
   "-jar", "quarkus-run.jar" ]
 
@@ -47,7 +46,7 @@ FROM docker.io/yolean/runtime-quarkus-ubuntu:2f4d4144b6f5859d7265e5bd318cfa957a8
 COPY --from=dev /workspace/target/*-runner /usr/local/bin/quarkus
 
 EXPOSE 8090
-CMD ["-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8090"]
+CMD [ "-Dquarkus.http.host=0.0.0.0" ]
 
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH

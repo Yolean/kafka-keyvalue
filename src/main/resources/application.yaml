@@ -25,6 +25,10 @@ mp:
 
 quarkus:
 
+  http:
+    port:
+      ${QUARKUS_HTTP_PORT:8090}
+
   log:
     category:
       "se.yolean":
