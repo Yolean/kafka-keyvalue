@@ -4,15 +4,23 @@ build:
   artifacts:
   - image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
     context: .
+    # docker:
+    #   target: jvm
+    #   buildArgs:
+    #     build: package
     custom:
-      buildCommand: y-build --opt target=jvm
+      buildCommand: y-build --opt target=jvm build-arg:build=package
       dependencies:
         dockerfile:
           path: ./Dockerfile
 deploy:
-  kustomize:
-    paths:
-    - ./k8s
+  # kustomize:
+  #   paths:
+  #   - ./test
+  # kustomization.yaml currently sets the prod image
+  kubectl:
+    manifests:
+    - ./test/
 profiles:
 - name: prod-build
   patches:

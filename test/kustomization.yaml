@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- kkvtest-job.yaml
+
+images:
+- name: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
+  # Latest production build
+  newName: docker.io/yolean/kafka-keyvalue
+  newTag: 69608d815fbb525901b8acb6c315f9e39780a51b@sha256:6435695b3412d4ee37c7510c0f41cb4f16ff5add10030e8da4b67e9b83f385a7
