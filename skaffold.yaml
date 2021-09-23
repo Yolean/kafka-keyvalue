@@ -9,18 +9,14 @@ build:
     #   buildArgs:
     #     build: package
     custom:
-      buildCommand: y-build --opt target=jvm build-arg:build=package
+      buildCommand: y-build --opt target=jvm --opt build-arg:build=package
       dependencies:
         dockerfile:
           path: ./Dockerfile
 deploy:
-  # kustomize:
-  #   paths:
-  #   - ./test
-  # kustomization.yaml currently sets the prod image
-  kubectl:
-    manifests:
-    - ./test/
+  kustomize:
+    paths:
+    - ./test
 profiles:
 - name: prod-build
   patches:

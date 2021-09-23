@@ -82,8 +82,9 @@ spec:
           httpGet:
             path: /q/health/ready
             port: 8080
-      - name: kkv
-        image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
+      # The legacy kkv image for comparison
+      - name: kkv1
+        image: docker.io/yolean/kafka-keyvalue:69608d815fbb525901b8acb6c315f9e39780a51b@sha256:6435695b3412d4ee37c7510c0f41cb4f16ff5add10030e8da4b67e9b83f385a7
         env:
         - name: QUARKUS_HTTP_PORT
           value: "8090"
@@ -99,8 +100,40 @@ spec:
           #value: http://hook.local:8080/hook/v1/kkv001
           value: http://hook.local:8089/hook/v1/kkv001
         ports:
-        - name: http
+        - name: http1
           containerPort: 8090
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /q/health/ready
+            port: api
+          timeoutSeconds: 2
+          initialDelaySeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /q/health/live
+            port: api
+          timeoutSeconds: 2
+          initialDelaySeconds: 30
+      - name: kkv
+        image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
+        env:
+        - name: QUARKUS_HTTP_PORT
+          value: "8091"
+        - name: topic
+          value: table
+        - name: kafka_bootstrap
+          value: kafka.local:9092
+        - name: kafka_group_id
+          value: kkv002
+        - name: kafka_offset_reset
+          value: latest
+        - name: target
+          #value: http://hook.local:8080/hook/v1/kkv002
+          value: http://hook.local:8089/hook/v1/kkv002
+        ports:
+        - name: http
+          containerPort: 8091
           protocol: TCP
         readinessProbe:
           httpGet:
@@ -119,11 +152,12 @@ spec:
         env:
         - name: BOOTSTRAP
           value: kafka.local:9092
-        - name: KKV
+        - name: KKV1
           value: http://kkv.local:8090
+        - name: KKV
+          value: http://kkv.local:8091
         - name: HOOK
-          #value: http://hook.local:8080
-          value: http://hook.local:8089
+          value: http://hook.local:8080
         command:
         - /bin/bash
         - -cex
@@ -149,7 +183,7 @@ spec:
           wc -l /var/testlogs/requests.json
 
           # kills quarkus
-          pkill -SIGHUP quarkus
+          #pkill -SIGHUP quarkus
 
           tail -f /dev/null
         volumeMounts:
@@ -227,4 +261,4 @@ spec:
                     http_filters:
                     - name: envoy.filters.http.router
       # We might want to switch to OnError as that's quite similar to a separate pods setup
-      restartPolicy: Never
+      restartPolicy: OnFailure
