@@ -17,7 +17,7 @@ mp:
         group:
           id: ${kafka_group_id}
         consumer-rebalance-listener:
-          name: kkv.rebalancer
+          name: kkv
         key:
           deserializer: org.apache.kafka.common.serialization.StringDeserializer
         value:

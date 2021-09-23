@@ -14,15 +14,20 @@
 
 package se.yolean.kafka.keyvalue;
 
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.eclipse.microprofile.health.HealthCheck;
@@ -37,17 +42,19 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.smallrye.common.annotation.Identifier;
+import io.smallrye.reactive.messaging.kafka.KafkaConsumerRebalanceListener;
 
 @ApplicationScoped
-public class ConsumerAtLeastOnce implements KafkaCache, HealthCheck {
+@Identifier("kkv")
+public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, KafkaCache, HealthCheck {
 
   public enum Stage {
     Created (10),
     //CreatingConsumer (20),
     //Initializing (30),
     //WaitingForKafkaConnection (40),
-    //Assigning (50),
-    //Resetting (60),
+    Assigning (50),
+    Resetting (60),
     //InitialPoll (70),
     PollingHistorical (80),
     Polling (90);
@@ -66,11 +73,9 @@ public class ConsumerAtLeastOnce implements KafkaCache, HealthCheck {
   @Inject
   OnUpdate onupdate;
 
-  @Inject
-  @Identifier("kkv.rebalancer")
-  RebalanceListener rebalanceListener;
+  private Map<TopicPartition, Long> endOffsets = null;
 
-  List<String> topics;
+  private final long startOffset = 0;
 
   Stage stage = Stage.Created;
 
@@ -120,6 +125,41 @@ public class ConsumerAtLeastOnce implements KafkaCache, HealthCheck {
     return health.withData("stage", stage.toString()).build();
   }
 
+  public long getEndOffset(TopicPartition topicPartition) {
+    if (this.endOffsets == null) {
+      throw new IllegalStateException("Waiting for partition assignment");
+    }
+    if (!endOffsets.containsKey(topicPartition)) {
+      throw new IllegalStateException("Topic-partition " + topicPartition + " not found in " + endOffsets.keySet());
+    }
+    return endOffsets.get(topicPartition);
+  }
+
+  /**
+   * Provides offset information to kkv logic.
+   *
+   * @param consumer   underlying consumer
+   * @param partitions set of assigned topic partitions
+   */
+  @Override
+  public void onPartitionsAssigned(Consumer<?, ?> consumer, Collection<TopicPartition> partitions) {
+    this.stage = Stage.Assigning;
+    if (this.endOffsets != null) {
+      logger.warn("Partition reassignment ignored, with no check for differences in the set of partitions");
+      return;
+    }
+    this.endOffsets = consumer.endOffsets(partitions);
+    Set<String> topics = new HashSet<>();
+    for (TopicPartition partition : partitions) {
+      this.stage = Stage.Resetting;
+      logger.info("Seeking position {} for {}", startOffset, partition);
+      consumer.seek(partition, startOffset);
+      topics.add(partition.topic());
+    }
+    // We don't have the poll semantics anymore but we used to call onupdate.pollStart. Maybe the entire onupdate impl can be replaced by a REST client interface.
+    onupdate.pollStart(topics);
+  }
+
   @Incoming("topic")
   public void consume(ConsumerRecord<String, byte[]> record) {
 
@@ -130,7 +170,7 @@ public class ConsumerAtLeastOnce implements KafkaCache, HealthCheck {
         if (update.getKey() != null) {
           cache.put(record.key(), record.value());
         }
-        long start = rebalanceListener.getEndOffset(update.getTopicPartition());
+        long start = getEndOffset(update.getTopicPartition());
         if (record.offset() >= start) {
           this.stage = Stage.Polling;
           if (update.getKey() != null) {

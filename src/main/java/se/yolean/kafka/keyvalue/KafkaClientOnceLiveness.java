@@ -23,6 +23,8 @@ import org.eclipse.microprofile.health.Liveness;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.smallrye.common.annotation.Identifier;
+
 /**
  * Instead of catching and analyzing org.apache.kafka.common.errors.TimeoutException
  * we want to trigger non-liveness if we've never seen proof of a working kafka connection.
@@ -36,6 +38,7 @@ public class KafkaClientOnceLiveness implements HealthCheck {
   private static final Logger logger = LoggerFactory.getLogger(KafkaClientOnceLiveness.class);
 
   @Inject
+  @Identifier("kkv")
   ConsumerAtLeastOnce consumer;
 
   HealthCheckResponse ok = HealthCheckResponse.builder().name("Had a Kafka connection").up().build();
@@ -44,7 +47,6 @@ public class KafkaClientOnceLiveness implements HealthCheck {
   @Override
   public HealthCheckResponse call() {
     logger.trace("Health check start", consumer);
-    /* We'd need the rebalance listener to update stage to Assigning, until then
     if (consumer != null && consumer.stage != null) {
       if (consumer.stage.metricValue > ConsumerAtLeastOnce.Stage.Assigning.metricValue) {
         assigningSuccessWasSeen = true;
@@ -53,7 +55,6 @@ public class KafkaClientOnceLiveness implements HealthCheck {
         return HealthCheckResponse.builder().name("Had a Kafka connection").down().build();
       }
     }
-    */
     return ok;
   }
 

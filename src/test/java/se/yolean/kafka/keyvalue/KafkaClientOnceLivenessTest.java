@@ -32,7 +32,6 @@ class KafkaClientOnceLivenessTest {
 
     assertEquals(true, liveness.call().getStatus().equals(Status.UP),
         "Should report live until the opposite is proven");
-    /*
     liveness.consumer.stage = ConsumerAtLeastOnce.Stage.Assigning;
     assertEquals(true, liveness.call().getStatus().equals(Status.DOWN),
         "Might be ok to trigger non-liveness on the hopefully brief assigning phase");
@@ -40,7 +39,6 @@ class KafkaClientOnceLivenessTest {
     assertEquals(true, liveness.call().getStatus().equals(Status.UP),
         "As soon as we're out of Assigning we should be live");
     liveness.consumer.stage = ConsumerAtLeastOnce.Stage.Assigning;
-    */
     assertEquals(true, liveness.call().getStatus().equals(Status.UP),
         "From now on we should always be up");
   }
