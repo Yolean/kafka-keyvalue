@@ -103,18 +103,6 @@ spec:
         - name: http1
           containerPort: 8090
           protocol: TCP
-        readinessProbe:
-          httpGet:
-            path: /q/health/ready
-            port: api
-          timeoutSeconds: 2
-          initialDelaySeconds: 30
-        livenessProbe:
-          httpGet:
-            path: /q/health/live
-            port: api
-          timeoutSeconds: 2
-          initialDelaySeconds: 30
       - name: kkv
         image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
         env:
@@ -164,6 +152,11 @@ spec:
         - |
           set +e
 
+          # Should be fixed:
+          # # The way we do readiness now the topic can't be empty
+          # echo 'k1#test1' | kcat -b $BOOTSTRAP -P -t table -K# -e
+          # kcat -b $BOOTSTRAP -C -t table -e
+
           curl --retry 10 --retry-connrefused $KKV/q/health/ready
           curl -s http://localhost:9901/stats/prometheus | grep envoy_listener_http_downstream_rq_completed
           echo 'k1#test1' | kcat -b $BOOTSTRAP -P -t table -K# -e
@@ -171,13 +164,20 @@ spec:
           curl -s http://localhost:9901/stats/prometheus | grep envoy_listener_http_downstream_rq_completed
 
           jq . /var/testlogs/requests.json
+          # kkv1 is faster than redpanda up, bails on nonexisting topic, then restarts itself on the first readiness probe
+          curl $KKV1/q/health/ready
+          until curl -f -s $KKV1/cache/v1/raw/k1; do echo "Waiting for kkv1 to fill cache"; done
+          echo 'k2#test2' | kcat -b $BOOTSTRAP -P -t table -K# -e
+          curl -f -s $KKV1/cache/v1/raw/k2
+          jq . /var/testlogs/requests.json
 
           N=1000
           seq 1 $N | kcat -b $BOOTSTRAP -P -t table -kt$N
           pkill -SIGSTOP redpanda
-          sleep 5
-          VALUE=$(curl $KKV/cache/v1/raw/t$N)
-          [ "$N" != "$value" ] || echo "Expected $N got $value"
+          RESULT=$(curl $KKV/cache/v1/raw/t$N)
+          [ "$N" = "$RESULT" ] || echo "Expected $N got $RESULT"
+          # Now test how kkv behaves after kafka went offline
+          sleep 65
           pkill -SIGCONT redpanda
 
           wc -l /var/testlogs/requests.json

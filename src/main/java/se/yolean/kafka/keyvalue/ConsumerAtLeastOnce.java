@@ -145,16 +145,23 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   public void onPartitionsAssigned(Consumer<?, ?> consumer, Collection<TopicPartition> partitions) {
     this.stage = Stage.Assigning;
     if (this.endOffsets != null) {
-      logger.warn("Partition reassignment ignored, with no check for differences in the set of partitions");
+      logger.warn("Partition re-assignment ignored, with no check for differences in the set of partitions");
       return;
     }
-    this.endOffsets = consumer.endOffsets(partitions);
+    this.endOffsets = new HashMap<>();
     Set<String> topics = new HashSet<>();
     for (TopicPartition partition : partitions) {
-      this.stage = Stage.Resetting;
-      logger.info("Seeking position {} for {}", startOffset, partition);
-      consumer.seek(partition, startOffset);
       topics.add(partition.topic());
+      long position = consumer.position(partition);
+      this.endOffsets.put(partition, position);
+      if (position == 0) {
+        logger.info("Got assigned offset {} for {}; topic is empty or someone wants onupdate for existing messages", position, partition);
+        this.stage = Stage.Polling;
+        continue;
+      }
+      this.stage = Stage.Resetting;
+      logger.info("Got assigned offset {} for {}; seeking to {}", position, partition, startOffset);
+      consumer.seek(partition, startOffset);
     }
     // We don't have the poll semantics anymore but we used to call onupdate.pollStart. Maybe the entire onupdate impl can be replaced by a REST client interface.
     onupdate.pollStart(topics);
@@ -163,8 +170,6 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   @Incoming("topic")
   public void consume(ConsumerRecord<String, byte[]> record) {
 
-    logger.debug("Processing offset {} for topic {}", record.offset(), record.topic());
-
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
         toStats(update);
         if (update.getKey() != null) {
@@ -172,18 +177,21 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
         }
         long start = getEndOffset(update.getTopicPartition());
         if (record.offset() >= start) {
-          this.stage = Stage.Polling;
           if (update.getKey() != null) {
+            if (logger.isTraceEnabled()) logger.trace("onupdate {}", record.offset());
             onupdate.handle(update);
           } else {
+            if (logger.isTraceEnabled()) logger.debug("onNullKey {}", record.offset());
             onNullKey(update);
           }
         } else {
-          this.stage = Stage.PollingHistorical;
           if (record.offset() == start - 1) {
+            this.stage = Stage.Polling;
             logger.info("Reached last historical message for {} at offset {}", update.getTopicPartition(), update.getOffset());
             // TODO do we want to restore this tracking from the old consumer logic?
             // lastCommittedNotReached.remove(update.getTopicPartition());
+          } else {
+            this.stage = Stage.PollingHistorical;
           }
           logger.trace("Suppressing onupdate for {} because start offset is {}", update, start);
         }
