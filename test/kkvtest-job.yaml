@@ -146,34 +146,39 @@ spec:
           value: http://kkv.local:8091
         - name: HOOK
           value: http://hook.local:8080
+        - name: RQLOG
+          value: http://hook.local:8089
+        - name: RQLOGMETRICS
+          value: http://hook.local:9901/stats/prometheus
         command:
         - /bin/bash
         - -cex
         - |
           set +e
 
-          # Should be fixed:
-          # # The way we do readiness now the topic can't be empty
-          # echo 'k1#test1' | kcat -b $BOOTSTRAP -P -t table -K# -e
-          # kcat -b $BOOTSTRAP -C -t table -e
+          curl --retry 10 --retry-delay 1 --retry-connrefused $RQLOG/testsetup
 
-          curl --retry 10 --retry-connrefused $KKV/q/health/ready
-          curl -s http://localhost:9901/stats/prometheus | grep envoy_listener_http_downstream_rq_completed
-          echo 'k1#test1' | kcat -b $BOOTSTRAP -P -t table -K# -e
-          curl $KKV/cache/v1/keys | grep '"k1"'
-          curl -s http://localhost:9901/stats/prometheus | grep envoy_listener_http_downstream_rq_completed
+          curl --retry 10 --retry-delay 3 --retry-connrefused $KKV/q/health/ready
+          curl -s $RQLOGMETRICS | grep envoy_listener_http_downstream_rq_completed
+          echo 'first' | kcat -b $BOOTSTRAP -P -t table -k t1 -e
+          curl $KKV/cache/v1/keys | grep '"t1"'
+          curl -s $RQLOGMETRICS | grep envoy_listener_http_downstream_rq_completed
 
           jq . /var/testlogs/requests.json
           # kkv1 is faster than redpanda up, bails on nonexisting topic, then restarts itself on the first readiness probe
           curl $KKV1/q/health/ready
-          until curl -f -s $KKV1/cache/v1/raw/k1; do echo "Waiting for kkv1 to fill cache"; done
-          echo 'k2#test2' | kcat -b $BOOTSTRAP -P -t table -K# -e
-          curl -f -s $KKV1/cache/v1/raw/k2
+          until curl -f -s $KKV1/cache/v1/raw/t1; do echo "Waiting for kkv1 to fill cache" && sleep 1; done
+          echo 'second' | kcat -b $BOOTSTRAP -P -t table -k t2 -e
+          curl -f -s $KKV1/cache/v1/raw/t2
+          curl -f -s $KKV/cache/v1/raw/t2
           jq . /var/testlogs/requests.json
 
           N=1000
           seq 1 $N | kcat -b $BOOTSTRAP -P -t table -kt$N
           pkill -SIGSTOP redpanda
+          RESULT=$(curl $KKV/cache/v1/raw/t$N)
+          [ "$N" = "$RESULT" ] || echo "Expected $N got $RESULT"
+          sleep 1
           RESULT=$(curl $KKV/cache/v1/raw/t$N)
           [ "$N" = "$RESULT" ] || echo "Expected $N got $RESULT"
           # Now test how kkv behaves after kafka went offline
@@ -184,10 +189,35 @@ spec:
           done
           pkill -SIGCONT redpanda
 
-          wc -l /var/testlogs/requests.json
+          echo "Onupdate requests logged so far: $(wc -l /var/testlogs/requests.json)"
 
-          # kills quarkus
-          #pkill -SIGHUP quarkus
+          echo "Restarting kkv"
+          curl -X POST $KKV/_admin/v1/shutdown/199
+          seq 1 10 | kcat -b $BOOTSTRAP -P -t table -k post-shutdown
+
+          tail -n 1 /var/testlogs/requests.json | jq '.'
+          curl --retry 10 --retry-delay 3 --retry-connrefused -f $KKV/q/health/ready
+          seq 1 10 | kcat -b $BOOTSTRAP -P -t table -k post-shutdown-ready
+          curl $KKV/cache/v1/raw/post-shutdown
+          curl $KKV/cache/v1/raw/post-shutdown-ready
+          tail -n 1 /var/testlogs/requests.json | jq '.'
+          sleep 1
+          curl $KKV/cache/v1/raw/post-shutdown
+          curl $KKV/cache/v1/raw/post-shutdown-ready
+          tail -n 1 /var/testlogs/requests.json | jq '.'
+
+          echo "Verifying the very basic case"
+          date -Ins | kcat -b $BOOTSTRAP -P -t table -k t9
+          last=$(kcat -b $BOOTSTRAP -C -t table -f '%o\n' -o -1 -e)
+          sleep 1
+          tail -n 2 /var/testlogs/requests.json | grep kkv002 | grep $last
+          tail -n 2 /var/testlogs/requests.json | grep kkv001 | grep $last
+          sleep 1
+          tail -n 2 /var/testlogs/requests.json | grep kkv002 | grep $last
+          tail -n 2 /var/testlogs/requests.json | grep kkv001 | grep $last
+          sleep 1
+          tail -n 2 /var/testlogs/requests.json | grep kkv002 | grep $last
+          tail -n 2 /var/testlogs/requests.json | grep kkv001 | grep $last
 
           tail -f /dev/null
         volumeMounts:
