@@ -22,6 +22,8 @@ mp:
           deserializer: org.apache.kafka.common.serialization.StringDeserializer
         value:
           deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+        interceptor:
+          classes: se.yolean.kafka.keyvalue.KafkaPollListener
 
 quarkus:
 

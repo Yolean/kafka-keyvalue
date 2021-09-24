@@ -75,6 +75,8 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   private Map<TopicPartition, Long> endOffsets = null;
 
+  private Set<String> topics = new HashSet<>();
+
   private final long startOffset = 0;
 
   Stage stage = Stage.Created;
@@ -149,7 +151,6 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       return;
     }
     this.endOffsets = new HashMap<>();
-    Set<String> topics = new HashSet<>();
     for (TopicPartition partition : partitions) {
       topics.add(partition.topic());
       long position = consumer.position(partition);
@@ -164,12 +165,11 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       consumer.seek(partition, startOffset);
     }
     // We don't have the poll semantics anymore but we used to call onupdate.pollStart. Maybe the entire onupdate impl can be replaced by a REST client interface.
-
+    onupdate.pollStart(topics);
   }
 
   @Incoming("topic")
   public void consume(ConsumerRecord<String, byte[]> record) {
-    onupdate.pollStart(topics);
     //for (ConsumerRecord<String, byte[]> record : records)  {
       try {
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
@@ -202,7 +202,11 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
         throw e;
       }
     // }
-    onupdate.pollEndBlockingUntilTargetsAck();
+    if (KafkaPollListener.getIsPollEndOnce()) {
+      logger.info("Poll end detected. Dispatching onUpdate.");
+      onupdate.pollEndBlockingUntilTargetsAck();
+      onupdate.pollStart(topics);
+    }
   }
 
   private void toStats(UpdateRecord update) {
