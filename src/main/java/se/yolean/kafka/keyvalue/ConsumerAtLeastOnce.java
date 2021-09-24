@@ -18,8 +18,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -164,12 +162,12 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       logger.info("Got assigned offset {} for {}; seeking to {}", position, partition, startOffset);
       consumer.seek(partition, startOffset);
     }
-    // We don't have the poll semantics anymore but we used to call onupdate.pollStart. Maybe the entire onupdate impl can be replaced by a REST client interface.
     onupdate.pollStart(topics);
   }
 
   @Incoming("topic")
   public void consume(ConsumerRecord<String, byte[]> record) {
+    // If we find a way to consume the entire batch we wouln't need the KafkaPollListener hack
     //for (ConsumerRecord<String, byte[]> record : records)  {
       try {
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
