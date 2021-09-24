@@ -177,7 +177,10 @@ spec:
           RESULT=$(curl $KKV/cache/v1/raw/t$N)
           [ "$N" = "$RESULT" ] || echo "Expected $N got $RESULT"
           # Now test how kkv behaves after kafka went offline
-          sleep 65
+          sleep 15
+          curl $KKV1/q/health/ready
+          curl $KKV/q/health/ready
+          sleep 50
           pkill -SIGCONT redpanda
 
           wc -l /var/testlogs/requests.json
