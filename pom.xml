@@ -73,25 +73,6 @@
       <version>3.12.4</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>com.salesforce.kafka.test</groupId>
-      <artifactId>kafka-junit5</artifactId>
-      <version>3.2.3</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka_2.13</artifactId>
-      <version>2.8.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <!-- https://stackoverflow.com/questions/64669007/noclassdeffounderror-scala-math-ordering-with-spring-kafka-test-2-5-7 -->
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scala-library</artifactId>
-      <version>2.13.5</version>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
   <build>
     <plugins>
