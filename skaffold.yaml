@@ -1,6 +1,9 @@
 apiVersion: skaffold/v2beta18
 kind: Config
 build:
+  tagPolicy:
+    gitCommit:
+      variant: CommitSha
   artifacts:
   - image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
     context: .
