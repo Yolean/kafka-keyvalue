@@ -186,6 +186,8 @@ spec:
             sleep 15
             curl $KKV1/q/health/ready
             curl $KKV/q/health/ready
+            # Unlike first generation KKV we should expect response with the latest cached value during kafka downtime
+            curl $KKV/cache/v1/keys
           done
           pkill -SIGCONT redpanda
 
