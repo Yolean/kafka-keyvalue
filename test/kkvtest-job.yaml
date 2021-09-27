@@ -141,7 +141,8 @@ spec:
         - name: BOOTSTRAP
           value: kafka.local:9092
         - name: KKV1
-          value: http://kkv.local:8090
+          #value: http://kkv.local:8090
+          value: ""
         - name: KKV
           value: http://kkv.local:8091
         - name: HOOK
@@ -166,10 +167,10 @@ spec:
 
           jq . /var/testlogs/requests.json
           # kkv1 is faster than redpanda up, bails on nonexisting topic, then restarts itself on the first readiness probe
-          curl $KKV1/q/health/ready
-          until curl -f -s $KKV1/cache/v1/raw/t1; do echo "Waiting for kkv1 to fill cache" && sleep 1; done
+          [ -z "$KKV1" ] ||curl $KKV1/q/health/ready
+          [ -z "$KKV1" ] ||until curl -f -s $KKV1/cache/v1/raw/t1; do echo "Waiting for kkv1 to fill cache" && sleep 1; done
           echo 'second' | kcat -b $BOOTSTRAP -P -t table -k t2 -e
-          curl -f -s $KKV1/cache/v1/raw/t2
+          [ -z "$KKV1" ] || curl -f -s $KKV1/cache/v1/raw/t2
           curl -f -s $KKV/cache/v1/raw/t2
           jq . /var/testlogs/requests.json
 
@@ -184,7 +185,7 @@ spec:
           # Now test how kkv behaves after kafka went offline
           for i in {0..3}; do
             sleep 15
-            curl $KKV1/q/health/ready
+            [ -z "$KKV1" ] || curl $KKV1/q/health/ready
             curl $KKV/q/health/ready
             # Unlike first generation KKV we should expect response with the latest cached value during kafka downtime
             curl $KKV/cache/v1/keys
