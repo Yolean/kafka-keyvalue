@@ -161,11 +161,11 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
    */
   @Override
   public void onPartitionsAssigned(Consumer<?, ?> consumer, Collection<TopicPartition> partitions) {
-    this.stage = Stage.Assigning;
     if (this.endOffsets != null) {
       logger.warn("Partition re-assignment ignored, with no check for differences in the set of partitions");
       return;
     }
+    this.stage = Stage.Assigning;
     this.endOffsets = new HashMap<>();
     this.lowWaterMarkAtStart = consumer.beginningOffsets(partitions, assignmentsTimeout);
     for (TopicPartition partition : partitions) {
