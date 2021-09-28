@@ -14,6 +14,7 @@
 
 package se.yolean.kafka.keyvalue;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,6 +29,7 @@ import javax.inject.Inject;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
@@ -65,6 +67,9 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
+  @ConfigProperty(name = "kkc.assignments.timeout", defaultValue="90s")
+  private Duration assignmentsTimeout;
+
   @Inject
   Map<String, byte[]> cache;
 
@@ -73,9 +78,9 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   private Map<TopicPartition, Long> endOffsets = null;
 
-  private Set<String> topics = new HashSet<>();
+  private Map<TopicPartition, Long> lowWaterMarkAtStart = null;
 
-  private final long startOffset = 0;
+  private Set<String> topics = new HashSet<>();
 
   Stage stage = Stage.Created;
 
@@ -125,6 +130,9 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     return health.withData("stage", stage.toString()).build();
   }
 
+  /**
+   * @return The last offset that targets are _not_ interested in onupdate for
+   */
   public long getEndOffset(TopicPartition topicPartition) {
     if (this.endOffsets == null) {
       throw new IllegalStateException("Waiting for partition assignment");
@@ -133,6 +141,16 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       throw new IllegalStateException("Topic-partition " + topicPartition + " not found in " + endOffsets.keySet());
     }
     return endOffsets.get(topicPartition);
+  }
+
+  public long getLowWaterMarkAtStart(TopicPartition topicPartition) {
+    if (this.lowWaterMarkAtStart == null) {
+      throw new IllegalStateException("Waiting for partition assignment");
+    }
+    if (!lowWaterMarkAtStart.containsKey(topicPartition)) {
+      throw new IllegalStateException("Topic-partition " + topicPartition + " not found in low watermarks " + lowWaterMarkAtStart.keySet());
+    }
+    return lowWaterMarkAtStart.get(topicPartition);
   }
 
   /**
@@ -149,9 +167,11 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       return;
     }
     this.endOffsets = new HashMap<>();
+    this.lowWaterMarkAtStart = consumer.beginningOffsets(partitions, assignmentsTimeout);
     for (TopicPartition partition : partitions) {
       topics.add(partition.topic());
-      long position = consumer.position(partition);
+      long startOffset = getLowWaterMarkAtStart(partition);
+      long position = consumer.position(partition, assignmentsTimeout);
       this.endOffsets.put(partition, position);
       if (position == 0) {
         logger.info("Got assigned offset {} for {}; topic is empty or someone wants onupdate for existing messages", position, partition);
@@ -159,7 +179,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
         continue;
       }
       this.stage = Stage.Resetting;
-      logger.info("Got assigned offset {} for {}; seeking to {}", position, partition, startOffset);
+      logger.info("Got assigned offset {} for {}; seeking to low water mark {}", position, partition, startOffset);
       consumer.seek(partition, startOffset);
     }
     onupdate.pollStart(topics);
