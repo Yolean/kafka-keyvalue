@@ -90,6 +90,8 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   Map<TopicPartition,Long> currentOffsets = new HashMap<>(1);
 
+  private boolean pollHasUpdates = false;
+
   private final Counter meterNullKeys;
 
   public ConsumerAtLeastOnce(MeterRegistry registry) {
@@ -188,6 +190,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   @Incoming("topic")
   public void consume(ConsumerRecord<String, byte[]> record) {
     // If we find a way to consume the entire batch we wouln't need the KafkaPollListener hack
+    // or the pollHasUpdates instance state
     //for (ConsumerRecord<String, byte[]> record : records)  {
       try {
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
@@ -200,6 +203,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
           if (update.getKey() != null) {
             if (logger.isTraceEnabled()) logger.trace("onupdate {}", record.offset());
             onupdate.handle(update);
+            pollHasUpdates = true;
           } else {
             if (logger.isTraceEnabled()) logger.debug("onNullKey {}", record.offset());
             onNullKey(update);
@@ -220,10 +224,15 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
         throw e;
       }
     // }
-    if (KafkaPollListener.getIsPollEndOnce()) {
-      logger.info("Poll end detected. Dispatching onUpdate.");
-      onupdate.pollEndBlockingUntilTargetsAck();
-      onupdate.pollStart(topics);
+    if (KafkaPollListener.getIsPollEndOnce()) {;
+      if (pollHasUpdates) {
+        pollHasUpdates = false;
+        logger.info("Poll end detected. Dispatching onUpdate.");
+        onupdate.pollEndBlockingUntilTargetsAck();
+        onupdate.pollStart(topics);
+      } else {
+        logger.info("Poll end detected. No updates to dispatch.");
+      }
     }
   }
 

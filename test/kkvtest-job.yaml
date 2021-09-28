@@ -60,6 +60,8 @@ spec:
         - -cex
         - |
           until rpk cluster --brokers kafka.local:9092 info; do sleep 1; done;
+          # We seem to handle non-existent topics quite badly, ending up with too many unacked messages once consumption start
+          # sleep 30
           rpk topic --brokers kafka.local:9092 create table -r 1 -p 1
           rpk topic --brokers kafka.local:9092 create onupdate -r 1 -p 1
       - name: hook

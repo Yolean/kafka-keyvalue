@@ -41,7 +41,7 @@ public class KafkaPollListener implements ConsumerInterceptor<String, byte[]> {
 
   @Override
   public ConsumerRecords<String, byte[]> onConsume(ConsumerRecords<String, byte[]> records) {
-    logger.info("onConsume {}", records.count());
+    logger.info("onConsume message count {}", records.count());
     this.pollEnded = true;
     return records;
   }
