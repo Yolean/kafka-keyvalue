@@ -1,4 +1,4 @@
-FROM docker.io/yolean/builder-quarkus-mvncache:b7d518582a973bc4db7dbc884854190881993f3e@sha256:a91ad37aec282c2c37f75cf74f24827b8ee500ce758f52d03c41504022c86220 \
+FROM docker.io/yolean/builder-quarkus-mvncache:41aefcc2461206b29e4605777ad15669f9d2dd1f@sha256:49f4ad1af955a33782b742407e16a7321d0bebb5b18d998362865df39a57105a \
   as dev
 
 COPY pom.xml .
@@ -24,7 +24,7 @@ ARG build="package -Pnative"
 
 RUN mvn --batch-mode $build
 
-FROM yolean/java:907bcbc85d22a29d3243e2af97a0b09fba2ee4ce@sha256:63674354bd7f6f6660af89b483df98124c7d3062ce1e59a12ec012a47be769a3 \
+FROM yolean/java:41aefcc2461206b29e4605777ad15669f9d2dd1f@sha256:944b0975dd1002ff4b3fd451f8e51c3927253c1bd1ea71df0e148bb612ef9e7a \
   as jvm
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
@@ -41,7 +41,7 @@ ENTRYPOINT [ "java", \
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
-FROM docker.io/yolean/runtime-quarkus-ubuntu:b7d518582a973bc4db7dbc884854190881993f3e@sha256:c8edba8447e8d716d437e75f48e8484bb6d631f1be3e57175ff3600099474501
+FROM docker.io/yolean/runtime-quarkus-ubuntu:41aefcc2461206b29e4605777ad15669f9d2dd1f@sha256:0fafc576c2b530b10612fc1baa079a023cb757c66d47938782d70ece8e121859
 
 COPY --from=dev /workspace/target/*-runner /usr/local/bin/quarkus
 
