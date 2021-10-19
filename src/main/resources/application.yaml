@@ -3,6 +3,7 @@ mp:
   messaging:
     incoming:
       topic:
+        health-readiness-enabled: ${kafka_health_radiness_enabled:false}
         connector:
           smallrye-kafka
         bootstrap:
