@@ -1,16 +1,30 @@
-FROM docker.io/yolean/builder-quarkus-mvncache:41aefcc2461206b29e4605777ad15669f9d2dd1f@sha256:49f4ad1af955a33782b742407e16a7321d0bebb5b18d998362865df39a57105a \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:07bf9f634da62a9525a691924c64a4f79b1f10a5@sha256:054ef0a03ee06c3254213f6c0e2fe43023b396c1d841d528575cf41c096a367e \
+  as jnilib
+
+# https://github.com/xerial/snappy-java/blob/master/src/main/java/org/xerial/snappy/OSInfo.java#L113
+RUN set -ex; \
+  curl -o snappy.jar -sLSf https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/1.1.8.4/snappy-java-1.1.8.4.jar; \
+  LIBPATH=$(java -cp snappy.jar org.xerial.snappy.OSInfo); \
+  ARCH=$(java -cp snappy.jar org.xerial.snappy.OSInfo --arch); \
+  mkdir -pv native/$LIBPATH; \
+  cp -v /usr/lib/$ARCH-linux-gnu/jni/* native/$LIBPATH/
+
+FROM --platform=$BUILDPLATFORM docker.io/yolean/builder-quarkus:07bf9f634da62a9525a691924c64a4f79b1f10a5@sha256:054ef0a03ee06c3254213f6c0e2fe43023b396c1d841d528575cf41c096a367e \
   as dev
 
 COPY pom.xml .
-RUN y-build-quarkus-cache
+#RUN y-build-quarkus-cache
 
 COPY --chown=nonroot:nogroup . .
 
 # https://github.com/quarkusio/quarkus/blob/1.13.1.Final/extensions/kafka-client/deployment/src/main/java/io/quarkus/kafka/client/deployment/KafkaProcessor.java#L194
+# https://github.com/quarkusio/quarkus/blob/2.7.1.Final/extensions/kafka-client/deployment/src/main/java/io/quarkus/kafka/client/deployment/KafkaProcessor.java#L268
 # https://github.com/quarkusio/quarkus/blob/1.13.1.Final/extensions/kafka-client/runtime/src/main/java/io/quarkus/kafka/client/runtime/KafkaRecorder.java#L23
-RUN mkdir -p src/main/resources/org/xerial/snappy/native/Linux/x86_64 \
-  && cp -v /usr/lib/x86_64-linux-gnu/jni/libsnappyjava.so src/main/resources/org/xerial/snappy/native/Linux/x86_64/libsnappyjava.so \
-  && ldd -v src/main/resources/org/xerial/snappy/native/Linux/x86_64/libsnappyjava.so
+# https://github.com/quarkusio/quarkus/blob/2.7.1.Final/extensions/kafka-client/runtime/src/main/java/io/quarkus/kafka/client/runtime/KafkaRecorder.java#L26
+# TODO check that for "$build" == "native-image" TARGETPLATFORM == BUILDPLATFORM
+COPY --from=jnilib /workspace/native/Linux rest/src/main/resources/org/xerial/snappy/native/Linux
+# TODO need to verify?
+#RUN ldd -v rest/src/main/resources/org/xerial/snappy/native/Linux/x86_64/libsnappyjava.so
 
 ENTRYPOINT [ "mvn", "compile", "quarkus:dev" ]
 CMD [ "-Dquarkus.http.host=0.0.0.0" ]
@@ -24,7 +38,7 @@ ARG build="package -Pnative"
 
 RUN mvn --batch-mode $build
 
-FROM yolean/java:41aefcc2461206b29e4605777ad15669f9d2dd1f@sha256:944b0975dd1002ff4b3fd451f8e51c3927253c1bd1ea71df0e148bb612ef9e7a \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu-jre:d091be226e9a62ee3cba9816cafedb8a06a17012@sha256:a4e85350a79341fe2216001ec500511066094ea0c387acb2f3627ca11951882c \
   as jvm
 ARG SOURCE_COMMIT
 ARG SOURCE_BRANCH
@@ -41,7 +55,7 @@ ENTRYPOINT [ "java", \
 
 ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
 
-FROM docker.io/yolean/runtime-quarkus-ubuntu:41aefcc2461206b29e4605777ad15669f9d2dd1f@sha256:0fafc576c2b530b10612fc1baa079a023cb757c66d47938782d70ece8e121859
+FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu:d091be226e9a62ee3cba9816cafedb8a06a17012@sha256:a4b4e77494c26720321b54a442b4806cdb59d426ae2266802bc5c8ed794dd2b6
 
 COPY --from=dev /workspace/target/*-runner /usr/local/bin/quarkus
 
