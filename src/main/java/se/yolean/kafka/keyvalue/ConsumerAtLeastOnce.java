@@ -80,6 +80,8 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   private Map<TopicPartition, Long> lowWaterMarkAtStart = null;
 
+  private boolean readinessOkOnResetting = false;
+
   private Set<String> topics = new HashSet<>();
 
   Stage stage = Stage.Created;
@@ -116,6 +118,9 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   }
 
   public boolean isReady() {
+    if (readinessOkOnResetting && this.stage == Stage.Resetting) {
+      return true;
+    }
     return stage == Stage.Polling;
   }
 
@@ -182,6 +187,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       }
       this.stage = Stage.Resetting;
       logger.info("Got assigned offset {} for {}; seeking to low water mark {}", position, partition, startOffset);
+      if (startOffset > 0) this.readinessOkOnResetting = true;
       consumer.seek(partition, startOffset);
     }
     onupdate.pollStart(topics);
@@ -212,6 +218,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
           if (record.offset() == start - 1) {
             this.stage = Stage.Polling;
             logger.info("Reached last historical message for {} at offset {}", update.getTopicPartition(), update.getOffset());
+            this.readinessOkOnResetting = false;
             // TODO do we want to restore this tracking from the old consumer logic?
             // lastCommittedNotReached.remove(update.getTopicPartition());
           } else {
