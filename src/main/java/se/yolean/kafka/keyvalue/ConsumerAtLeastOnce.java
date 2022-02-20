@@ -119,6 +119,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   public boolean isReady() {
     if (readinessOkOnResetting && this.stage == Stage.Resetting) {
+      logger.info("Reporting readiness OK at phase Resetting, presumably low==high watermark");
       return true;
     }
     return stage == Stage.Polling;
