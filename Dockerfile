@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:07bf9f634da62a9525a691924c64a4f79b1f10a5@sha256:054ef0a03ee06c3254213f6c0e2fe43023b396c1d841d528575cf41c096a367e \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:53090e65731685a6c5cfe83ce7665a029b0341e1@sha256:46cb8ae979f322d89db9070bb2caf088224ea191de19652074b6b7678491 \
   as jnilib
 
 # https://github.com/xerial/snappy-java/blob/master/src/main/java/org/xerial/snappy/OSInfo.java#L113
@@ -13,7 +13,7 @@ FROM --platform=$BUILDPLATFORM docker.io/yolean/builder-quarkus:07bf9f634da62a95
   as dev
 
 COPY pom.xml .
-#RUN y-build-quarkus-cache
+RUN y-build-quarkus-cache
 
 COPY --chown=nonroot:nogroup . .
 
