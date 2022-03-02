@@ -1,0 +1,56 @@
+
+mp:
+  messaging:
+    incoming:
+      topic:
+        health-readiness-enabled: ${kafka_health_radiness_enabled:false}
+        connector:
+          smallrye-kafka
+        bootstrap:
+          servers: ${kafka_bootstrap}
+        topic: ${topic}
+        enable:
+          auto:
+            commit: false
+        auto:
+          offset:
+            reset: ${kafka_offset_reset:latest}
+        group:
+          id: ${kafka_group_id}
+        consumer-rebalance-listener:
+          name: kkv
+        key:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value:
+          deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+        interceptor:
+          classes: se.yolean.kafka.keyvalue.KafkaPollListener
+
+quarkus:
+
+  http:
+    port: ${QUARKUS_HTTP_PORT:8090}
+
+  log:
+    category:
+      "se.yolean":
+        level: DEBUG
+      "org.apache.kafka.clients.Metadata":
+        level: DEBUG
+
+  kafka:
+    snappy:
+      enabled: true
+    devservices:
+      # topic-partitions:
+      #   operations: 1
+      enabled: false
+
+  native:
+    native-image-xmx: 4g
+    additional-build-args: >-
+      --install-exit-handlers,
+      --no-fallback
+
+  ssl:
+    native: false

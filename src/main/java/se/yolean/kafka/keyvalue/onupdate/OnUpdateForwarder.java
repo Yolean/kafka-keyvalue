@@ -23,9 +23,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
@@ -36,7 +36,7 @@ import io.quarkus.runtime.StartupEvent;
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 
-@Singleton
+@ApplicationScoped
 public class OnUpdateForwarder implements OnUpdate {
 
   static final Logger logger = LoggerFactory.getLogger(OnUpdateForwarder.class);
@@ -59,6 +59,8 @@ public class OnUpdateForwarder implements OnUpdate {
 
   Map<String, UpdatesBodyPerTopic> pollState = new LinkedHashMap<>(1);
 
+  boolean inPoll = false;
+
   void start(@Observes StartupEvent ev) {
     updateDispatchersFromConfig();
   }
@@ -71,6 +73,8 @@ public class OnUpdateForwarder implements OnUpdate {
 
   @Override
   public void pollStart(Iterable<String> topics) {
+    if (inPoll) throw new IllegalStateException("pollStart called twice without pollEnd");
+    inPoll = true;
     resetPollState();
   }
 
@@ -82,6 +86,11 @@ public class OnUpdateForwarder implements OnUpdate {
 
   @Override
   public void pollEndBlockingUntilTargetsAck() throws UpdateSemanticsSuggestHalt {
+    if (!inPoll) throw new IllegalStateException("pollEnd called without pollStart");
+    inPoll = false;
+    if (!hasPollState()) {
+      throw new IllegalStateException("Zero handle(UpdateRecord) calls between pollStart and pollEnd");
+    }
     for (UpdatesDispatcher dispatcher : dispatchers) {
       for (String topic : pollState.keySet()) {
         try {
@@ -92,6 +101,10 @@ public class OnUpdateForwarder implements OnUpdate {
         }
       }
     }
+  }
+
+  boolean hasPollState() {
+    return pollState.size() > 0;
   }
 
   void resetPollState() {

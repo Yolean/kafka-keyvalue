@@ -15,31 +15,25 @@
 package se.yolean.kafka.keyvalue;
 
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
-import java.util.stream.Collectors;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,19 +41,21 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
+import io.smallrye.common.annotation.Identifier;
+import io.smallrye.reactive.messaging.kafka.KafkaConsumerRebalanceListener;
 
-@Singleton
-public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
-    HealthCheck {
+@ApplicationScoped
+@Identifier("kkv")
+public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, KafkaCache, HealthCheck {
 
   public enum Stage {
     Created (10),
-    CreatingConsumer (20),
-    Initializing (30),
-    WaitingForKafkaConnection (40),
+    //CreatingConsumer (20),
+    //Initializing (30),
+    //WaitingForKafkaConnection (40),
     Assigning (50),
     Resetting (60),
-    InitialPoll (70),
+    //InitialPoll (70),
     PollingHistorical (80),
     Polling (90);
 
@@ -71,45 +67,22 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  @ConfigProperty(name="topic") Optional<String> topic;
-  @ConfigProperty(name="topic1") Optional<String> topic1;
-  @ConfigProperty(name="topic2") Optional<String> topic2;
-  @ConfigProperty(name="topic3") Optional<String> topic3;
-  @ConfigProperty(name="topic4") Optional<String> topic4;
-  @ConfigProperty(name="topic5") Optional<String> topic5;
-  @ConfigProperty(name="topic6") Optional<String> topic6;
-  @ConfigProperty(name="topic7") Optional<String> topic7;
-  @ConfigProperty(name="topic8") Optional<String> topic8;
-  @ConfigProperty(name="topic9") Optional<String> topic9;
-
-  @ConfigProperty(name="metadata_timeout", defaultValue="5s")
-  Duration metadataTimeout;
-
-  @ConfigProperty(name="poll_duration", defaultValue="5s")
-  Duration pollDuration;
-
-  @ConfigProperty(name="min_pause_between_polls", defaultValue="1s")
-  Duration minPauseBetweenPolls;
-
-  @ConfigProperty(name="max_polls", defaultValue="0")
-  long maxPolls = 0;
+  @ConfigProperty(name = "kkc.assignments.timeout", defaultValue="90s")
+  private Duration assignmentsTimeout;
 
   @Inject
-  //@javax.inject.Named("consumer")
-  Properties consumerProps;
-
-  @Inject
-  //@javax.inject.Named("cache")
   Map<String, byte[]> cache;
 
   @Inject
   OnUpdate onupdate;
 
-  List<String> topics;
+  private Map<TopicPartition, Long> endOffsets = null;
 
-  boolean shouldBeRunning = false;
+  private Map<TopicPartition, Long> lowWaterMarkAtStart = null;
 
-  Thread runner = null;
+  private boolean readinessOkOnResetting = false;
+
+  private Set<String> topics = new HashSet<>();
 
   Stage stage = Stage.Created;
 
@@ -118,6 +91,8 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       .down();
 
   Map<TopicPartition,Long> currentOffsets = new HashMap<>(1);
+
+  private boolean pollHasUpdates = false;
 
   private final Counter meterNullKeys;
 
@@ -130,66 +105,24 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
     return stage.metricValue;
   }
 
-  void topicsFromConfig() {
-    topics = Arrays.asList(
-        topic.orElse(null),
-        topic1.orElse(null),
-        topic2.orElse(null),
-        topic3.orElse(null),
-        topic4.orElse(null),
-        topic5.orElse(null),
-        topic6.orElse(null),
-        topic7.orElse(null),
-        topic8.orElse(null),
-        topic9.orElse(null))
-        .stream()
-        .filter(t -> t != null)
-        .collect(Collectors.toList());
-    if (topics.size() == 0) {
-      throw new IllegalStateException("At least one topic or topicX config must be set");
-    }
-  }
-
   void start(@Observes StartupEvent ev) {
     logger.info("Build meta, if present: branch={}, commit={}, image={}",
         System.getenv("SOURCE_BRANCH"),
         System.getenv("SOURCE_COMMIT"),
         System.getenv("IMAGE_NAME"));
-    logger.info("Metadata timeout: {}", metadataTimeout);
-    logger.info("Poll duration: {}", pollDuration);
-    logger.info("Min pause between polls: {}", minPauseBetweenPolls);
-    topicsFromConfig();
-    logger.info("Started. Topics: {}", topics);
     logger.info("Cache: {}", cache);
-    shouldBeRunning = true;
-    startIfNeeded();
   }
 
   public void stop(@Observes ShutdownEvent ev) {
-    shouldBeRunning = false;
     logger.info("Stopping");
   }
 
-  void startIfNeeded() {
-    if (!shouldBeRunning) return;
-    if (runner != null && runner.isAlive()) return;
-    runner = new Thread(this, "kafkaclient");
-    runner.start();
-  }
-
-  /**
-   * Tries to self-assess that cache isn't stale
-   * @return true if cache appears up-to-date
-   */
   public boolean isReady() {
-    return runner != null && runner.isAlive() && stage == Stage.Polling;
-  }
-
-  void ensureRunning() {
-    if (shouldBeRunning) {
-      logger.info("Consumer thread exited but someone cares about readiness: attempting restart");
-      startIfNeeded();
+    if (readinessOkOnResetting && this.stage == Stage.Resetting) {
+      logger.info("Reporting readiness OK at phase Resetting, presumably low==high watermark");
+      return true;
     }
+    return stage == Stage.Polling;
   }
 
   /**
@@ -201,156 +134,114 @@ public class ConsumerAtLeastOnce implements KafkaCache, Runnable,
       health = health.up();
     } else {
       health = health.down();
-      ensureRunning();
     }
     return health.withData("stage", stage.toString()).build();
   }
 
   /**
-   * (Re)set all state and consume to cache, cheaper than restarting the whole application,
-   * and good for integration testing.
-   *
-   * Should log exceptions with a meaningful message, and re-throw for {@link Thread#setUncaughtExceptionHandler(java.lang.Thread.UncaughtExceptionHandler)}.
-   *
-   * No thread management should happen within this loop (except maybe in outbound HTTP requests).
+   * @return The last offset that targets are _not_ interested in onupdate for
    */
-  @Override
-  public void run() {
-    stage = Stage.CreatingConsumer;
-    KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps);
-    try {
-      run(consumer, cache, maxPolls);
-    } catch (InterruptedException e) {
-      logger.error("Consume loop got interrupted at stage {}", stage, e);
-      throw new RuntimeException("Exited due to error", e);
-    } catch (org.apache.kafka.common.errors.TimeoutException e) {
-      logger.error("A Kafka timeout occured at stage {}", stage, e);
-      throw e;
-    } catch (org.apache.kafka.clients.consumer.NoOffsetForPartitionException e) {
-      logger.error("Offset strategy is '{}' and a partition had no offset for group id: {}",
-          consumerProps.get(org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG),
-          consumerProps.get(org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG),
-          e);
-      throw e;
-    } catch (org.apache.kafka.common.KafkaException e) {
-      logger.error("Unrecoverable kafka error at stage {}", stage, e);
-      throw e;
-    } catch (RuntimeException e) {
-      logger.error("Unrecognized error at stage {}", stage, e);
-      throw e;
-    } finally {
-      logger.info("Closing consumer ...");
-      consumer.close();
-      logger.info("Consumer closed at stage {}; Use liveness probes with /health for app termination", stage);
+  public long getEndOffset(TopicPartition topicPartition) {
+    if (this.endOffsets == null) {
+      throw new IllegalStateException("Waiting for partition assignment");
     }
+    if (!endOffsets.containsKey(topicPartition)) {
+      throw new IllegalStateException("Topic-partition " + topicPartition + " not found in " + endOffsets.keySet());
+    }
+    return endOffsets.get(topicPartition);
   }
 
-  void run(final KafkaConsumer<String, byte[]> consumer, final Map<String, byte[]> cache, final long polls) throws
-      InterruptedException,
-      org.apache.kafka.common.errors.TimeoutException,
-      org.apache.kafka.clients.consumer.NoOffsetForPartitionException,
-      org.apache.kafka.common.KafkaException {
-
-    stage = Stage.Initializing;
-    logger.info("At stage {} before {} polls with consumer {}", stage, polls == 0 ? "infinite" : polls, consumer);
-
-    stage = Stage.WaitingForKafkaConnection;
-    Map<String, List<PartitionInfo>> allTopics = consumer.listTopics(metadataTimeout);
-    if (allTopics == null) throw new IllegalStateException("Got null topics list from consumer. Expected a throw.");
-
-    // We might want this to cause retries instead of crashloop, if a full restart is too frequent, expensive or slow
-    if (allTopics.size() == 0) throw new NoMatchingTopicsException(topics, allTopics);
-
-    stage = Stage.Assigning;
-    List<TopicPartition> assign = new LinkedList<>();
-    for (String t : topics) {
-      if (!allTopics.containsKey(t)) throw new NoMatchingTopicsException(topics, allTopics);
-      for (PartitionInfo p : allTopics.get(t)) {
-        assign.add(new TopicPartition(t, p.partition()));
-      }
+  public long getLowWaterMarkAtStart(TopicPartition topicPartition) {
+    if (this.lowWaterMarkAtStart == null) {
+      throw new IllegalStateException("Waiting for partition assignment");
     }
-    logger.info("Topics {} found with partitions {}", topics, assign);
-    consumer.assign(assign);
-
-    final Map<TopicPartition, Long> nextUncommitted = new HashMap<>(1);
-    final Set<TopicPartition> lastCommittedNotReached = new HashSet<>(1);
-
-    stage = Stage.Resetting;
-    for (TopicPartition tp : assign) {
-      long next = consumer.position(tp, metadataTimeout);
-      logger.info("Next offset for {} is {}", tp, next);
-      nextUncommitted.put(tp, next);
-      if (next > 0) {
-        lastCommittedNotReached.add(tp);
-      }
+    if (!lowWaterMarkAtStart.containsKey(topicPartition)) {
+      throw new IllegalStateException("Topic-partition " + topicPartition + " not found in low watermarks " + lowWaterMarkAtStart.keySet());
     }
-    consumer.seekToBeginning(assign);
+    return lowWaterMarkAtStart.get(topicPartition);
+  }
 
-    stage = Stage.InitialPoll;
-    long pollEndTime = System.currentTimeMillis();
-
-    for (long n = 0; polls == 0 || n < polls; n++) {
-
-      // According to "Detecting Consumer Failures" in https://kafka.apache.org/22/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html
-      // there seems to be need for a pause between polls (?)
-      // - But there is no such pause in any examples
-      // - Anyway let's keep it because we'll do onupdate HTTP requests
-      long wait = pollEndTime - System.currentTimeMillis() + minPauseBetweenPolls.toMillis();
-      if (wait > 0) Thread.sleep(wait);
-
-      onupdate.pollStart(topics);
-
-      ConsumerRecords<String, byte[]> polled = consumer.poll(pollDuration);
-      pollEndTime = System.currentTimeMillis();
-      int count = polled.count();
-      if (count == 0) {
-        logger.debug("Polled {} records in {} after wait {} ms", count, pollDuration, wait);
-      } else {
-        logger.info( "Polled {} records in {} after wait {} ms", count, pollDuration, wait);
+  /**
+   * Provides offset information to kkv logic.
+   *
+   * @param consumer   underlying consumer
+   * @param partitions set of assigned topic partitions
+   */
+  @Override
+  public void onPartitionsAssigned(Consumer<?, ?> consumer, Collection<TopicPartition> partitions) {
+    if (this.endOffsets != null) {
+      logger.warn("Partition re-assignment ignored, with no check for differences in the set of partitions");
+      return;
+    }
+    this.stage = Stage.Assigning;
+    this.endOffsets = new HashMap<>();
+    this.lowWaterMarkAtStart = consumer.beginningOffsets(partitions, assignmentsTimeout);
+    for (TopicPartition partition : partitions) {
+      topics.add(partition.topic());
+      long startOffset = getLowWaterMarkAtStart(partition);
+      long position = consumer.position(partition, assignmentsTimeout);
+      this.endOffsets.put(partition, position);
+      if (position == 0) {
+        logger.info("Got assigned offset {} for {}; topic is empty or someone wants onupdate for existing messages", position, partition);
+        this.stage = Stage.Polling;
+        continue;
       }
+      this.stage = Stage.Resetting;
+      logger.info("Got assigned offset {} for {}; seeking to low water mark {}", position, partition, startOffset);
+      if (startOffset > 0) this.readinessOkOnResetting = true;
+      consumer.seek(partition, startOffset);
+    }
+    onupdate.pollStart(topics);
+  }
 
-      Iterator<ConsumerRecord<String, byte[]>> records = polled.iterator();
-      while (records.hasNext()) {
-        ConsumerRecord<String, byte[]> record = records.next();
+  @Incoming("topic")
+  public void consume(ConsumerRecord<String, byte[]> record) {
+    // If we find a way to consume the entire batch we wouln't need the KafkaPollListener hack
+    // or the pollHasUpdates instance state
+    //for (ConsumerRecord<String, byte[]> record : records)  {
+      try {
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
         toStats(update);
         if (update.getKey() != null) {
           cache.put(record.key(), record.value());
         }
-        Long start = nextUncommitted.get(update.getTopicPartition());
-        if (start == null) {
-          throw new IllegalStateException("There's no start offset for " + update.getTopicPartition() + ", at consumed offset " + update.getOffset() + " key " + update.getKey());
-        }
+        long start = getEndOffset(update.getTopicPartition());
         if (record.offset() >= start) {
           if (update.getKey() != null) {
+            if (logger.isTraceEnabled()) logger.trace("onupdate {}", record.offset());
             onupdate.handle(update);
+            pollHasUpdates = true;
           } else {
+            if (logger.isTraceEnabled()) logger.debug("onNullKey {}", record.offset());
             onNullKey(update);
           }
         } else {
           if (record.offset() == start - 1) {
+            this.stage = Stage.Polling;
             logger.info("Reached last historical message for {} at offset {}", update.getTopicPartition(), update.getOffset());
-            lastCommittedNotReached.remove(update.getTopicPartition());
+            this.readinessOkOnResetting = false;
+            // TODO do we want to restore this tracking from the old consumer logic?
+            // lastCommittedNotReached.remove(update.getTopicPartition());
+          } else {
+            this.stage = Stage.PollingHistorical;
           }
           logger.trace("Suppressing onupdate for {} because start offset is {}", update, start);
         }
-      }
-
-      stage = lastCommittedNotReached.isEmpty() ? Stage.Polling : Stage.PollingHistorical;
-
-      try {
-        onupdate.pollEndBlockingUntilTargetsAck();
       } catch (RuntimeException e) {
-        logger.warn("Failed onupdate ack - app should exit: {}", e.toString());
-        // We don't change this.state here because thread !isAlive should trigger unreadiness and then we might want to know which stage we reached
+        logger.error("Single-message processing error at {}", record);
         throw e;
       }
-
-      consumer.commitSync();
-
-      // Next poll ...
+    // }
+    if (KafkaPollListener.getIsPollEndOnce()) {;
+      if (pollHasUpdates) {
+        pollHasUpdates = false;
+        logger.info("Poll end detected. Dispatching onUpdate.");
+        onupdate.pollEndBlockingUntilTargetsAck();
+        onupdate.pollStart(topics);
+      } else {
+        logger.info("Poll end detected. No updates to dispatch.");
+      }
     }
-
   }
 
   private void toStats(UpdateRecord update) {

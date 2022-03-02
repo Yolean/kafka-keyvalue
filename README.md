@@ -26,6 +26,21 @@ SKAFFOLD_NO_PRUNE=true skaffold dev
 NOPUSH=true ./hooks/build
 ```
 
+## Combine to a multi-arch image
+
+1. Build and push on OSX: `DEBUG=true ./hooks/build`
+2. Build and happy-push on Linux amd64: `DEBUG=true NOPUSH=true ./hooks/build`
+3. The following, depending on platform:
+
+```
+cat multiarch-native.Dockerfile | docker buildx build --platform=linux/amd64,linux/arm64/v8 \
+  --build-arg=SOURCE_COMMIT="$SOURCE_COMMIT" -t yolean/kafka-keyvalue:$SOURCE_COMMIT --push -
+# Or
+cat multiarch-native.Dockerfile | nerdctl build --platform=linux/amd64,linux/arm64/v8 \
+  --build-arg=SOURCE_COMMIT="$SOURCE_COMMIT" -t yolean/kafka-keyvalue:$SOURCE_COMMIT -
+nerdctl push --platform=linux/amd64,linux/arm64/v8 yolean/kafka-keyvalue:$SOURCE_COMMIT
+```
+
 ## Logging
 
 See [Quarkus' logging configuration](https://quarkus.io/guides/logging-guide).

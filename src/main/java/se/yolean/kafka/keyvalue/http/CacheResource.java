@@ -37,12 +37,14 @@ import javax.ws.rs.core.UriInfo;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 
+import io.smallrye.common.annotation.Identifier;
 import se.yolean.kafka.keyvalue.KafkaCache;
 
 @Path("/cache/v1")
 public class CacheResource implements HealthCheck {
 
   @Inject // Note that this can be null if cache is still in it's startup event handler
+  @Identifier("kkv")
   KafkaCache cache = null;
 
   @Override

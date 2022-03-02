@@ -22,6 +22,8 @@ import org.eclipse.microprofile.health.Readiness;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.smallrye.common.annotation.Identifier;
+
 import javax.inject.Inject;
 
 /**
@@ -37,6 +39,7 @@ public class ConsumerAtLeastOnceHealthProxy implements HealthCheck {
   private static final Logger logger = LoggerFactory.getLogger(ConsumerAtLeastOnceHealthProxy.class);
 
   @Inject // Note that this can be null if cache is still in it's startup event handler
+  @Identifier("kkv")
   ConsumerAtLeastOnce consumer;
 
   @Override

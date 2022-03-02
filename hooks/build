@@ -8,6 +8,15 @@ GIT_STATUS=$(git status --untracked-files=no --porcelain=v2)
 [ ! -z "$SOURCE_BRANCH" ] || export SOURCE_BRANCH=$(git branch --show-current)
 [ ! -z "$IMAGE_NAME" ] || export IMAGE_NAME="yolean/kafka-keyvalue:$SOURCE_COMMIT"
 
+[ -n "$BUILDARCH" ] || BUILDARCH=$(uname -m)
+[ "$BUILDARCH" != "x86_64" ] || BUILDARCH=amd64
+[ "$BUILDARCH" != "aarch64" ] || BUILDARCH=arm64
+[ "$BUILDARCH" != "arm64" ] || [ -n "$BUILDARCHV" ] || BUILDARCHV="/v8"
+
+BUILDX="docker buildx"
+! command -v nerdctl || BUILDX="nerdctl"
+[ -n "$NOPUSH" ] || PUSH="--push"
+
 echo "------ HOOK START - BUILD -------"
 printenv
 
@@ -24,14 +33,17 @@ function imagename {
 # Skip tests on docker hub because they time out, always have.
 [ ! -z "$BUILD_CODE" ] && echo "This looks like a docker hub build. Skipping tests." && mvnflags="-Dmaven.test.skip=true"
 
-docker build -t $(imagename jvm) --build-arg build="package $mvnflags" --target=jvm \
+[ "$BUILDARCH" != "arm64" ] || \
+$BUILDX build $PUSH --platform=linux/amd64,linux/arm64/v8 \
+  -t $(imagename jvm) --build-arg build="package $mvnflags" --target=jvm \
   --build-arg SOURCE_COMMIT=$SOURCE_COMMIT --build-arg SOURCE_BRANCH=$SOURCE_BRANCH --build-arg IMAGE_NAME=$IMAGE_NAME  .
 
-docker build -t $IMAGE_NAME  --build-arg build="package -Pnative $mvnflags" \
+$BUILDX build $PUSH --platform=linux/$BUILDARCH$BUILDARCHV \
+  -t $IMAGE_NAME-$BUILDARCH --build-arg build="package -Pnative $mvnflags" \
   --build-arg SOURCE_COMMIT=$SOURCE_COMMIT --build-arg SOURCE_BRANCH=$SOURCE_BRANCH --build-arg IMAGE_NAME=$IMAGE_NAME .
 
-[ ! -z "$SOURCE_COMMIT" ] && [ -z "$GIT_STATUS" ] && [ -z "$NOPUSH" ] && \
-  docker push $IMAGE_NAME && \
-  docker push $(imagename jvm)
+# TODO generalize push and skip the -jvm build if $SOURCE_COMMIT-jvm is already pushed (only the first build node needs to do jvm)
+[ "$BUILDARCH" = "arm64" ] || \
+nerdctl push --platform=linux/$BUILDARCH yolean/kafka-keyvalue:$SOURCE_COMMIT-$BUILDARCH || true
 
 echo "------ HOOK END   - BUILD -------"
