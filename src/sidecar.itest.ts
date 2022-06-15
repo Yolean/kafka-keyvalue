@@ -48,7 +48,7 @@ describe('waiting for initial cache readiness', function () {
 
     const key = getUniqueKey('write_to_other');
 
-    const updateReceived = new Promise(resolve => cache2.onUpdate((updatedKey, value) => {
+    const updateReceived = new Promise<void>(resolve => cache2.onUpdate((updatedKey, value) => {
       if (updatedKey === key) resolve();
     }));
 
@@ -73,7 +73,7 @@ describe('waiting for initial cache readiness', function () {
 
     const onUpdateSpy: UpdateHandler = jest.fn();
     cache1.onUpdate(onUpdateSpy);
-    const updateReceived = new Promise(resolve => cache1.onUpdate((key, value) => {
+    const updateReceived = new Promise<void>(resolve => cache1.onUpdate((key, value) => {
       if (key === getUniqueKey('first_put')) resolve();
     }));
 

@@ -38,6 +38,10 @@ export interface IKafkaKeyValueMetrics {
   kafka_key_value_stream_latency_seconds: Histogram
 }
 
+export interface PixyPostTopicKeySyncResponse {
+  offset: number
+}
+
 export type UpdateHandler = (key: string, value: any) => any
 
 export class NotFoundError extends Error {
@@ -87,14 +91,14 @@ async function produceViaPixy(fetchImpl: IFetchImpl, logger, pixyHost: string, t
     throw new Error('Invalid statusCode: ' + res.status);
   }
 
-  const json = await res.json();
+  const json = await res.json() as PixyPostTopicKeySyncResponse;
   logger.debug({ res, json }, 'KafkaCache put returned');
 
   return json.offset;
 }
 
 export async function streamResponseBody(logger, body: NodeJS.ReadableStream, onValue: (value: any) => void) {
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
 
     let payload = '';
 
@@ -295,6 +299,8 @@ export default class KafkaKeyValue {
 
     const streamTiming = this.metrics.kafka_key_value_stream_latency_seconds.startTimer({ cache_name: this.getCacheName() });
     const res = await this.fetchImpl(`${this.getCacheHost()}/cache/v1/values`);
+
+    if (res.body === null) return Promise.reject('Received null body');
 
     await streamResponseBody(this.logger, res.body, onValue);
 
