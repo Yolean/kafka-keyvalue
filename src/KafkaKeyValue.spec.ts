@@ -2,6 +2,7 @@ import KafkaKeyValue, { streamResponseBody, compressGzipPayload, decompressGzipR
 import updateEvents from './update-events';
 import { EventEmitter } from 'events';
 import { fail } from 'assert';
+import { LabelValues } from 'prom-client';
 
 const promClientMock = {
   Counter: class Counter {
@@ -57,6 +58,10 @@ const promClientMock = {
       this.labels = jest.fn().mockReturnValue(this);
       this.reset = jest.fn();
       this.remove = jest.fn();
+    }
+
+    zero(labels: LabelValues<string>): void {
+      throw new Error('Not implemented in mock');
     }
   },
 };
