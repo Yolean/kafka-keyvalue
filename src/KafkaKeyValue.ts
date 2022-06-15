@@ -8,6 +8,8 @@ import updateEvents from './update-events';
 const pGunzip = promisify<InputType, Buffer>(gunzip);
 const pGzip = promisify<InputType, Buffer>(gzip);
 
+const KKV_CACHE_HOST_READINESS_ENDPOINT = process.env.KKV_CACHE_HOST_READINESS_ENDPOINT || '/q/health/ready';
+
 export interface IKafkaKeyValueImpl { new (options: IKafkaKeyValue): KafkaKeyValue }
 
 export interface IKafkaKeyValue {
@@ -239,7 +241,7 @@ export default class KafkaKeyValue {
     this.logger.info({ attempt, cacheHost: this.getCacheHost() }, 'Polling cache for readiness');
     let res;
     try {
-      res = await this.fetchImpl(this.getCacheHost() + '/health/ready', {
+      res = await this.fetchImpl(this.getCacheHost() + KKV_CACHE_HOST_READINESS_ENDPOINT, {
         headers: { 'Content-Type': 'application/json' }
       });
     } catch (e) {
