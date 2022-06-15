@@ -16,7 +16,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "test": "./node_modules/.bin/jest",
-    "prepare": "rm -rf dist/ && tsc",
+    "prepare": "rm -rf dist/ && tsc --skipLibCheck",
     "prepublishOnly": "npm test"
   },
   "dependencies": {
