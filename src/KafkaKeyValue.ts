@@ -20,22 +20,22 @@ export interface IKafkaKeyValue {
 }
 
 export interface CounterConstructor {
-  new(options: CounterConfiguration): Counter
+  new(options: CounterConfiguration<string>): Counter<string>
 }
 
 export interface GaugeConstructor {
-  new(options: GaugeConfiguration): Gauge
+  new(options: GaugeConfiguration<string>): Gauge<string>
 }
 
 export interface HistogramConstructor {
-  new(options: HistogramConfiguration): Histogram
+  new(options: HistogramConfiguration<string>): Histogram<string>
 }
 
 export interface IKafkaKeyValueMetrics {
-  kafka_key_value_last_seen_offset: Gauge
-  kafka_key_value_get_latency_seconds: Histogram
-  kafka_key_value_parse_latency_seconds: Histogram
-  kafka_key_value_stream_latency_seconds: Histogram
+  kafka_key_value_last_seen_offset: Gauge<string>
+  kafka_key_value_get_latency_seconds: Histogram<string>
+  kafka_key_value_parse_latency_seconds: Histogram<string>
+  kafka_key_value_stream_latency_seconds: Histogram<string>
 }
 
 export interface PixyPostTopicKeySyncResponse {
