@@ -60,7 +60,7 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
           .onFailure().retry().withBackOff(Duration.ofSeconds(config.retryBackoffSeconds())).atMost(config.retryTimes())
           .subscribe().with(
             item -> {
-              logger.info("Successfully sent update to ", name);
+              logger.info("Successfully sent update to {}", name);
             },
             failure -> {
               logger.error("Failed to send update to " + name, failure);
