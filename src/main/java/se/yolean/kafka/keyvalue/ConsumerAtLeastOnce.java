@@ -67,8 +67,8 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  @ConfigProperty(name = "kkc.assignments.timeout", defaultValue="90s")
-  private Duration assignmentsTimeout;
+  @ConfigProperty(name = "kkc.assignments.timeout", defaultValue="90")
+  private long assignmentsTimeout;
 
   @Inject
   Map<String, byte[]> cache;
@@ -175,11 +175,11 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     }
     this.stage = Stage.Assigning;
     this.endOffsets = new HashMap<>();
-    this.lowWaterMarkAtStart = consumer.beginningOffsets(partitions, assignmentsTimeout);
+    this.lowWaterMarkAtStart = consumer.beginningOffsets(partitions, Duration.ofSeconds(assignmentsTimeout));
     for (TopicPartition partition : partitions) {
       topics.add(partition.topic());
       long startOffset = getLowWaterMarkAtStart(partition);
-      long position = consumer.position(partition, assignmentsTimeout);
+      long position = consumer.position(partition, Duration.ofSeconds(assignmentsTimeout));
       this.endOffsets.put(partition, position);
       if (position == 0) {
         logger.info("Got assigned offset {} for {}; topic is empty or someone wants onupdate for existing messages", position, partition);
