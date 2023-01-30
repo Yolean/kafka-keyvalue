@@ -1,6 +1,8 @@
 
 # Kafka key-value cache
 
+For the sidecar-only maintenance branch see the [1.x](https://github.com/Yolean/kafka-keyvalue/tree/1.x) branch.
+
 ## Example usage
 
 See the `- name: kkv` sidecar in [the example yaml](kontrakt/kkv-example.yaml).
