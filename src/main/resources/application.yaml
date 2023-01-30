@@ -1,3 +1,12 @@
+kkv:
+  target:
+    path: ${ON_UPDATE_PATH:/kafka-keyvalue/v1/updates}
+    service:
+      name: ${TARGET_SERVICE_NAME}
+      port: ${TARGET_SERVICE_PORT:8080}
+  dispatcher:
+    timeout-seconds: ${DISPATCHER_TIMEOUT_SECONDS:5}
+    backoff-seconds: ${DISPATCHER_BACKOFF_SECONDS:1}
 
 mp:
   messaging:
@@ -7,16 +16,16 @@ mp:
         connector:
           smallrye-kafka
         bootstrap:
-          servers: ${kafka_bootstrap}
-        topic: ${topic}
+          servers: ${KAFKA_BOOTSTRAP}
+        topic: ${KAFKA_INCOMING_TOPIC}
         enable:
           auto:
             commit: false
         auto:
           offset:
-            reset: ${kafka_offset_reset:latest}
+            reset: ${KAFKA_OFFSET_RESET:latest}
         group:
-          id: ${kafka_group_id}
+          id: ${KAFKA_GROUP_ID}
         consumer-rebalance-listener:
           name: kkv
         key:
@@ -29,7 +38,7 @@ mp:
 quarkus:
 
   http:
-    port: ${QUARKUS_HTTP_PORT:8090}
+    port: ${QUARKUS_HTTP_PORT:8080}
 
   log:
     category:
