@@ -57,8 +57,7 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
           .post(config.targetServicePort(), ip, config.targetPath())
           .putHeaders(MultiMap.caseInsensitiveMultiMap().addAll(headers))
           .sendJsonObject(json)
-          // REVIEW what should our retry strategy be?
-          .onFailure().retry().withBackOff(Duration.ofSeconds(2)).atMost(5)
+          .onFailure().retry().withBackOff(Duration.ofSeconds(config.retryBackoffSeconds())).atMost(config.retryTimes())
           .subscribe().with(
             item -> {
               logger.info("Successfully sent update to ", name);

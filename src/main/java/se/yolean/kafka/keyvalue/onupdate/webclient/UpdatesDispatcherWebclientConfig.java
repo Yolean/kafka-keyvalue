@@ -12,10 +12,10 @@ public interface UpdatesDispatcherWebclientConfig {
   @WithName("target.path")
   String targetPath();
 
-  @WithName("dispatcher.timeout-seconds")
-  long timeoutSeconds();
+  @WithName("dispatcher.retry.times")
+  long retryTimes();
 
-  @WithName("dispatcher.backoff-seconds")
-  long backoffSeconds();
+  @WithName("dispatcher.retry.backoff-seconds")
+  long retryBackoffSeconds();
 
 }

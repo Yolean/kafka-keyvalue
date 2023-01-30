@@ -5,8 +5,9 @@ kkv:
       name: ${TARGET_SERVICE_NAME}
       port: ${TARGET_SERVICE_PORT:8080}
   dispatcher:
-    timeout-seconds: ${DISPATCHER_TIMEOUT_SECONDS:5}
-    backoff-seconds: ${DISPATCHER_BACKOFF_SECONDS:1}
+    retry:
+      backoff-seconds: ${DISPATCHER_RETRY_BACKOFF_SECONDS:1}
+      times: ${DISPATCHER_RETRY_TIMES:5}
 
 mp:
   messaging:
