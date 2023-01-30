@@ -24,10 +24,12 @@ build:
         - "**/*"
         ignore:
         - target/**
-deploy:
-  kustomize:
-    paths:
-    - ./test
+# REVIEW test deploy is not updated for kkv-v2
+# (and it's unclear how it would work now when we depend on kubernetes-client)
+# deploy:
+#   kustomize:
+#     paths:
+#     - ./test
 profiles:
 - name: prod-build
   patches:
