@@ -9,36 +9,25 @@ build:
   - linux/arm64/v8
   artifacts:
   - image: builds-registry.ystack.svc.cluster.local/yolean/kafka-keyvalue
+    context: .
     # docker:
     #   target: jvm
     #   buildArgs:
     #     build: package
     custom:
-      buildCommand: >-
-        mvn
-        package
-        -Djib.allowInsecureRegistries=true
-        -Dquarkus.container-image.push=true
+      buildCommand: y-build --opt target=jvm --opt build-arg:build=package
       dependencies:
-        paths:
-        - "**/*"
-        ignore:
-        - target/**
-# REVIEW test deploy is not updated for kkv-v2
-# (and it's unclear how it would work now when we depend on kubernetes-client)
-# deploy:
-#   kustomize:
-#     paths:
-#     - ./test
+        dockerfile:
+          path: ./Dockerfile
+manifests:
+  kustomize:
+    paths:
+    - ./test
+deploy:
+  kubectl: {}
 profiles:
 - name: prod-build
   patches:
   - op: replace
     path: /build/artifacts/0/custom/buildCommand
-    value: >-
-      mvn
-      clean
-      package
-      -Pnative
-      -Djib.allowInsecureRegistries=true
-      -Dquarkus.container-image.push=true
+    value: y-build

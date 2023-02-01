@@ -61,20 +61,6 @@ quarkus:
     additional-build-args: >-
       --install-exit-handlers,
       --no-fallback
-    builder-image: ${IMAGE_BUILDER_NATIVE:ERROR-we-depend-on-a-local-native-image-executable}
 
   ssl:
     native: false
-
-  jib:
-    base-jvm-image: ${IMAGE_BASE_JRE:docker.io/yolean/runtime-quarkus-ubuntu-jre:671a5fb9dad38cf1f60e434347a6b59f16944667@sha256:cb8a82ac67f65d8c6d68afbbd90dcc7f1cb9a42c3004417a86a642c5a298e5de}
-    base-native-image: ${IMAGE_BASE_NATIVE:docker.io/yolean/runtime-quarkus-ubuntu:671a5fb9dad38cf1f60e434347a6b59f16944667@sha256:c6444ef33d84609cff4e85af5393d4be7606299cc17bae1f55bc9605e22ae0d4}
-
-  container-image:
-    image: ${IMAGE:ERROR-set-the-image-env-or-build-using-skaffold}
-    # Docs say "image Represents the entire image string. If set, then group, name, registry, tags, additionalTags are ignored" but builds log "[io.quarkus.container.image.jib.deployment.JibProcessor] No container image registry was set, so 'docker.io' will be used"
-    registry: builds-registry.ystack.svc.cluster.local
-    insecure: true
-
-build:
-  tag: ${IMAGE_TAG:ERROR-not-built-through-skaffold}
