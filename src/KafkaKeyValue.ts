@@ -9,6 +9,7 @@ const pGunzip = promisify<InputType, Buffer>(gunzip);
 const pGzip = promisify<InputType, Buffer>(gzip);
 
 const KKV_CACHE_HOST_READINESS_ENDPOINT = process.env.KKV_CACHE_HOST_READINESS_ENDPOINT || '/q/health/ready';
+const DEFAULT_UPDATE_DEBOUNCE_TIMEOUT_MS: number = 2000;
 
 export interface IKafkaKeyValueImpl { new (options: IKafkaKeyValue): KafkaKeyValue }
 
@@ -19,6 +20,7 @@ export interface IKafkaKeyValue {
   gzip?: boolean
   metrics: IKafkaKeyValueMetrics
   fetchImpl?: IFetchImpl
+  updateDebounceTimeoutMs?: number
 }
 
 export interface CounterConstructor {
@@ -186,6 +188,8 @@ export default class KafkaKeyValue {
   private readonly metrics: IKafkaKeyValueMetrics;
   private readonly fetchImpl: IFetchImpl;
   private readonly logger;
+  private readonly pendingKeyUpdates: Set<string> = new Set();
+  private readonly partitionOffsets: Map<string, number> = new Map();
 
   constructor(config: IKafkaKeyValue) {
     this.config = config;
@@ -209,7 +213,15 @@ export default class KafkaKeyValue {
       }
 
       if (this.updateHandlers.length > 0) {
-        const updatesBeingPropagated = Object.keys(updates).map(async key => {
+        Object.keys(updates).forEach(key => this.pendingKeyUpdates.add(key));
+        await new Promise(resolve => setTimeout(resolve, config.updateDebounceTimeoutMs || DEFAULT_UPDATE_DEBOUNCE_TIMEOUT_MS));
+
+        const updatesToPropagate = Array.from(this.pendingKeyUpdates).map(key => {
+          this.pendingKeyUpdates.delete(key);
+          return key;
+        });
+
+        const updatesBeingPropagated = updatesToPropagate.map(async key => {
           this.logger.debug({ key }, 'Received update event for key');
           const value = await this.get(key);
           this.updateHandlers.forEach(fn => fn(key, value));
@@ -222,13 +234,25 @@ export default class KafkaKeyValue {
 
       // NOTE: Letting all handlers complete before updating the metric
       // makes sense because that will also produce bugs, likely visible to users
-      Object.entries<number>(offsets).forEach(([partition, offset]) => {
-        this.metrics.kafka_key_value_last_seen_offset
-          .labels(this.getCacheName(), topic, partition)
-          .set(offset);
-      });
+      this.updatePartitionOffsetMetrics(offsets);
 
       // TODO Resolve waitForOffset logic?
+    });
+  }
+
+  /**
+   * Updates the metric only for offsets that are not already observed at the same or a higher value
+   * @param offsets The request body offsets
+   */
+  updatePartitionOffsetMetrics(offsets: { [partition: string]: number }) {
+    Object.entries(offsets).forEach(([partition, offset]) => {
+      const existingOffset = this.partitionOffsets.get(partition);
+      if (!existingOffset || existingOffset < offset) {
+        this.partitionOffsets.set(partition, offset);
+        this.metrics.kafka_key_value_last_seen_offset
+          .labels(this.getCacheName(), this.topic, partition)
+          .set(offset);
+      }
     });
   }
 
