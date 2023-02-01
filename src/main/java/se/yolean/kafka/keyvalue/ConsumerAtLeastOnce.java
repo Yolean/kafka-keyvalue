@@ -67,8 +67,11 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  @ConfigProperty(name = "kkc.assignments.timeout", defaultValue="90")
-  private long assignmentsTimeout;
+  // REVIEW This (the defaultValue) actually works without custom converters since Duration has a static parse function
+  // https://github.com/eclipse/microprofile-config/blob/master/spec/src/main/asciidoc/converters.asciidoc#automatic-converters
+  // The microprofile language server still gets us a red squiggly here though...
+  @ConfigProperty(name = "kkc.assignments.timeout", defaultValue="90s")
+  private Duration assignmentsTimeout;
 
   @Inject
   Map<String, byte[]> cache;
@@ -111,6 +114,8 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
         System.getenv("SOURCE_COMMIT"),
         System.getenv("IMAGE_NAME"));
     logger.info("Cache: {}", cache);
+
+    logger.debug("DEBUG which duration do we get?? {}", assignmentsTimeout.toSeconds());
   }
 
   public void stop(@Observes ShutdownEvent ev) {
@@ -175,11 +180,11 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     }
     this.stage = Stage.Assigning;
     this.endOffsets = new HashMap<>();
-    this.lowWaterMarkAtStart = consumer.beginningOffsets(partitions, Duration.ofSeconds(assignmentsTimeout));
+    this.lowWaterMarkAtStart = consumer.beginningOffsets(partitions, assignmentsTimeout);
     for (TopicPartition partition : partitions) {
       topics.add(partition.topic());
       long startOffset = getLowWaterMarkAtStart(partition);
-      long position = consumer.position(partition, Duration.ofSeconds(assignmentsTimeout));
+      long position = consumer.position(partition, assignmentsTimeout);
       this.endOffsets.put(partition, position);
       if (position == 0) {
         logger.info("Got assigned offset {} for {}; topic is empty or someone wants onupdate for existing messages", position, partition);
