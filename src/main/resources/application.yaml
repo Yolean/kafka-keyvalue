@@ -61,6 +61,7 @@ quarkus:
     additional-build-args: >-
       --install-exit-handlers,
       --no-fallback
+    enable-https-url-handler: true
 
   ssl:
     native: false
