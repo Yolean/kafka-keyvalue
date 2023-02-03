@@ -24,7 +24,7 @@ mp:
             commit: false
         auto:
           offset:
-            reset: ${KAFKA_OFFSET_RESET:latest}
+            reset: ${ONUPDATE_AFTER_OFFSET:latest}
         group:
           id: ${KAFKA_GROUP_ID}
         consumer-rebalance-listener:
