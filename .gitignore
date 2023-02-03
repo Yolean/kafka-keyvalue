@@ -16,3 +16,4 @@ dist
 target
 .vscode
 kubeconfig-kkv-kind
+image*.json

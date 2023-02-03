@@ -30,4 +30,4 @@ profiles:
   patches:
   - op: replace
     path: /build/artifacts/0/custom/buildCommand
-    value: PLATFORMS=linux/amd64,linux/arm64/v8 y-build
+    value: y-build
