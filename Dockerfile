@@ -40,9 +40,6 @@ RUN mvn --batch-mode $build
 
 FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu-jre:1ed32a7cfeea593a0e9e0217549e4a5110a2506f@sha256:ea2db368356c03ce2c5d942f63cf79e58e26a2dfc4f2ec9143f745cff21abc45 \
   as jvm
-ARG SOURCE_COMMIT
-ARG SOURCE_BRANCH
-ARG IMAGE_NAME
 
 WORKDIR /app
 COPY --from=dev /workspace/target/quarkus-app /app
@@ -53,17 +50,9 @@ ENTRYPOINT [ "java", \
   "-Djava.util.logging.manager=org.jboss.logmanager.LogManager", \
   "-jar", "quarkus-run.jar" ]
 
-ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
-
 FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu:1ed32a7cfeea593a0e9e0217549e4a5110a2506f@sha256:2401f6df940260bde12853d83fb21bbc8df8414915ea75a22196967cf9f1989e
 
 COPY --from=dev /workspace/target/*-runner /usr/local/bin/quarkus
 
 EXPOSE 8090
 CMD [ "-Dquarkus.http.host=0.0.0.0" ]
-
-ARG SOURCE_COMMIT
-ARG SOURCE_BRANCH
-ARG IMAGE_NAME
-
-ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
