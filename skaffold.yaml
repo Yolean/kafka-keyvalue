@@ -1,4 +1,4 @@
-apiVersion: skaffold/v2beta27
+apiVersion: skaffold/v3
 kind: Config
 build:
   tagPolicy:
@@ -19,10 +19,12 @@ build:
       dependencies:
         dockerfile:
           path: ./Dockerfile
-deploy:
+manifests:
   kustomize:
     paths:
     - ./test
+deploy:
+  kubectl: {}
 profiles:
 - name: prod-build
   patches:

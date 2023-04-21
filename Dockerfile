@@ -1,15 +1,15 @@
-FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:53090e65731685a6c5cfe83ce7665a029b0341e1@sha256:46cb8ae979f322d89db9070bb2caf088224ea191de19652074b6b7678491d098 \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:1ed32a7cfeea593a0e9e0217549e4a5110a2506f@sha256:44fb87701469e8c153fbd9db0b2c0615e778a02f45229b81817f1206edabf709 \
   as jnilib
 
 # https://github.com/xerial/snappy-java/blob/master/src/main/java/org/xerial/snappy/OSInfo.java#L113
 RUN set -ex; \
-  curl -o snappy.jar -sLSf https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/1.1.8.4/snappy-java-1.1.8.4.jar; \
+  curl -o snappy.jar -sLSf https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/1.1.9.0/snappy-java-1.1.9.0.jar; \
   LIBPATH=$(java -cp snappy.jar org.xerial.snappy.OSInfo); \
   ARCH=$(java -cp snappy.jar org.xerial.snappy.OSInfo --arch); \
   mkdir -pv native/$LIBPATH; \
   cp -v /usr/lib/$ARCH-linux-gnu/jni/* native/$LIBPATH/
 
-FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:53090e65731685a6c5cfe83ce7665a029b0341e1@sha256:46cb8ae979f322d89db9070bb2caf088224ea191de19652074b6b7678491d098 \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:1ed32a7cfeea593a0e9e0217549e4a5110a2506f@sha256:44fb87701469e8c153fbd9db0b2c0615e778a02f45229b81817f1206edabf709 \
   as dev
 
 COPY pom.xml .
@@ -38,11 +38,8 @@ ARG build="package -Pnative"
 
 RUN mvn --batch-mode $build
 
-FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu-jre:d091be226e9a62ee3cba9816cafedb8a06a17012@sha256:a4e85350a79341fe2216001ec500511066094ea0c387acb2f3627ca11951882c \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu-jre:1ed32a7cfeea593a0e9e0217549e4a5110a2506f@sha256:ea2db368356c03ce2c5d942f63cf79e58e26a2dfc4f2ec9143f745cff21abc45 \
   as jvm
-ARG SOURCE_COMMIT
-ARG SOURCE_BRANCH
-ARG IMAGE_NAME
 
 WORKDIR /app
 COPY --from=dev /workspace/target/quarkus-app /app
@@ -53,17 +50,9 @@ ENTRYPOINT [ "java", \
   "-Djava.util.logging.manager=org.jboss.logmanager.LogManager", \
   "-jar", "quarkus-run.jar" ]
 
-ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
-
-FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu:d091be226e9a62ee3cba9816cafedb8a06a17012@sha256:a4b4e77494c26720321b54a442b4806cdb59d426ae2266802bc5c8ed794dd2b6
+FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu:1ed32a7cfeea593a0e9e0217549e4a5110a2506f@sha256:2401f6df940260bde12853d83fb21bbc8df8414915ea75a22196967cf9f1989e
 
 COPY --from=dev /workspace/target/*-runner /usr/local/bin/quarkus
 
 EXPOSE 8090
 CMD [ "-Dquarkus.http.host=0.0.0.0" ]
-
-ARG SOURCE_COMMIT
-ARG SOURCE_BRANCH
-ARG IMAGE_NAME
-
-ENV SOURCE_COMMIT=${SOURCE_COMMIT} SOURCE_BRANCH=${SOURCE_BRANCH} IMAGE_NAME=${IMAGE_NAME}
