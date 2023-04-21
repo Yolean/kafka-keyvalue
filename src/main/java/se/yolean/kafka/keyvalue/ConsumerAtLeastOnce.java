@@ -67,6 +67,9 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
+  // REVIEW This (the defaultValue) actually works without custom converters since Duration has a static parse function
+  // https://github.com/eclipse/microprofile-config/blob/master/spec/src/main/asciidoc/converters.asciidoc#automatic-converters
+  // The microprofile language server still gets us a red squiggly here though...
   @ConfigProperty(name = "kkc.assignments.timeout", defaultValue="90s")
   private Duration assignmentsTimeout;
 
@@ -111,6 +114,8 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
         System.getenv("SOURCE_COMMIT"),
         System.getenv("IMAGE_NAME"));
     logger.info("Cache: {}", cache);
+
+    logger.debug("DEBUG which duration do we get?? {}", assignmentsTimeout.toSeconds());
   }
 
   public void stop(@Observes ShutdownEvent ev) {
