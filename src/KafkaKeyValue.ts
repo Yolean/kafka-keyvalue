@@ -108,7 +108,11 @@ export async function streamResponseBody(logger, body: NodeJS.ReadableStream, on
 
     body.on('data', (data: Buffer) => payload += data.toString());
     body.on('end', () => {
-      const values = payload.trim().split('\n');
+
+      let values: string[];
+      if (payload === '') values = [];
+      else values = payload.trim().split('\n');
+
       values.forEach(str => {
         let value;
         try {
