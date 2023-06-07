@@ -2,6 +2,7 @@ import KafkaKeyValue, { streamResponseBody, compressGzipPayload, decompressGzipR
 import updateEvents from './update-events';
 import { EventEmitter } from 'events';
 import { fail } from 'assert';
+import { LabelValues } from 'prom-client';
 
 const promClientMock = {
   Counter: class Counter {
@@ -58,6 +59,10 @@ const promClientMock = {
       this.reset = jest.fn();
       this.remove = jest.fn();
     }
+
+    zero(labels: LabelValues<string>): void {
+      throw new Error('Not implemented in mock');
+    }
   },
 };
 
@@ -87,7 +92,8 @@ describe('KafkaKeyValue', function () {
         metrics,
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
-        fetchImpl: fetchMock
+        fetchImpl: fetchMock,
+        updateDebounceTimeoutMs: 1
       });
 
       const offset = await kkv.put('key1', 'value1');
@@ -111,7 +117,8 @@ describe('KafkaKeyValue', function () {
         metrics,
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
-        fetchImpl: fetchMock
+        fetchImpl: fetchMock,
+        updateDebounceTimeoutMs: 1
       });
 
       try {
@@ -163,6 +170,7 @@ describe('KafkaKeyValue', function () {
         metrics,
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
+        updateDebounceTimeoutMs: 1
       });
 
       const onUpdateSpy = jest.fn();
@@ -192,5 +200,131 @@ describe('KafkaKeyValue', function () {
       expect(metrics.kafka_key_value_last_seen_offset.labels).toHaveBeenCalledWith('cache-kkv', 'testtopic01', '0');
       expect(metrics.kafka_key_value_last_seen_offset.set).toHaveBeenCalledWith(28262);
     });
+
+    it('only handles updates for the same key once if called within the debounce timeout period', async function () {
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic01',
+        updateDebounceTimeoutMs: 10
+      });
+
+      const onUpdateSpy = jest.fn();
+      kkv.onUpdate(onUpdateSpy);
+      kkv.get = jest.fn();
+      (<jest.Mock>(kkv.get)).mockResolvedValue({ foo: 'bar' })
+
+      // Three duplicates
+      updateEvents.emit('update', {
+        v: 1,
+        topic: 'testtopic01',
+        offsets: {
+          '0': 28262
+        },
+        updates: {
+          'bd3f6188-d865-443d-8646-03e8f1c643cb': {}
+        }
+      });
+      updateEvents.emit('update', {
+        v: 1,
+        topic: 'testtopic01',
+        offsets: {
+          '0': 28262
+        },
+        updates: {
+          'bd3f6188-d865-443d-8646-03e8f1c643cb': {}
+        }
+      });
+      updateEvents.emit('update', {
+        v: 1,
+        topic: 'testtopic01',
+        offsets: {
+          '0': 28262
+        },
+        updates: {
+          'bd3f6188-d865-443d-8646-03e8f1c643cb': {}
+        }
+      });
+
+      // Three more duplicates with another key
+      updateEvents.emit('update', {
+        v: 1,
+        topic: 'testtopic01',
+        offsets: {
+          '0': 28262
+        },
+        updates: {
+          'aaaa6188-d865-443d-8646-03e8f1c643cb': {}
+        }
+      });
+      updateEvents.emit('update', {
+        v: 1,
+        topic: 'testtopic01',
+        offsets: {
+          '0': 28262
+        },
+        updates: {
+          'aaaa6188-d865-443d-8646-03e8f1c643cb': {}
+        }
+      });
+      updateEvents.emit('update', {
+        v: 1,
+        topic: 'testtopic01',
+        offsets: {
+          '0': 28262
+        },
+        updates: {
+          'aaaa6188-d865-443d-8646-03e8f1c643cb': {}
+        }
+      });
+
+      // Wait a few milliseconds more than the debounce timeout
+      await new Promise(resolve => setTimeout(resolve, 20));
+      expect(onUpdateSpy).toHaveBeenCalledTimes(2);
+      expect(onUpdateSpy).toHaveBeenCalledWith('bd3f6188-d865-443d-8646-03e8f1c643cb', { foo: 'bar' })
+      expect(onUpdateSpy).toHaveBeenCalledWith('aaaa6188-d865-443d-8646-03e8f1c643cb', { foo: 'bar' })
+    });
   });
+
+  describe('updatePartitionOffsetMetrics', function () {
+    it('only updates metrics with higher offsets, so that debounced onupdate handlers does not reduce the offests', function () {
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic01',
+        updateDebounceTimeoutMs: 1
+      });
+
+      kkv.updatePartitionOffsetMetrics({
+        ['p2']: 2,
+        ['p1']: 1,
+      });
+      expect(metrics.kafka_key_value_last_seen_offset.set).toHaveBeenCalledTimes(2);
+      expect(metrics.kafka_key_value_last_seen_offset.set).toHaveBeenCalledWith(1);
+      expect(metrics.kafka_key_value_last_seen_offset.set).toHaveBeenCalledWith(2);
+      expect(metrics.kafka_key_value_last_seen_offset.labels).toHaveBeenCalledTimes(2);
+      expect(metrics.kafka_key_value_last_seen_offset.labels).toHaveBeenCalledWith('cache-kkv', 'testtopic01', 'p1');
+      expect(metrics.kafka_key_value_last_seen_offset.labels).toHaveBeenCalledWith('cache-kkv', 'testtopic01', 'p2');
+
+      kkv.updatePartitionOffsetMetrics({
+        ['p2']: 1,
+        ['p1']: 1,
+      });
+      expect(metrics.kafka_key_value_last_seen_offset.set).toHaveBeenCalledTimes(2);
+      expect(metrics.kafka_key_value_last_seen_offset.labels).toHaveBeenCalledTimes(2);
+
+      kkv.updatePartitionOffsetMetrics({
+        ['p2']: 3,
+      });
+      expect(metrics.kafka_key_value_last_seen_offset.set).toHaveBeenCalledTimes(3);
+      expect(metrics.kafka_key_value_last_seen_offset.set).toHaveBeenLastCalledWith(3);
+      expect(metrics.kafka_key_value_last_seen_offset.labels).toHaveBeenCalledTimes(3);
+      expect(metrics.kafka_key_value_last_seen_offset.labels).toHaveBeenLastCalledWith('cache-kkv', 'testtopic01', 'p2');
+
+    });
+  })
 });
