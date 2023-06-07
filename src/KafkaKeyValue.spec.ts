@@ -141,6 +141,19 @@ describe('KafkaKeyValue', function () {
 
   describe('streaming values', function () {
 
+    it('works on an empty topic', async function () {
+      const bodyStream = new EventEmitter();
+
+
+      const onValue = jest.fn();
+      const streamCompleted = streamResponseBody(console, <any>bodyStream, onValue);
+
+      bodyStream.emit('end');
+
+      await streamCompleted;
+      expect(onValue).toHaveBeenCalledTimes(0);
+    });
+
     it('was tricky apparently', async function () {
       const bodyStream = new EventEmitter();
 
