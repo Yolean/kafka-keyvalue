@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;

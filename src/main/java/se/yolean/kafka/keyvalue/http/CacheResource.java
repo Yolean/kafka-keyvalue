@@ -14,6 +14,7 @@
 
 package se.yolean.kafka.keyvalue.http;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Iterator;
@@ -159,24 +160,23 @@ public class CacheResource implements HealthCheck {
 
   /**
    * @return Newline separated values (no keys)
+   * @throws IOException
    */
   @GET()
   @Path("/values")
   @Produces(MediaType.TEXT_PLAIN)
-  public Response values() {
+  public Response values() throws IOException {
     requireUpToDateCache();
     Iterator<byte[]> values = cache.getValues();
 
-    StreamingOutput stream = new StreamingOutput() {
-      @Override
-      public void write(OutputStream out) throws IOException, WebApplicationException {
-        while (values.hasNext()) {
-          out.write(values.next());
-          out.write('\n');
-        }
-      }
-    };
-    return Response.ok(stream).build();
+    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+    while (values.hasNext()) {
+      buffer.write(values.next());
+      buffer.write('\n');
+    }
+
+    return Response.ok(buffer).build();
   }
 
 }

@@ -15,6 +15,7 @@
 package se.yolean.kafka.keyvalue;
 
 import java.util.Iterator;
+import java.util.stream.Stream;
 
 /**
  * The read-access contract for external API.

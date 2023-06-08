@@ -16,6 +16,9 @@ package se.yolean.kafka.keyvalue.http;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.IOException;
+import java.util.List;
+
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponse.Status;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,15 @@ class CacheResourceTest {
     } catch (javax.ws.rs.ServiceUnavailableException e) {
       assertEquals("Denied because cache is unready, check /health for status", e.getMessage());
     }
+  }
+
+  @Test
+  void testStreamValues() throws IOException {
+    CacheResource rest = new CacheResource();
+    rest.cache = Mockito.mock(KafkaCache.class);
+    Mockito.when(rest.cache.isReady()).thenReturn(true);
+    Mockito.when(rest.cache.getValues()).thenReturn(List.of("a".getBytes(), "b".getBytes()).iterator());
+    assertEquals("a\nb\n", rest.values().getEntity().toString());
   }
 
   @Test
@@ -65,7 +77,7 @@ class CacheResourceTest {
   }
 
   @Test
-  void testValuesUnready() {
+  void testValuesUnready() throws IOException {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
     Mockito.when(rest.cache.isReady()).thenReturn(false);
