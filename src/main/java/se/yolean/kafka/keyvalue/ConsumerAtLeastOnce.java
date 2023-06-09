@@ -21,7 +21,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -40,6 +39,8 @@ import org.slf4j.LoggerFactory;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.smallrye.common.annotation.Identifier;
@@ -79,6 +80,8 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   @Inject
   OnUpdate onupdate;
+
+  private MeterRegistry registry;
 
   private Map<TopicPartition, Long> endOffsets = null;
 
@@ -252,6 +255,8 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   private void toStats(UpdateRecord update) {
     currentOffsets.put(update.getTopicPartition(), update.getOffset());
+    var tags = Tags.of(Tag.of("topic", update.getTopic()), Tag.of("partition", "" + update.getPartition()));
+    registry.gauge("kkv.last.seen.offset", tags.stream().toList(), Math.toIntExact(update.getOffset()));
   }
 
   void onNullKey(UpdateRecord update) {

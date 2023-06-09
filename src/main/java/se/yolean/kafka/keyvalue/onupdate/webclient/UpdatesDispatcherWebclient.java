@@ -63,6 +63,7 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
               logger.info("Successfully sent update to {}", name);
             },
             failure -> {
+              registry.counter("kkv.target.update.failure").increment();
               logger.error("Failed to send update to " + name, failure);
             }
           );
