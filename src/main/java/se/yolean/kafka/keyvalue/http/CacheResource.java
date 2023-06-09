@@ -199,7 +199,7 @@ public class CacheResource implements HealthCheck {
       String topic = key.topic();
       int partition = key.partition();
 
-      response.header(UpdatesBodyPerTopic.HEADER_PREFIX + "-offset-" + topic + "-" + partition, value);
+      response.header(UpdatesBodyPerTopic.HEADER_PREFIX + "offset-" + topic + "-" + partition, value);
     });
   }
 

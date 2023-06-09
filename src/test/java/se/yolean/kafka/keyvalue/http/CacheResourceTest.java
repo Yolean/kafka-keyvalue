@@ -65,6 +65,7 @@ class CacheResourceTest {
 
     Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(Map.of(new TopicPartition("mytopic", 0), 0L));
 
+    assertEquals("[x-kkv-offset-mytopic-0]", "" + rest.values().getHeaders().keySet());
     assertEquals("0", rest.values().getHeaderString("x-kkv-offset-mytopic-0"));
     assertEquals("0", rest.valueByKey("key1", null).getHeaderString("x-kkv-offset-mytopic-0"));
 
