@@ -71,7 +71,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   // REVIEW This (the defaultValue) actually works without custom converters since Duration has a static parse function
   // https://github.com/eclipse/microprofile-config/blob/master/spec/src/main/asciidoc/converters.asciidoc#automatic-converters
   // The microprofile language server still gets us a red squiggly here though...
-  @ConfigProperty(name = "kkc.assignments.timeout", defaultValue="90s")
+  @ConfigProperty(name = "kkv.assignments.timeout", defaultValue="90s")
   private Duration assignmentsTimeout;
 
   @Inject
