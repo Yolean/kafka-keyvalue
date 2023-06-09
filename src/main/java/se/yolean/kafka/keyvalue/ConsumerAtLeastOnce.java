@@ -265,6 +265,11 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   }
 
   @Override
+  public Map<TopicPartition, Long> getCurrentOffsets() {
+    return Map.copyOf(currentOffsets);
+  }
+
+  @Override
   public byte[] getValue(String key) {
     return cache.get(key);
   }

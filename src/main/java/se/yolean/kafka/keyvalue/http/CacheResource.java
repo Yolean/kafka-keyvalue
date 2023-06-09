@@ -18,6 +18,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Iterator;
+import java.util.Map;
 
 import javax.inject.Inject;
 import javax.json.Json;
@@ -34,12 +35,15 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
+import javax.ws.rs.core.Response.ResponseBuilder;
 
+import org.apache.kafka.common.TopicPartition;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 
 import io.smallrye.common.annotation.Identifier;
 import se.yolean.kafka.keyvalue.KafkaCache;
+import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopic;
 
 @Path("/cache/v1")
 public class CacheResource implements HealthCheck {
@@ -90,9 +94,14 @@ public class CacheResource implements HealthCheck {
   @GET
   @Path("/raw/{key}")
   @Produces(MediaType.APPLICATION_OCTET_STREAM)
-  public byte[] valueByKey(@PathParam("key") final String key, @Context UriInfo uriInfo) {
+  public Response valueByKey(@PathParam("key") final String key, @Context UriInfo uriInfo) {
     requireUpToDateCache();
-    return getCacheValue(key);
+
+    var response = Response.ok(getCacheValue(key));
+
+    applyOffsetHeaders(response);
+
+    return response.build();
   }
 
   @GET
@@ -176,7 +185,22 @@ public class CacheResource implements HealthCheck {
       buffer.write('\n');
     }
 
-    return Response.ok(buffer).build();
+    ResponseBuilder response = Response.ok(buffer);
+
+    applyOffsetHeaders(response);
+
+    return response.build();
+  }
+
+  private void applyOffsetHeaders(ResponseBuilder response) {
+    Map<TopicPartition, Long> offsets = cache.getCurrentOffsets();
+
+    offsets.forEach((key, value) -> {
+      String topic = key.topic();
+      int partition = key.partition();
+
+      response.header(UpdatesBodyPerTopic.HEADER_PREFIX + "-offset-" + topic + "-" + partition, value);
+    });
   }
 
 }

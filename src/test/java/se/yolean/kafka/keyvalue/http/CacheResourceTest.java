@@ -15,10 +15,14 @@
 package se.yolean.kafka.keyvalue.http;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.kafka.common.TopicPartition;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponse.Status;
 import org.junit.jupiter.api.Test;
@@ -48,6 +52,26 @@ class CacheResourceTest {
     Mockito.when(rest.cache.isReady()).thenReturn(true);
     Mockito.when(rest.cache.getValues()).thenReturn(List.of("a".getBytes(), "b".getBytes()).iterator());
     assertEquals("a\nb\n", rest.values().getEntity().toString());
+  }
+
+  @Test
+  void testValueEndpointWithOffsetHeaders() throws IOException {
+    CacheResource rest = new CacheResource();
+    rest.cache = Mockito.mock(KafkaCache.class);
+    Mockito.when(rest.cache.isReady()).thenReturn(true);
+    Mockito.when(rest.cache.getValues()).thenReturn(List.of("a".getBytes()).iterator());
+    Mockito.when(rest.cache.getValue(any())).thenReturn("a".getBytes());
+    assertEquals("a", new String(rest.cache.getValue("key1"), StandardCharsets.UTF_8));
+
+    Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(Map.of(new TopicPartition("mytopic", 0), 0L));
+
+    assertEquals("0", rest.values().getHeaderString("x-kkv-offset-mytopic-0"));
+    assertEquals("0", rest.valueByKey("key1", null).getHeaderString("x-kkv-offset-mytopic-0"));
+
+    Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(Map.of(new TopicPartition("mytopic", 0), 17045L));
+
+    assertEquals("17045", rest.values().getHeaderString("x-kkv-offset-mytopic-0"));
+    assertEquals("17045", rest.valueByKey("key1", null).getHeaderString("x-kkv-offset-mytopic-0"));
   }
 
   @Test
