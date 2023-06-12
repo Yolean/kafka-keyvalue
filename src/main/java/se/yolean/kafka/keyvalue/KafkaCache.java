@@ -15,6 +15,7 @@
 package se.yolean.kafka.keyvalue;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.common.TopicPartition;
@@ -42,7 +43,7 @@ public interface KafkaCache {
    */
   Long getCurrentOffset(String topicName, int partition);
 
-  Map<TopicPartition, Long>getCurrentOffsets();
+  List<Map<String, ?>>getCurrentOffsets();
 
   Iterator<String> getKeys();
 

@@ -18,7 +18,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Iterator;
-import java.util.Map;
 
 import javax.inject.Inject;
 import javax.json.Json;
@@ -37,9 +36,11 @@ import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.core.Response.ResponseBuilder;
 
-import org.apache.kafka.common.TopicPartition;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.smallrye.common.annotation.Identifier;
 import se.yolean.kafka.keyvalue.KafkaCache;
@@ -47,6 +48,9 @@ import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopic;
 
 @Path("/cache/v1")
 public class CacheResource implements HealthCheck {
+
+  @Inject
+  ObjectMapper mapper;
 
   @Inject // Note that this can be null if cache is still in it's startup event handler
   @Identifier("kkv")
@@ -94,7 +98,7 @@ public class CacheResource implements HealthCheck {
   @GET
   @Path("/raw/{key}")
   @Produces(MediaType.APPLICATION_OCTET_STREAM)
-  public Response valueByKey(@PathParam("key") final String key, @Context UriInfo uriInfo) {
+  public Response valueByKey(@PathParam("key") final String key, @Context UriInfo uriInfo) throws JsonProcessingException {
     requireUpToDateCache();
 
     var response = Response.ok(getCacheValue(key));
@@ -192,15 +196,10 @@ public class CacheResource implements HealthCheck {
     return response.build();
   }
 
-  private void applyOffsetHeaders(ResponseBuilder response) {
-    Map<TopicPartition, Long> offsets = cache.getCurrentOffsets();
-
-    offsets.forEach((key, value) -> {
-      String topic = key.topic();
-      int partition = key.partition();
-
-      response.header(UpdatesBodyPerTopic.HEADER_PREFIX + "offset-" + topic + "-" + partition, value);
-    });
+  private void applyOffsetHeaders(ResponseBuilder response) throws JsonProcessingException {
+    var offsets = cache.getCurrentOffsets();
+    var value = mapper.writeValueAsString(offsets);
+    response.header(UpdatesBodyPerTopic.HEADER_PREFIX + "last-seen-offsets", value);
   }
 
 }

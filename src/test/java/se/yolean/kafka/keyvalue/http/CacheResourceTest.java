@@ -22,18 +22,21 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.kafka.common.TopicPartition;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponse.Status;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import se.yolean.kafka.keyvalue.KafkaCache;
 
 class CacheResourceTest {
 
   @Test
-  void testValueByKeyUnready() {
+  void testValueByKeyUnready() throws JsonProcessingException {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
     Mockito.when(rest.cache.isReady()).thenReturn(false);
@@ -49,6 +52,7 @@ class CacheResourceTest {
   void testStreamValues() throws IOException {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
+    rest.mapper = new ObjectMapper();
     Mockito.when(rest.cache.isReady()).thenReturn(true);
     Mockito.when(rest.cache.getValues()).thenReturn(List.of("a".getBytes(), "b".getBytes()).iterator());
     assertEquals("a\nb\n", rest.values().getEntity().toString());
@@ -58,21 +62,26 @@ class CacheResourceTest {
   void testValueEndpointWithOffsetHeaders() throws IOException {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
+    rest.mapper = new ObjectMapper();
+    rest.mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+
     Mockito.when(rest.cache.isReady()).thenReturn(true);
     Mockito.when(rest.cache.getValues()).thenReturn(List.of("a".getBytes()).iterator());
     Mockito.when(rest.cache.getValue(any())).thenReturn("a".getBytes());
     assertEquals("a", new String(rest.cache.getValue("key1"), StandardCharsets.UTF_8));
 
-    Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(Map.of(new TopicPartition("mytopic", 0), 0L));
+    Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(List.of(
+        Map.of("topic", "mytopic", "partition", 0, "offset", 0L)));
 
-    assertEquals("[x-kkv-offset-mytopic-0]", "" + rest.values().getHeaders().keySet());
-    assertEquals("0", rest.values().getHeaderString("x-kkv-offset-mytopic-0"));
-    assertEquals("0", rest.valueByKey("key1", null).getHeaderString("x-kkv-offset-mytopic-0"));
+    assertEquals("[x-kkv-last-seen-offsets]", "" + rest.values().getHeaders().keySet());
+    assertEquals("[{\"offset\":0,\"partition\":0,\"topic\":\"mytopic\"}]", rest.values().getHeaderString("x-kkv-last-seen-offsets"));
+    assertEquals("[{\"offset\":0,\"partition\":0,\"topic\":\"mytopic\"}]", rest.valueByKey("key1", null).getHeaderString("x-kkv-last-seen-offsets"));
 
-    Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(Map.of(new TopicPartition("mytopic", 0), 17045L));
+    Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(List.of(
+        Map.of("topic", "mytopic", "partition", 0, "offset", 17045L)));
 
-    assertEquals("17045", rest.values().getHeaderString("x-kkv-offset-mytopic-0"));
-    assertEquals("17045", rest.valueByKey("key1", null).getHeaderString("x-kkv-offset-mytopic-0"));
+    assertEquals("[{\"offset\":17045,\"partition\":0,\"topic\":\"mytopic\"}]", rest.values().getHeaderString("x-kkv-last-seen-offsets"));
+    assertEquals("[{\"offset\":17045,\"partition\":0,\"topic\":\"mytopic\"}]", rest.valueByKey("key1", null).getHeaderString("x-kkv-last-seen-offsets"));
   }
 
   @Test

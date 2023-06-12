@@ -15,12 +15,15 @@
 package se.yolean.kafka.keyvalue;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -39,7 +42,6 @@ import org.slf4j.LoggerFactory;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
@@ -97,7 +99,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       .named("consume-loop")
       .down();
 
-  Map<TopicPartition,Long> currentOffsets = new HashMap<>(1);
+  Map<TopicPartition,AtomicLong> currentOffsets = new HashMap<>(1);
 
   private boolean pollHasUpdates = false;
 
@@ -106,6 +108,12 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   public ConsumerAtLeastOnce(MeterRegistry registry) {
     registry.gauge("kkv.stage", this, ConsumerAtLeastOnce::getStageMetric);
     this.meterNullKeys = registry.counter("kkv.null.keys");
+
+    this.registry = registry;
+  }
+
+  MeterRegistry getRegistry() {
+      return registry;
   }
 
   Integer getStageMetric() {
@@ -253,10 +261,21 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     }
   }
 
-  private void toStats(UpdateRecord update) {
-    currentOffsets.put(update.getTopicPartition(), update.getOffset());
-    var tags = Tags.of(Tag.of("topic", update.getTopic()), Tag.of("partition", "" + update.getPartition()));
-    registry.gauge("kkv.last.seen.offset", tags.stream().toList(), Math.toIntExact(update.getOffset()));
+  void toStats(UpdateRecord update) {
+    var key = update.getTopicPartition();
+
+    // https://stackoverflow.com/questions/50821924/micrometer-prometheus-gauge-displays-nan
+    // Apparently, it's complex to maintain gauges over dynamic labels in quarkus
+    if (!currentOffsets.containsKey(key)) {
+      currentOffsets.put(key, new AtomicLong(update.getOffset()));
+    } else {
+      currentOffsets.get(key).set(update.getOffset());
+    }
+
+    var tags = Tags.of("topic", update.getTopic(), "partition", "" + update.getPartition());
+
+    logger.debug("toStats offset: " + update.getOffset());
+    registry.gauge("kkv.last.seen.offset", tags, currentOffsets.get(key));
   }
 
   void onNullKey(UpdateRecord update) {
@@ -266,12 +285,17 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   @Override
   public Long getCurrentOffset(String topicName, int partition) {
-    return currentOffsets.get(new TopicPartition(topicName, partition));
+    return currentOffsets.get(new TopicPartition(topicName, partition)).get();
   }
 
   @Override
-  public Map<TopicPartition, Long> getCurrentOffsets() {
-    return Map.copyOf(currentOffsets);
+  public List<Map<String, ?>> getCurrentOffsets() {
+    var offsets = new ArrayList<Map<String, ?>>();
+    currentOffsets.forEach((key, value) -> {
+      offsets.add(Map.of("topic", key.topic(), "partition", key.partition(), "offset", value.get()));
+    });
+
+    return offsets;
   }
 
   @Override
