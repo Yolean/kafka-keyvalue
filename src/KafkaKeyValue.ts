@@ -9,7 +9,6 @@ const pGunzip = promisify<InputType, Buffer>(gunzip);
 const pGzip = promisify<InputType, Buffer>(gzip);
 
 const KKV_CACHE_HOST_READINESS_ENDPOINT = process.env.KKV_CACHE_HOST_READINESS_ENDPOINT || '/q/health/ready';
-const DEFAULT_UPDATE_DEBOUNCE_TIMEOUT_MS: number = 2000;
 const LAST_SEEN_OFFSETS_HEADER_NAME = 'x-kkv-last-seen-offsets';
 
 export interface IKafkaKeyValueImpl { new (options: IKafkaKeyValue): KafkaKeyValue }
@@ -21,7 +20,6 @@ export interface IKafkaKeyValue {
   gzip?: boolean
   metrics: IKafkaKeyValueMetrics
   fetchImpl?: IFetchImpl
-  updateDebounceTimeoutMs?: number
 }
 
 export interface CounterConstructor {

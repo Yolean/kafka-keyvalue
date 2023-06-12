@@ -93,7 +93,6 @@ describe('KafkaKeyValue', function () {
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
         fetchImpl: fetchMock,
-        updateDebounceTimeoutMs: 1
       });
 
       const offset = await kkv.put('key1', 'value1');
@@ -118,7 +117,6 @@ describe('KafkaKeyValue', function () {
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
         fetchImpl: fetchMock,
-        updateDebounceTimeoutMs: 1
       });
 
       try {
@@ -190,7 +188,6 @@ describe('KafkaKeyValue', function () {
         metrics,
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
-        updateDebounceTimeoutMs: 1,
         fetchImpl: fetchMock
       });
 
@@ -220,7 +217,6 @@ describe('KafkaKeyValue', function () {
         metrics,
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
-        updateDebounceTimeoutMs: 1
       });
 
       const onUpdateSpy = jest.fn();
@@ -274,7 +270,6 @@ describe('KafkaKeyValue', function () {
         metrics,
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
-        updateDebounceTimeoutMs: 10
       });
 
       const onUpdateSpy = jest.fn();
@@ -377,7 +372,6 @@ describe('KafkaKeyValue', function () {
         metrics,
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
-        updateDebounceTimeoutMs: 1
       });
 
       kkv.updatePartitionOffsetMetrics({
