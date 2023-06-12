@@ -10,6 +10,7 @@ const pGzip = promisify<InputType, Buffer>(gzip);
 
 const KKV_CACHE_HOST_READINESS_ENDPOINT = process.env.KKV_CACHE_HOST_READINESS_ENDPOINT || '/q/health/ready';
 const DEFAULT_UPDATE_DEBOUNCE_TIMEOUT_MS: number = 2000;
+const LAST_SEEN_OFFSETS_HEADER_NAME = 'x-kkv-last-seen-offsets';
 
 export interface IKafkaKeyValueImpl { new (options: IKafkaKeyValue): KafkaKeyValue }
 
@@ -192,7 +193,7 @@ export default class KafkaKeyValue {
   private readonly metrics: IKafkaKeyValueMetrics;
   private readonly fetchImpl: IFetchImpl;
   private readonly logger;
-  private readonly pendingKeyUpdates: Set<string> = new Set();
+  private readonly lastKeyUpdate: Map<string, number> = new Map();
   private readonly partitionOffsets: Map<string, number> = new Map();
 
   constructor(config: IKafkaKeyValue) {
@@ -202,7 +203,7 @@ export default class KafkaKeyValue {
     this.fetchImpl = getFetchImpl(config);
     this.logger = getLogger({ name: `kkv:${this.getCacheName()}` });
 
-    updateEvents.on('update', async (requestBody) => {
+    updateEvents.on('update', async (requestBody: { v: number, offsets: { [partition: string]: number }, topic: string, updates: { [key: string]: {} } }) => {
       if (requestBody.v !== 1) throw new Error(`Unknown kkv onupdate protocol ${requestBody.v}!`);
 
       const {
@@ -216,13 +217,20 @@ export default class KafkaKeyValue {
         return;
       }
 
-      if (this.updateHandlers.length > 0) {
-        Object.keys(updates).forEach(key => this.pendingKeyUpdates.add(key));
-        await new Promise(resolve => setTimeout(resolve, config.updateDebounceTimeoutMs || DEFAULT_UPDATE_DEBOUNCE_TIMEOUT_MS));
+      const highestOffset: number = Object.keys(offsets).reduce((memo, offset) => {
+        return Math.max(memo, Number(offset));
+      }, -1);
 
-        const updatesToPropagate = Array.from(this.pendingKeyUpdates).map(key => {
-          this.pendingKeyUpdates.delete(key);
-          return key;
+      if (this.updateHandlers.length > 0) {
+
+        const updatesToPropagate: string[] = [];
+
+        Object.keys(updates).forEach(key => {
+          const pendingOffset = this.lastKeyUpdate.get(key);
+          if (pendingOffset === undefined || highestOffset > pendingOffset) {
+            updatesToPropagate.push(key);
+            this.lastKeyUpdate.set(key, highestOffset);
+          }
         });
 
         const updatesBeingPropagated = updatesToPropagate.map(async key => {
@@ -251,7 +259,7 @@ export default class KafkaKeyValue {
   updatePartitionOffsetMetrics(offsets: { [partition: string]: number }) {
     Object.entries(offsets).forEach(([partition, offset]) => {
       const existingOffset = this.partitionOffsets.get(partition);
-      if (!existingOffset || existingOffset < offset) {
+      if (existingOffset === undefined || existingOffset < offset) {
         this.partitionOffsets.set(partition, offset);
         this.metrics.kafka_key_value_last_seen_offset
           .labels(this.getCacheName(), this.topic, partition)
@@ -320,6 +328,9 @@ export default class KafkaKeyValue {
 
     parseTiming();
     this.logger.debug({ key, value }, 'KafkaCache get value returned')
+
+    this.updateLastSeenOffsetsFromHeader(res);
+
     return value;
   }
 
@@ -336,6 +347,8 @@ export default class KafkaKeyValue {
 
     streamTiming();
     this.logger.debug({ cache_name: this.getCacheName() }, 'Streaming values for cache finished');
+
+    this.updateLastSeenOffsetsFromHeader(res);
   }
 
   async put(key: string, value: any, options: IRetryOptions = PUT_RETRY_DEFAULTS): Promise<number> {
@@ -352,5 +365,14 @@ export default class KafkaKeyValue {
 
   onUpdate(fn: UpdateHandler) {
     this.updateHandlers.push(fn);
+  }
+
+  private updateLastSeenOffsetsFromHeader(res: Pick<Response, "headers">) {
+    const lastSeenOffsetsHeader = res.headers.get(LAST_SEEN_OFFSETS_HEADER_NAME);
+    if (!lastSeenOffsetsHeader) throw new Error(`Missing header "${LAST_SEEN_OFFSETS_HEADER_NAME}"`);
+    const lastSeenOffsets = JSON.parse(lastSeenOffsetsHeader);
+    lastSeenOffsets.forEach(({ topic, partition, offset }) => {
+      this.metrics.kafka_key_value_last_seen_offset.set({ topic, partition }, offset);
+    });
   }
 }

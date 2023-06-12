@@ -39,7 +39,7 @@ const promClientMock = {
       this.labels = jest.fn().mockReturnValue(this);
       this.reset = jest.fn();
       this.setToCurrentTime = jest.fn();
-      this.startTimer = jest.fn();
+      this.startTimer = jest.fn().mockReturnValue(() => jest.fn());
       this.remove = jest.fn();
     }
   },
@@ -54,7 +54,7 @@ const promClientMock = {
     constructor(options) {
 
       this.observe = jest.fn();
-      this.startTimer = jest.fn();
+      this.startTimer = jest.fn().mockReturnValue(() => jest.fn());
       this.labels = jest.fn().mockReturnValue(this);
       this.reset = jest.fn();
       this.remove = jest.fn();
@@ -170,6 +170,43 @@ describe('KafkaKeyValue', function () {
       expect(onValue).toHaveBeenCalledTimes(2);
       expect(onValue).toBeCalledWith({ foo: 'bar' })
       expect(onValue).toBeCalledWith({ foo: 'bar2' })
+    });
+
+    it('updates last seen offset metric based on header value', async function () {
+      const response = {
+        body: new EventEmitter(),
+        headers: new Map([
+          ['x-kkv-last-seen-offsets', JSON.stringify([
+            { topic: 'testtopic01', partition: 0, offset: 17 }
+          ])]
+        ])
+      };
+
+      const fetchMock = jest.fn().mockReturnValueOnce(response);
+
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic01',
+        updateDebounceTimeoutMs: 1,
+        fetchImpl: fetchMock
+      });
+
+      const streaming = kkv.streamValues(() => {});
+      await Promise.resolve();
+      response.body.emit('end');
+
+      await streaming;
+
+      expect(metrics.kafka_key_value_last_seen_offset.set).toHaveBeenCalledWith(
+        {
+          topic: 'testtopic01',
+          partition: 0
+        },
+        17
+      )
     });
   });
 
