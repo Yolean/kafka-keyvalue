@@ -249,6 +249,22 @@ describe('KafkaKeyValue', function () {
       expect(metrics.kafka_key_value_last_seen_offset.labels).toHaveBeenCalledTimes(1);
       expect(metrics.kafka_key_value_last_seen_offset.labels).toHaveBeenCalledWith('cache-kkv', 'testtopic01', '0');
       expect(metrics.kafka_key_value_last_seen_offset.set).toHaveBeenCalledWith(28262);
+
+      updateEvents.emit('update', {
+        v: 1,
+        topic: 'testtopic01',
+        offsets: {
+          '0': 28263
+        },
+        updates: {
+          'bd3f6188-d865-443d-8646-03e8f1c643cb': {}
+        }
+      });
+
+      // Promises needs to resolve before we get new value
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(onUpdateSpy).toHaveBeenCalledTimes(2);
     });
 
     it('only handles updates for the same key once if called within the debounce timeout period', async function () {
@@ -335,6 +351,21 @@ describe('KafkaKeyValue', function () {
       expect(onUpdateSpy).toHaveBeenCalledTimes(2);
       expect(onUpdateSpy).toHaveBeenCalledWith('bd3f6188-d865-443d-8646-03e8f1c643cb', { foo: 'bar' })
       expect(onUpdateSpy).toHaveBeenCalledWith('aaaa6188-d865-443d-8646-03e8f1c643cb', { foo: 'bar' })
+
+      updateEvents.emit('update', {
+        v: 1,
+        topic: 'testtopic01',
+        offsets: {
+          '0': 28265
+        },
+        updates: {
+          'aaaa6188-d865-443d-8646-03e8f1c643cb': {}
+        }
+      });
+
+      await Promise.resolve();
+
+      expect(onUpdateSpy).toHaveBeenCalledTimes(3);
     });
   });
 

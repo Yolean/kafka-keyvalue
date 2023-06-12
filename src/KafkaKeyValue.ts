@@ -217,8 +217,8 @@ export default class KafkaKeyValue {
         return;
       }
 
-      const highestOffset: number = Object.keys(offsets).reduce((memo, offset) => {
-        return Math.max(memo, Number(offset));
+      const highestOffset: number = Object.values(offsets).reduce((memo, offset) => {
+        return Math.max(memo, offset);
       }, -1);
 
       if (this.updateHandlers.length > 0) {
