@@ -40,9 +40,15 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
 
   private final WebClient webClient;
 
+  static void initMetrics(MeterRegistry registry) {
+    registry.counter("kkv.target.update.failure").increment(0);
+  }
+
   @Inject
   public UpdatesDispatcherWebclient(Vertx vertx) {
     this.webClient = WebClient.create(vertx);
+
+    initMetrics(registry);
   }
 
   @Override
