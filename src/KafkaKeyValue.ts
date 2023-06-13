@@ -95,7 +95,6 @@ async function produceViaPixy(fetchImpl: IFetchImpl, logger, pixyHost: string, t
   }
 
   const json = await res.json() as PixyPostTopicKeySyncResponse;
-  logger.debug({ res, json }, 'KafkaCache put returned');
 
   return json.offset;
 }
@@ -209,9 +208,9 @@ export default class KafkaKeyValue {
       } = requestBody;
 
       const expectedTopic = this.topic;
-      this.logger.debug({ topic, expectedTopic }, 'Matching update event against expected topic');
+      this.logger.trace({ topic, expectedTopic }, 'Matching update event against expected topic');
       if (topic !== expectedTopic) {
-        this.logger.debug({ topic, expectedTopic }, 'Update event ignored due to topic mismatch. Business as usual.');
+        this.logger.trace({ topic, expectedTopic }, 'Update event ignored due to topic mismatch. Business as usual.');
         return;
       }
 
@@ -232,14 +231,14 @@ export default class KafkaKeyValue {
         });
 
         const updatesBeingPropagated = updatesToPropagate.map(async key => {
-          this.logger.debug({ key }, 'Received update event for key');
+          this.logger.trace({ key }, 'Received update event for key');
           const value = await this.get(key);
           this.updateHandlers.forEach(fn => fn(key, value));
         });
 
         await Promise.all(updatesBeingPropagated);
       } else {
-        this.logger.debug({ topic }, 'No update handlers registered, update event has no effect');
+        this.logger.trace({ topic }, 'No update handlers registered, update event has no effect');
       }
 
       // NOTE: Letting all handlers complete before updating the metric
@@ -325,7 +324,6 @@ export default class KafkaKeyValue {
     const value = parseResponse(this.logger, res, this.config.gzip || false);
 
     parseTiming();
-    this.logger.debug({ key, value }, 'KafkaCache get value returned')
 
     this.updateLastSeenOffsetsFromHeader(res);
 
@@ -334,7 +332,7 @@ export default class KafkaKeyValue {
 
   async streamValues(onValue: (value: any) => void): Promise<void> {
     if (this.config.gzip) throw new Error('Unsuported method for gzipped topics!');
-    this.logger.debug({ cache_name: this.getCacheName() }, 'Streaming values for cache started');
+    this.logger.trace({ cache_name: this.getCacheName() }, 'Streaming values for cache started');
 
     const streamTiming = this.metrics.kafka_key_value_stream_latency_seconds.startTimer({ cache_name: this.getCacheName() });
     const res = await this.fetchImpl(`${this.getCacheHost()}/cache/v1/values`);
@@ -344,7 +342,7 @@ export default class KafkaKeyValue {
     await streamResponseBody(this.logger, res.body, onValue);
 
     streamTiming();
-    this.logger.debug({ cache_name: this.getCacheName() }, 'Streaming values for cache finished');
+    this.logger.trace({ cache_name: this.getCacheName() }, 'Streaming values for cache finished');
 
     this.updateLastSeenOffsetsFromHeader(res);
   }
