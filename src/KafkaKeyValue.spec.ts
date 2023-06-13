@@ -39,7 +39,7 @@ const promClientMock = {
       this.labels = jest.fn().mockReturnValue(this);
       this.reset = jest.fn();
       this.setToCurrentTime = jest.fn();
-      this.startTimer = jest.fn();
+      this.startTimer = jest.fn().mockReturnValue(() => jest.fn());
       this.remove = jest.fn();
     }
   },
@@ -54,7 +54,7 @@ const promClientMock = {
     constructor(options) {
 
       this.observe = jest.fn();
-      this.startTimer = jest.fn();
+      this.startTimer = jest.fn().mockReturnValue(() => jest.fn());
       this.labels = jest.fn().mockReturnValue(this);
       this.reset = jest.fn();
       this.remove = jest.fn();
@@ -93,7 +93,6 @@ describe('KafkaKeyValue', function () {
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
         fetchImpl: fetchMock,
-        updateDebounceTimeoutMs: 1
       });
 
       const offset = await kkv.put('key1', 'value1');
@@ -118,7 +117,6 @@ describe('KafkaKeyValue', function () {
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
         fetchImpl: fetchMock,
-        updateDebounceTimeoutMs: 1
       });
 
       try {
@@ -171,6 +169,42 @@ describe('KafkaKeyValue', function () {
       expect(onValue).toBeCalledWith({ foo: 'bar' })
       expect(onValue).toBeCalledWith({ foo: 'bar2' })
     });
+
+    it('updates last seen offset metric based on header value', async function () {
+      const response = {
+        body: new EventEmitter(),
+        headers: new Map([
+          ['x-kkv-last-seen-offsets', JSON.stringify([
+            { topic: 'testtopic01', partition: 0, offset: 17 }
+          ])]
+        ])
+      };
+
+      const fetchMock = jest.fn().mockReturnValueOnce(response);
+
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic01',
+        fetchImpl: fetchMock
+      });
+
+      const streaming = kkv.streamValues(() => {});
+      await Promise.resolve();
+      response.body.emit('end');
+
+      await streaming;
+
+      expect(metrics.kafka_key_value_last_seen_offset.set).toHaveBeenCalledWith(
+        {
+          topic: 'testtopic01',
+          partition: 0
+        },
+        17
+      )
+    });
   });
 
   describe('onupdate handlers', function () {
@@ -183,7 +217,6 @@ describe('KafkaKeyValue', function () {
         metrics,
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
-        updateDebounceTimeoutMs: 1
       });
 
       const onUpdateSpy = jest.fn();
@@ -212,6 +245,22 @@ describe('KafkaKeyValue', function () {
       expect(metrics.kafka_key_value_last_seen_offset.labels).toHaveBeenCalledTimes(1);
       expect(metrics.kafka_key_value_last_seen_offset.labels).toHaveBeenCalledWith('cache-kkv', 'testtopic01', '0');
       expect(metrics.kafka_key_value_last_seen_offset.set).toHaveBeenCalledWith(28262);
+
+      updateEvents.emit('update', {
+        v: 1,
+        topic: 'testtopic01',
+        offsets: {
+          '0': 28263
+        },
+        updates: {
+          'bd3f6188-d865-443d-8646-03e8f1c643cb': {}
+        }
+      });
+
+      // Promises needs to resolve before we get new value
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(onUpdateSpy).toHaveBeenCalledTimes(2);
     });
 
     it('only handles updates for the same key once if called within the debounce timeout period', async function () {
@@ -221,7 +270,6 @@ describe('KafkaKeyValue', function () {
         metrics,
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
-        updateDebounceTimeoutMs: 10
       });
 
       const onUpdateSpy = jest.fn();
@@ -298,6 +346,21 @@ describe('KafkaKeyValue', function () {
       expect(onUpdateSpy).toHaveBeenCalledTimes(2);
       expect(onUpdateSpy).toHaveBeenCalledWith('bd3f6188-d865-443d-8646-03e8f1c643cb', { foo: 'bar' })
       expect(onUpdateSpy).toHaveBeenCalledWith('aaaa6188-d865-443d-8646-03e8f1c643cb', { foo: 'bar' })
+
+      updateEvents.emit('update', {
+        v: 1,
+        topic: 'testtopic01',
+        offsets: {
+          '0': 28265
+        },
+        updates: {
+          'aaaa6188-d865-443d-8646-03e8f1c643cb': {}
+        }
+      });
+
+      await Promise.resolve();
+
+      expect(onUpdateSpy).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -309,7 +372,6 @@ describe('KafkaKeyValue', function () {
         metrics,
         pixyHost: 'http://pixy',
         topicName: 'testtopic01',
-        updateDebounceTimeoutMs: 1
       });
 
       kkv.updatePartitionOffsetMetrics({
