@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import se.yolean.kafka.keyvalue.KafkaCache;
+import se.yolean.kafka.keyvalue.TopicPartitionOffset;
 
 class CacheResourceTest {
 
@@ -71,14 +72,14 @@ class CacheResourceTest {
     assertEquals("a", new String(rest.cache.getValue("key1"), StandardCharsets.UTF_8));
 
     Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(List.of(
-        Map.of("topic", "mytopic", "partition", 0, "offset", 0L)));
+        new TopicPartitionOffset("mytopic", 0, 0L)));
 
     assertEquals("[x-kkv-last-seen-offsets]", "" + rest.values().getHeaders().keySet());
     assertEquals("[{\"offset\":0,\"partition\":0,\"topic\":\"mytopic\"}]", rest.values().getHeaderString("x-kkv-last-seen-offsets"));
     assertEquals("[{\"offset\":0,\"partition\":0,\"topic\":\"mytopic\"}]", rest.valueByKey("key1", null).getHeaderString("x-kkv-last-seen-offsets"));
 
     Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(List.of(
-        Map.of("topic", "mytopic", "partition", 0, "offset", 17045L)));
+        new TopicPartitionOffset("mytopic", 0, 17045L)));
 
     assertEquals("[{\"offset\":17045,\"partition\":0,\"topic\":\"mytopic\"}]", rest.values().getHeaderString("x-kkv-last-seen-offsets"));
     assertEquals("[{\"offset\":17045,\"partition\":0,\"topic\":\"mytopic\"}]", rest.valueByKey("key1", null).getHeaderString("x-kkv-last-seen-offsets"));

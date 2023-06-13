@@ -289,10 +289,10 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   }
 
   @Override
-  public List<Map<String, ?>> getCurrentOffsets() {
-    var offsets = new ArrayList<Map<String, ?>>();
+  public List<TopicPartitionOffset> getCurrentOffsets() {
+    var offsets = new ArrayList<TopicPartitionOffset>();
     currentOffsets.forEach((key, value) -> {
-      offsets.add(Map.of("topic", key.topic(), "partition", key.partition(), "offset", value.get()));
+      offsets.add(new TopicPartitionOffset(key.topic(), key.partition(), value.get()));
     });
 
     return offsets;

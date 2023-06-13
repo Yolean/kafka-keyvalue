@@ -16,9 +16,7 @@ package se.yolean.kafka.keyvalue;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
-import org.apache.kafka.common.TopicPartition;
 
 /**
  * The read-access contract for external API.
@@ -43,7 +41,7 @@ public interface KafkaCache {
    */
   Long getCurrentOffset(String topicName, int partition);
 
-  List<Map<String, ?>>getCurrentOffsets();
+  List<TopicPartitionOffset>getCurrentOffsets();
 
   Iterator<String> getKeys();
 
