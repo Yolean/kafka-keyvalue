@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:1ed32a7cfeea593a0e9e0217549e4a5110a2506f@sha256:44fb87701469e8c153fbd9db0b2c0615e778a02f45229b81817f1206edabf709 \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:43013261fdd8e4da16cf29f8336c0fc522db5ee3@sha256:810a23f91afec784a73ff9de32489c33fbc749b753e417619327da0f194a6af8 \
   as jnilib
 
 # https://github.com/xerial/snappy-java/blob/master/src/main/java/org/xerial/snappy/OSInfo.java#L113
@@ -9,7 +9,7 @@ RUN set -ex; \
   mkdir -pv native/$LIBPATH; \
   cp -v /usr/lib/$ARCH-linux-gnu/jni/* native/$LIBPATH/
 
-FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:1ed32a7cfeea593a0e9e0217549e4a5110a2506f@sha256:44fb87701469e8c153fbd9db0b2c0615e778a02f45229b81817f1206edabf709 \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:43013261fdd8e4da16cf29f8336c0fc522db5ee3@sha256:810a23f91afec784a73ff9de32489c33fbc749b753e417619327da0f194a6af8 \
   as dev
 
 COPY pom.xml .
@@ -38,7 +38,7 @@ ARG build="package -Pnative"
 
 RUN mvn --batch-mode $build
 
-FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu-jre:1ed32a7cfeea593a0e9e0217549e4a5110a2506f@sha256:ea2db368356c03ce2c5d942f63cf79e58e26a2dfc4f2ec9143f745cff21abc45 \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu-jre:43013261fdd8e4da16cf29f8336c0fc522db5ee3@sha256:e46a9bb44952ef82765158f86376d686c6c5835aff9080a5adb50296fb4ed712 \
   as jvm
 
 WORKDIR /app
@@ -50,7 +50,7 @@ ENTRYPOINT [ "java", \
   "-Djava.util.logging.manager=org.jboss.logmanager.LogManager", \
   "-jar", "quarkus-run.jar" ]
 
-FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu:1ed32a7cfeea593a0e9e0217549e4a5110a2506f@sha256:2401f6df940260bde12853d83fb21bbc8df8414915ea75a22196967cf9f1989e
+FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu:43013261fdd8e4da16cf29f8336c0fc522db5ee3@sha256:e560bc7e18dbcf80ca325afb4a1e54df78b80ed7a064cfeb08da8e71d4f0cf65
 
 COPY --from=dev /workspace/target/*-runner /usr/local/bin/quarkus
 

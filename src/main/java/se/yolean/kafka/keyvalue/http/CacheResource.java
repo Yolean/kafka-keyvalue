@@ -14,6 +14,7 @@
 
 package se.yolean.kafka.keyvalue.http;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Iterator;
@@ -33,15 +34,23 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
+import javax.ws.rs.core.Response.ResponseBuilder;
 
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.smallrye.common.annotation.Identifier;
 import se.yolean.kafka.keyvalue.KafkaCache;
+import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopic;
 
 @Path("/cache/v1")
 public class CacheResource implements HealthCheck {
+
+  @Inject
+  ObjectMapper mapper;
 
   @Inject // Note that this can be null if cache is still in it's startup event handler
   @Identifier("kkv")
@@ -89,9 +98,14 @@ public class CacheResource implements HealthCheck {
   @GET
   @Path("/raw/{key}")
   @Produces(MediaType.APPLICATION_OCTET_STREAM)
-  public byte[] valueByKey(@PathParam("key") final String key, @Context UriInfo uriInfo) {
+  public Response valueByKey(@PathParam("key") final String key, @Context UriInfo uriInfo) throws JsonProcessingException {
     requireUpToDateCache();
-    return getCacheValue(key);
+
+    var response = Response.ok(getCacheValue(key));
+
+    applyOffsetHeaders(response);
+
+    return response.build();
   }
 
   @GET
@@ -159,24 +173,33 @@ public class CacheResource implements HealthCheck {
 
   /**
    * @return Newline separated values (no keys)
+   * @throws IOException
    */
   @GET()
   @Path("/values")
   @Produces(MediaType.TEXT_PLAIN)
-  public Response values() {
+  public Response values() throws IOException {
     requireUpToDateCache();
     Iterator<byte[]> values = cache.getValues();
 
-    StreamingOutput stream = new StreamingOutput() {
-      @Override
-      public void write(OutputStream out) throws IOException, WebApplicationException {
-        while (values.hasNext()) {
-          out.write(values.next());
-          out.write('\n');
-        }
-      }
-    };
-    return Response.ok(stream).build();
+    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+    while (values.hasNext()) {
+      buffer.write(values.next());
+      buffer.write('\n');
+    }
+
+    ResponseBuilder response = Response.ok(buffer);
+
+    applyOffsetHeaders(response);
+
+    return response.build();
+  }
+
+  private void applyOffsetHeaders(ResponseBuilder response) throws JsonProcessingException {
+    var offsets = cache.getCurrentOffsets();
+    var value = mapper.writeValueAsString(offsets);
+    response.header(UpdatesBodyPerTopic.HEADER_PREFIX + "last-seen-offsets", value);
   }
 
 }

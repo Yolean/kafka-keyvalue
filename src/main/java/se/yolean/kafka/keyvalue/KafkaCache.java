@@ -15,6 +15,8 @@
 package se.yolean.kafka.keyvalue;
 
 import java.util.Iterator;
+import java.util.List;
+
 
 /**
  * The read-access contract for external API.
@@ -38,6 +40,8 @@ public interface KafkaCache {
    * @return offset for latest update, or null if the topic hasn't got updates
    */
   Long getCurrentOffset(String topicName, int partition);
+
+  List<TopicPartitionOffset>getCurrentOffsets();
 
   Iterator<String> getKeys();
 

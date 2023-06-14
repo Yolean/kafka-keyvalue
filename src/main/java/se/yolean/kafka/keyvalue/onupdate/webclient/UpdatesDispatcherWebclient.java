@@ -29,8 +29,7 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
   @Inject
   EndpointsWatcher watcher;
 
-  @Inject
-  MeterRegistry registry;
+  private MeterRegistry registry;
 
   @ConfigProperty(name = "kkv.target.service.port")
   int port;
@@ -40,9 +39,16 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
 
   private final WebClient webClient;
 
+  static void initMetrics(MeterRegistry registry) {
+    registry.counter("kkv.target.update.failure").increment(0);
+  }
+
   @Inject
-  public UpdatesDispatcherWebclient(Vertx vertx) {
+  public UpdatesDispatcherWebclient(Vertx vertx, MeterRegistry registry) {
     this.webClient = WebClient.create(vertx);
+    this.registry = registry;
+
+    initMetrics(registry);
   }
 
   @Override
@@ -63,6 +69,7 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
               logger.info("Successfully sent update to {}", name);
             },
             failure -> {
+              registry.counter("kkv.target.update.failure").increment();
               logger.error("Failed to send update to " + name, failure);
             }
           );
