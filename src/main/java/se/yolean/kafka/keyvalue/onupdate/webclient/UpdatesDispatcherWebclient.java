@@ -29,8 +29,7 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
   @Inject
   EndpointsWatcher watcher;
 
-  @Inject
-  MeterRegistry registry;
+  private MeterRegistry registry;
 
   @ConfigProperty(name = "kkv.target.service.port")
   int port;
@@ -45,8 +44,9 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
   }
 
   @Inject
-  public UpdatesDispatcherWebclient(Vertx vertx) {
+  public UpdatesDispatcherWebclient(Vertx vertx, MeterRegistry registry) {
     this.webClient = WebClient.create(vertx);
+    this.registry = registry;
 
     initMetrics(registry);
   }
