@@ -20,9 +20,7 @@ const globalOptions: LoggerOptions = {
   name: "no-logger-name-given",
   streams: [
     {
-      level: 'debug',
-      // TODO TypeScript didnt allow me to do this when building :(
-      // level: process.env.KAFKA_KEYVALUE_LOG_LEVEL || 'debug',
+      level: process.env.KAFKA_KEYVALUE_LOG_LEVEL || 'debug',
       stream: process.stdout
     }
   ],
