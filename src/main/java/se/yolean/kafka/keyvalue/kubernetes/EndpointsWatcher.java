@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.EndpointAddress;
 import io.fabric8.kubernetes.api.model.Endpoints;
+import io.fabric8.kubernetes.api.model.discovery.v1.Endpoint;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.WatcherException;
@@ -26,6 +27,7 @@ public class EndpointsWatcher {
 
   private final Logger logger = LoggerFactory.getLogger(EndpointsWatcher.class);
   private List<EndpointAddress> endpoints = List.of();
+  private List<EndpointAddress> unreadyEndpoints = List.of();
 
   @ConfigProperty(name = "kkv.target.service.name")
   String serviceName;
@@ -45,12 +47,22 @@ public class EndpointsWatcher {
     client.endpoints().withName(config.targetServiceName()).watch(new Watcher<Endpoints>() {
       @Override
       public void eventReceived(Action action, Endpoints resource) {
+
         endpoints = resource.getSubsets().stream()
             .map(subset -> subset.getAddresses())
             .flatMap(Collection::stream)
             .distinct()
             .toList();
-        logger.info("Set new targets: {}", getTargets());
+
+        unreadyEndpoints = resource.getSubsets().stream()
+            .map(subset -> subset.getNotReadyAddresses())
+            .flatMap(Collection::stream)
+            .distinct()
+            .toList();
+
+        logger.debug("endpoints watch received action: {}", action.toString());
+        logger.debug("Available unready targets: {}", mapEndpointsToTargets(unreadyEndpoints));
+        logger.info("Set new targets: {}", mapEndpointsToTargets(endpoints));
       }
 
       @Override
@@ -63,10 +75,14 @@ public class EndpointsWatcher {
     });
   }
 
+  public Map<String, String> getTargets() {
+    return mapEndpointsToTargets(endpoints);
+  }
+
   /**
    * @return Endpoint IPs mapped to target names
    */
-  public Map<String, String> getTargets() {
+  private Map<String, String> mapEndpointsToTargets(List<EndpointAddress> endpoints) {
     return endpoints.stream()
         .collect(Collectors.toMap(
             endpoint -> endpoint.getIp(),
