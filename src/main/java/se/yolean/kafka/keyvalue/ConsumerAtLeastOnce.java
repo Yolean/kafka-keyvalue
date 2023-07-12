@@ -274,7 +274,6 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
     var tags = Tags.of("topic", update.getTopic(), "partition", "" + update.getPartition());
 
-    logger.debug("toStats offset: " + update.getOffset());
     registry.gauge("kkv.last.seen.offset", tags, currentOffsets.get(key));
   }
 
