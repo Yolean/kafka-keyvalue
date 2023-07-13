@@ -39,9 +39,9 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
   public static final String UPDATES_KEY = "updates";
 
   private JsonObjectBuilder builder;
-  private JsonObjectBuilder offsets;
+  private Map<Integer, Long> offsets;
   private JsonObject offsetsBuilt = null;
-  private JsonObjectBuilder updates;
+  private Map<String, JsonObject> updates;
   private JsonObjectBuilder json;
 
   Map<String,String> headers = new HashMap<String, String>(2);
@@ -50,8 +50,8 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
 
   public UpdatesBodyPerTopicJSON(String topicName) {
     builder = Json.createObjectBuilder();
-    offsets = Json.createObjectBuilder();
-    updates = Json.createObjectBuilder();
+    offsets = new HashMap<>();
+    updates = new HashMap<>();
     json = builder.add(VERSION_KEY, 1).add(TOPIC_KEY, topicName);
     headers.put(UpdatesBodyPerTopic.HEADER_TOPIC, topicName);
   }
@@ -60,13 +60,21 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
     if (offsetsBuilt == null) {
       throw new IllegalStateException("Headers must be retrieved before body");
     }
-    return json.add(OFFSETS_KEY, offsetsBuilt).add(UPDATES_KEY, updates).build();
+
+    var updatesBuilder = Json.createObjectBuilder();
+    updates.forEach((k, v) -> {
+      updatesBuilder.add(k, v);
+    });
+
+    return json.add(OFFSETS_KEY, offsetsBuilt).add(UPDATES_KEY, updatesBuilder.build()).build();
   }
 
   @Override
   public Map<String, String> getHeaders() {
     if (offsetsBuilt == null) {
-      offsetsBuilt = offsets.build();
+      var offsetsBuilder = Json.createObjectBuilder();
+      offsets.forEach((k, v) -> offsetsBuilder.add(Integer.toString(k), Json.createValue(v)));
+      offsetsBuilt = offsetsBuilder.build();
       headers.put(UpdatesBodyPerTopic.HEADER_OFFSETS, offsetsBuilt.toString());
     }
     return headers;
@@ -85,8 +93,8 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
     if (update.getKey() == null) {
       throw new IllegalArgumentException("Null key rejected, partition " + update.getPartition() + " offset " + update.getOffset());
     }
-    offsets.add(Integer.toString(update.getPartition()), Json.createValue(update.getOffset()));
-    updates.add(update.getKey(), JsonObject.EMPTY_JSON_OBJECT);
+    offsets.put(Integer.valueOf(update.getPartition()), Long.valueOf(update.getOffset()));
+    updates.put(update.getKey(), JsonObject.EMPTY_JSON_OBJECT);
   }
 
   @Override
@@ -102,6 +110,37 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
   public void getContent(OutputStream out) {
     JsonWriter writer = Json.createWriter(out);
     writer.write(getCurrent());
+  }
+
+  @Override
+  public UpdatesBodyPerTopic merge(UpdatesBodyPerTopic update) {
+
+    String otherTopic = update.getHeaders().get(HEADER_TOPIC);
+    String thisTopic = getHeaders().get(HEADER_TOPIC);
+    if (!thisTopic.equals(otherTopic)) throw new IllegalArgumentException("Refusing to merge updates with different topics");
+
+    var left = (UpdatesBodyPerTopicJSON) this;
+    var right = (UpdatesBodyPerTopicJSON) update;
+
+    var result = new UpdatesBodyPerTopicJSON(thisTopic);
+
+    left.offsets.forEach((partition, offset) -> {
+      result.offsets.put(partition, offset);
+    });
+    right.offsets.forEach((partition, offset) -> {
+      if (offset > result.offsets.get(partition)) {
+        result.offsets.put(partition, offset);
+      }
+    });
+
+    left.updates.forEach((partition, offset) -> {
+      result.updates.put(partition, offset);
+    });
+    right.updates.forEach((partition, offset) -> {
+      result.updates.put(partition, offset);
+    });
+
+    return result;
   }
 
 }

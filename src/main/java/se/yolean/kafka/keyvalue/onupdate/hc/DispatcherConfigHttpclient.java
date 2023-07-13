@@ -41,14 +41,6 @@ public class DispatcherConfigHttpclient implements DispatcherConfig, RetryDecisi
   }
 
   @Override
-  public UpdatesDispatcher getDispatcher(String configuredTarget) {
-    UpdatesDispatcherHttp http = new UpdatesDispatcherHttp(
-        configuredTarget,
-        (RetryDecisions) this);
-    return http;
-  }
-
-  @Override
   //@Counted(name="retries_connection_refused", description="Retries granted for errors that look like connection refused")
   public boolean onConnectionRefused(int count) {
     return count <= maxRetriesConnectionRefused;
