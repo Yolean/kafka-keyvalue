@@ -16,7 +16,7 @@ import io.fabric8.kubernetes.client.Watcher.Action;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopicJSON;
 
-public class EndPointsWatcherTest {
+public class EndpointsWatcherTest {
 
   EndpointAddress createEndpoint(String ip, String targetName) {
     var targetRef = new ObjectReference();
