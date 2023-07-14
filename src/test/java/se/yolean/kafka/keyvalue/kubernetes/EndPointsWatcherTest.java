@@ -17,18 +17,25 @@ import io.fabric8.kubernetes.client.Watcher.Action;
 
 public class EndPointsWatcherTest {
 
+  EndpointAddress createEndpoint(String ip, String targetName) {
+    var targetRef = new ObjectReference();
+    targetRef.setName(targetName);
+
+    return new EndpointAddress("hostnamethatwedontuse", ip, "nodenamethatwedontuse", targetRef);
+  }
+
   @Test
   public void endpointsUpdateTest() {
     var watcher = new EndpointsWatcher();
 
-    var targetRef = new ObjectReference();
-    targetRef.setName("targetRef");
-    var addresses = List.of(new EndpointAddress("hostname", "127.0.0.1", "nodename", targetRef));
-    var notReadyAddresses = List.of(new EndpointAddress("hostname", "127.0.0.1", "nodename", targetRef));
+    List<EndpointAddress> notReadyAddresses = List.of(
+      createEndpoint("192.168.0.1", "pod1"),
+      createEndpoint("192.168.0.2", "pod2")
+    );
+    List<EndpointAddress> addresses = List.of();
 
     var endpoints = new Endpoints();
     endpoints.setSubsets(List.of(new EndpointSubset(addresses, notReadyAddresses, null)));
-
 
     watcher.addOnReadyConsumer((update, target) -> {
 
@@ -36,8 +43,7 @@ public class EndPointsWatcherTest {
 
     watcher.handleEvent(Action.MODIFIED, endpoints);
 
-    assertEquals(Map.of("foo", "bar"), watcher.getUnreadyTargets());
-    assertEquals(Map.of("foo", "bar"), watcher.getTargets());
+    assertEquals(Map.of("192.168.0.1", "pod1", "192.168.0.2", "pod2"), watcher.getUnreadyTargets());
   }
 
 }
