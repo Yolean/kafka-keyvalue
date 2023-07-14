@@ -3,6 +3,7 @@ package se.yolean.kafka.keyvalue.kubernetes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -73,15 +74,17 @@ public class EndpointsWatcher {
         .distinct()
         .collect(Collectors.toList());
 
-    var pendingRemoves = unreadyEndpoints.keySet();
+    var pendingRemoves = new HashSet<>(unreadyEndpoints.keySet());
     receivedUnreadyEndpoints.forEach(address -> {
       if (!unreadyEndpoints.containsKey(address)) {
         unreadyEndpoints.put(address, List.of());
+        pendingRemoves.remove(address);
       } else {
         pendingRemoves.add(address);
       }
     });
 
+    logger.debug("These endpoints are no longer unready {}", pendingRemoves);
     for (var address : pendingRemoves) {
       unreadyEndpoints.remove(address);
     }
