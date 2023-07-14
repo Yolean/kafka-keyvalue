@@ -116,8 +116,8 @@ public class EndpointsWatcher {
   }
 
   private void emitPendingUpdatesToNowReadyTarget(EndpointAddress address, List<UpdatesBodyPerTopic> updates) {
-    // I guess I wanna tell UpdatesDispatcherWebClient to send this now?
-    logger.debug("TODO Send updates to address: {}, {}", address, updates);
+    logger.debug("Updating target {} from {} pending updates", address.getTargetRef().getName(), updates.size());
+
     if (updates.size() == 0) return;
 
     var mergedUpdate = UpdatesBodyPerTopic.merge(updates);
@@ -137,8 +137,9 @@ public class EndpointsWatcher {
   }
 
   public void updateUnreadyTargets(UpdatesBodyPerTopic body) {
-    unreadyEndpoints.values().forEach(updates -> {
-      updates.add(body);
+    unreadyEndpoints.entrySet().forEach(entry -> {
+      logger.debug("Adding pending update to unready target {}", entry.getKey().getTargetRef().getName());
+      entry.getValue().add(body);
     });
   }
 

@@ -60,6 +60,8 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
 
   private void dispatch(UpdatesBodyPerTopic body, Map<String, String> targets) {
 
+    watcher.updateUnreadyTargets(body);
+
     Map<String, String> headers = body.getHeaders();
     JsonObject json = new JsonObject(Buffer.buffer(body.getContent()));
     targets.entrySet().parallelStream().forEach(entry -> {
