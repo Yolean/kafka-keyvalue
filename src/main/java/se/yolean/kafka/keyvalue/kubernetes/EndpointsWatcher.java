@@ -77,7 +77,7 @@ public class EndpointsWatcher {
     var pendingRemoves = new HashSet<>(unreadyEndpoints.keySet());
     receivedUnreadyEndpoints.forEach(address -> {
       if (!unreadyEndpoints.containsKey(address)) {
-        unreadyEndpoints.put(address, List.of());
+        unreadyEndpoints.put(address, new ArrayList<>());
         pendingRemoves.remove(address);
       } else {
         pendingRemoves.add(address);
