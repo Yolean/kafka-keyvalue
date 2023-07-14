@@ -28,6 +28,40 @@ public class EndPointsWatcherTest {
   }
 
   @Test
+  public void unreadyEndpointsSequence() {
+    var watcher = new EndpointsWatcher();
+
+    List<EndpointAddress> notReadyAddresses = List.of(
+      createEndpoint("192.168.0.1", "pod1"),
+      createEndpoint("192.168.0.2", "pod2")
+    );
+    List<EndpointAddress> addresses = List.of();
+
+    var endpoints = new Endpoints();
+    endpoints.setSubsets(List.of(new EndpointSubset(addresses, notReadyAddresses, null)));
+
+    watcher.handleEvent(Action.MODIFIED, endpoints);
+
+    assertEquals(Map.of("192.168.0.1", "pod1", "192.168.0.2", "pod2"), watcher.getUnreadyTargets());
+    assertEquals(Map.of(), watcher.getTargets());
+
+    List<EndpointAddress> notReadyAddresses2 = List.of(
+      createEndpoint("192.168.0.2", "pod2"),
+      createEndpoint("192.168.0.3", "pod3")
+    );
+    List<EndpointAddress> addresses2 = List.of(
+      createEndpoint("192.168.0.1", "pod1")
+    );
+
+    endpoints.setSubsets(List.of(new EndpointSubset(addresses2, notReadyAddresses2, null)));
+
+    watcher.handleEvent(Action.MODIFIED, endpoints);
+
+    assertEquals(Map.of("192.168.0.2", "pod2", "192.168.0.3", "pod3"), watcher.getUnreadyTargets());
+    assertEquals(Map.of("192.168.0.1", "pod1"), watcher.getTargets());
+  }
+
+  @Test
   public void endpointsUpdateTest() {
     var watcher = new EndpointsWatcher();
 

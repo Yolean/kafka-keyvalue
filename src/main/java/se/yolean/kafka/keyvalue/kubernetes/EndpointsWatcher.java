@@ -78,11 +78,11 @@ public class EndpointsWatcher {
 
     var pendingRemoves = new HashSet<>(unreadyEndpoints.keySet());
     receivedUnreadyEndpoints.forEach(address -> {
+      logger.debug("{} is kept as unready endpoint", address);
+      pendingRemoves.remove(address);
+
       if (!unreadyEndpoints.containsKey(address)) {
         unreadyEndpoints.put(address, new ArrayList<>());
-        pendingRemoves.remove(address);
-      } else {
-        pendingRemoves.add(address);
       }
     });
 
