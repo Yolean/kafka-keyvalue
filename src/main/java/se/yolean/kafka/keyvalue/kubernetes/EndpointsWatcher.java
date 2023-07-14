@@ -55,6 +55,8 @@ public class EndpointsWatcher {
   }
 
   void handleEvent(Action action, Endpoints resource) {
+    logger.debug("endpoints watch received action: {}", action.toString());
+
     endpoints = resource.getSubsets().stream()
         .map(subset -> subset.getAddresses())
         .flatMap(Collection::stream)
@@ -89,7 +91,6 @@ public class EndpointsWatcher {
       unreadyEndpoints.remove(address);
     }
 
-    logger.debug("endpoints watch received action: {}", action.toString());
     logger.debug("Received unready targets: {}", mapEndpointsToTargets(receivedUnreadyEndpoints));
 
     logger.info("Set new unready targets: {}",
