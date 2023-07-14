@@ -128,7 +128,8 @@ public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {
       result.offsets.put(partition, offset);
     });
     right.offsets.forEach((partition, offset) -> {
-      if (offset > result.offsets.get(partition)) {
+      var existingOffset = result.offsets.get(partition);
+      if (existingOffset == null || offset > existingOffset) {
         result.offsets.put(partition, offset);
       }
     });
