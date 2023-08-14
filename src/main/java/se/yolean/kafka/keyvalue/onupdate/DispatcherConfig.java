@@ -18,6 +18,4 @@ public interface DispatcherConfig {
 
   UpdatesBodyPerTopic getUpdatesHandlerForPoll(String topic);
 
-  UpdatesDispatcher getDispatcher(String configuredTarget);
-
 }

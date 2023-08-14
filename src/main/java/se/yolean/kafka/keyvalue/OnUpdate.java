@@ -33,6 +33,6 @@ public interface OnUpdate {
    *   _suppressing_ consumer commit and triggering application exit/restart
    *   TODO or given that we run consumer in a thread, would we rather return a boolean false?
    */
-  void pollEndBlockingUntilTargetsAck();
+  void sendUpdates();
 
 }

@@ -237,8 +237,6 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
             this.stage = Stage.Polling;
             logger.info("Reached last historical message for {} at offset {}", update.getTopicPartition(), update.getOffset());
             this.readinessOkOnResetting = false;
-            // TODO do we want to restore this tracking from the old consumer logic?
-            // lastCommittedNotReached.remove(update.getTopicPartition());
           } else {
             this.stage = Stage.PollingHistorical;
           }
@@ -250,10 +248,10 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       }
     // }
     if (KafkaPollListener.getIsPollEndOnce()) {;
+      logger.info("Poll end detected. Dispatching onUpdate.");
       if (pollHasUpdates) {
         pollHasUpdates = false;
-        logger.info("Poll end detected. Dispatching onUpdate.");
-        onupdate.pollEndBlockingUntilTargetsAck();
+        onupdate.sendUpdates();
         onupdate.pollStart(topics);
       } else {
         logger.info("Poll end detected. No updates to dispatch.");
@@ -274,7 +272,6 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
     var tags = Tags.of("topic", update.getTopic(), "partition", "" + update.getPartition());
 
-    logger.debug("toStats offset: " + update.getOffset());
     registry.gauge("kkv.last.seen.offset", tags, currentOffsets.get(key));
   }
 

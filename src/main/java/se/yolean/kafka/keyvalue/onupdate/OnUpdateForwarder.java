@@ -25,11 +25,15 @@ import org.slf4j.LoggerFactory;
 
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.UpdateRecord;
+import se.yolean.kafka.keyvalue.kubernetes.EndpointsWatcher;
 
 @ApplicationScoped
 public class OnUpdateForwarder implements OnUpdate {
 
   static final Logger logger = LoggerFactory.getLogger(OnUpdateForwarder.class);
+
+  @Inject
+  EndpointsWatcher watcher;
 
   @Inject
   DispatcherConfig dispatcherConfig;
@@ -55,19 +59,15 @@ public class OnUpdateForwarder implements OnUpdate {
   }
 
   @Override
-  public void pollEndBlockingUntilTargetsAck() throws UpdateSemanticsSuggestHalt {
+  public void sendUpdates() throws UpdateSemanticsSuggestHalt {
     if (!inPoll) throw new IllegalStateException("pollEnd called without pollStart");
     inPoll = false;
     if (!hasPollState()) {
       throw new IllegalStateException("Zero handle(UpdateRecord) calls between pollStart and pollEnd");
     }
     pollState.keySet().forEach(topic -> {
-      try {
-        dispatcher.dispatch(topic, pollState.get(topic));
-      } catch (TargetAckFailedException e) {
-        logger.error("Ack failed for {} topic {}", dispatcher, topic, e);
-        throw new UpdateSemanticsSuggestHalt("Will stop fowarding updates upon any error, to not violate consistency", e);
-      }
+      var body = pollState.get(topic);
+      dispatcher.dispatch(body);
     });
   }
 

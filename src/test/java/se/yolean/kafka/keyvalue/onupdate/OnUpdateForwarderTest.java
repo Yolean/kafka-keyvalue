@@ -27,7 +27,7 @@ class OnUpdateForwarderTest {
   void testNoStart() {
     OnUpdateForwarder forwarder = new OnUpdateForwarder();
     try {
-      forwarder.pollEndBlockingUntilTargetsAck();
+      forwarder.sendUpdates();
       fail("Should have thrown");
     } catch (IllegalStateException e) {
       assertEquals("pollEnd called without pollStart", e.getMessage());

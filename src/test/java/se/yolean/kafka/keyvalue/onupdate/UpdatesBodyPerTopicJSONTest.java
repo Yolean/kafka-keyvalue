@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,33 @@ import org.junit.jupiter.api.Test;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 
 class UpdatesBodyPerTopicJSONTest {
+
+  @Test
+  void testMerge() {
+    UpdatesBodyPerTopicJSON body = new UpdatesBodyPerTopicJSON("topic");
+    body.handle(new UpdateRecord("t", 0, 10, "k1"));
+    body.handle(new UpdateRecord("t", 0, 11, "k2"));
+
+    UpdatesBodyPerTopicJSON body2 = new UpdatesBodyPerTopicJSON("topic");
+    body2.handle(new UpdateRecord("t", 1, 14, "k2"));
+    body2.handle(new UpdateRecord("t", 0, 17, "k1"));
+
+    UpdatesBodyPerTopicJSON body3 = new UpdatesBodyPerTopicJSON("topic");
+    body3.handle(new UpdateRecord("t", 0, 6, "k3"));
+
+    var result = UpdatesBodyPerTopic.merge(List.of(
+      body,
+      body2,
+      body3
+    ));
+
+    result.getHeaders();
+
+    assertEquals(
+      "{\"v\":1,\"topic\":\"topic\",\"offsets\":{\"0\":17,\"1\":14},\"updates\":{\"k1\":{},\"k2\":{},\"k3\":{}}}",
+      new String(result.getContent())
+    );
+  }
 
   @Test
   void testEmpty() throws UnsupportedEncodingException {

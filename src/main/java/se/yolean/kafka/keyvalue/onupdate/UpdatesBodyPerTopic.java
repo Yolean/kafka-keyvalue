@@ -15,6 +15,7 @@
 package se.yolean.kafka.keyvalue.onupdate;
 
 import java.io.OutputStream;
+import java.util.List;
 import java.util.Map;
 
 public interface UpdatesBodyPerTopic extends UpdatesHandler {
@@ -29,6 +30,14 @@ public interface UpdatesBodyPerTopic extends UpdatesHandler {
     throw new UnsupportedOperationException("Not implemented");
   }
 
+  public static UpdatesBodyPerTopic merge(List<UpdatesBodyPerTopic> updates) {
+    UpdatesBodyPerTopic mergedUpdate = updates.stream().reduce((acc, update) -> {
+      return acc.merge(update);
+    }).get();
+
+    return mergedUpdate;
+  }
+
   Map<String,String> getHeaders();
 
   String getContentType();
@@ -39,5 +48,7 @@ public interface UpdatesBodyPerTopic extends UpdatesHandler {
    * @param out UTF-8 stream
    */
   void getContent(OutputStream out);
+
+  UpdatesBodyPerTopic merge(UpdatesBodyPerTopic update);
 
 }

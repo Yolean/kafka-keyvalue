@@ -17,7 +17,6 @@ import io.vertx.mutiny.core.MultiMap;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.ext.web.client.WebClient;
 import se.yolean.kafka.keyvalue.kubernetes.EndpointsWatcher;
-import se.yolean.kafka.keyvalue.onupdate.TargetAckFailedException;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopic;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesDispatcher;
 
@@ -26,7 +25,6 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  @Inject
   EndpointsWatcher watcher;
 
   private MeterRegistry registry;
@@ -44,16 +42,26 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
   }
 
   @Inject
-  public UpdatesDispatcherWebclient(Vertx vertx, MeterRegistry registry) {
+  public UpdatesDispatcherWebclient(Vertx vertx, MeterRegistry registry, EndpointsWatcher watcher) {
     this.webClient = WebClient.create(vertx);
     this.registry = registry;
+    this.watcher = watcher;
 
     initMetrics(registry);
+
+    watcher.addOnReadyConsumer((update, targets) -> {
+      dispatch(update, targets);
+    });
   }
 
-  @Override
-  public void dispatch(String topicName, UpdatesBodyPerTopic body) throws TargetAckFailedException {
-    Map<String, String> targets = watcher.getTargets();
+  public void dispatch(UpdatesBodyPerTopic body) {
+    dispatch(body, watcher.getTargets());
+  }
+
+  private void dispatch(UpdatesBodyPerTopic body, Map<String, String> targets) {
+
+    watcher.updateUnreadyTargets(body);
+
     Map<String, String> headers = body.getHeaders();
     JsonObject json = new JsonObject(Buffer.buffer(body.getContent()));
     targets.entrySet().parallelStream().forEach(entry -> {
