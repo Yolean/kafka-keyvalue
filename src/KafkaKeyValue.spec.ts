@@ -193,6 +193,7 @@ describe('KafkaKeyValue', function () {
 
       const streaming = kkv.streamValues(() => {});
       await Promise.resolve();
+      await Promise.resolve();
       response.body.emit('end');
 
       await streaming;
