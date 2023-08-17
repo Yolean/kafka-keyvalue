@@ -11,6 +11,11 @@ const pGzip = promisify<InputType, Buffer>(gzip);
 const KKV_CACHE_HOST_READINESS_ENDPOINT = process.env.KKV_CACHE_HOST_READINESS_ENDPOINT || '/q/health/ready';
 const LAST_SEEN_OFFSETS_HEADER_NAME = 'x-kkv-last-seen-offsets';
 
+const KKV_FETCH_RETRY_OPTIONS = {
+  intervalMs: Number.parseInt(process.env.KKV_FETCH_RETRY_INTERVAL_MS || '') || 1000,
+  nRetries: Number.parseInt(process.env.KKV_FETCH_NUMBER_RETRIES || '') || 5
+};
+
 export interface IKafkaKeyValueImpl { new (options: IKafkaKeyValue): KafkaKeyValue }
 
 export interface IKafkaKeyValue {
@@ -133,6 +138,7 @@ export type IFetchImpl = (url: RequestInfo, init?: RequestInit | undefined) => P
 export interface IRetryOptions {
   nRetries: number,
   intervalMs: number
+  onRetryAttempt?: (info: { retriesLeft: number, error: Error }) => void
 }
 
 function getFetchImpl(config: IKafkaKeyValue): IFetchImpl {
@@ -147,6 +153,7 @@ async function retryTimes<T>(fn: () => Promise<T>, options: IRetryOptions): Prom
   } catch (err) {
     if (options.nRetries === 0) throw err;
 
+    if (options.onRetryAttempt) options.onRetryAttempt({ retriesLeft: options.nRetries - 1, error: err })
     await new Promise(resolve => setTimeout(resolve, options.intervalMs));
     return retryTimes(fn, { nRetries: options.nRetries - 1, intervalMs: options.intervalMs });
   }
@@ -308,7 +315,10 @@ export default class KafkaKeyValue {
   async get(key: string): Promise<any> {
     // NOTE: Expects raw=json|gzipped-json
     const httpGetTiming = this.metrics.kafka_key_value_get_latency_seconds.startTimer({ cache_name: this.getCacheName() })
-    const res = await this.fetchImpl(`${this.getCacheHost()}/cache/v1/raw/${key}`);
+    const res = await retryTimes(() => this.fetchImpl(`${this.getCacheHost()}/cache/v1/raw/${key}`), {
+      ...KKV_FETCH_RETRY_OPTIONS,
+      onRetryAttempt: ({ retriesLeft, error }) => this.logger.warn({ retriesLeft, key, error }, 'Get request failed, retrying')
+    });
     httpGetTiming();
 
     const parseTiming = this.metrics.kafka_key_value_parse_latency_seconds.startTimer({ cache_name: this.getCacheName() });
@@ -335,7 +345,10 @@ export default class KafkaKeyValue {
     this.logger.trace({ cache_name: this.getCacheName() }, 'Streaming values for cache started');
 
     const streamTiming = this.metrics.kafka_key_value_stream_latency_seconds.startTimer({ cache_name: this.getCacheName() });
-    const res = await this.fetchImpl(`${this.getCacheHost()}/cache/v1/values`);
+    const res = await retryTimes(() => this.fetchImpl(`${this.getCacheHost()}/cache/v1/values`), {
+      ...KKV_FETCH_RETRY_OPTIONS,
+      onRetryAttempt: ({ retriesLeft, error }) => this.logger.warn({ retriesLeft, error }, 'Values request failed, retrying')
+    });
 
     if (res.body === null) return Promise.reject('Received null body');
 
