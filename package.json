@@ -15,7 +15,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "./node_modules/.bin/jest",
+    "test": "KKV_FETCH_RETRY_INTERVAL_MS=1 ./node_modules/.bin/jest",
     "prepare": "rm -rf dist/ && tsc --skipLibCheck",
     "prepublishOnly": "npm test"
   },

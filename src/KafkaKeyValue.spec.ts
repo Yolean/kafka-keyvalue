@@ -1,4 +1,4 @@
-import KafkaKeyValue, { streamResponseBody, compressGzipPayload, decompressGzipResponse } from './KafkaKeyValue';
+import KafkaKeyValue, { streamResponseBody, compressGzipPayload, decompressGzipResponse, LAST_SEEN_OFFSETS_HEADER_NAME, KKV_FETCH_RETRY_OPTIONS } from './KafkaKeyValue';
 import updateEvents from './update-events';
 import { EventEmitter } from 'events';
 import { fail } from 'assert';
@@ -67,6 +67,74 @@ const promClientMock = {
 };
 
 describe('KafkaKeyValue', function () {
+
+  describe('retries as a way to avoid ECONNREFUSED and ETIMEDOUT errors when kkv pods are terminating', function () {
+
+    it('works for get requests', async function () {
+     
+      const fetchMock = jest.fn();
+
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic01',
+        fetchImpl: fetchMock,
+      });
+
+      const successGetResponse = {
+        status: 200,
+        ok: true,
+        json: async () => ({ offset: 3 }),
+        headers: new Map([
+          [LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([])]
+        ])
+      };
+
+      fetchMock.mockRejectedValueOnce(new Error('MOCKED_ETIMEDOUT'));
+      fetchMock.mockRejectedValueOnce(new Error('MOCKED_SOMETHINGELSE'));
+      fetchMock.mockResolvedValueOnce(successGetResponse);
+
+      await kkv.get('k1');
+    });
+
+    it('works for values stream', async function () {
+      const fetchMock = jest.fn();
+
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic01',
+        fetchImpl: fetchMock,
+      });
+
+      const bodyStream = new EventEmitter();
+
+      const successValuesResponse = {
+        status: 200,
+        ok: true,
+        body: bodyStream,
+        headers: new Map([
+          [LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([])]
+        ])
+      };
+
+      fetchMock.mockRejectedValueOnce(new Error('MOCKED_ETIMEDOUT'));
+      fetchMock.mockRejectedValueOnce(new Error('MOCKED_SOMETHINGELSE'));
+      fetchMock.mockResolvedValueOnce(successValuesResponse);
+
+      const streamCompleted = kkv.streamValues(() => { });
+
+      // We have to wait for the retry attempts to finish before we end the stream
+      await new Promise(resolve => setTimeout(resolve, KKV_FETCH_RETRY_OPTIONS.intervalMs * 2 + 30));
+      bodyStream.emit('end');
+
+      await streamCompleted;
+    });
+  });
 
   describe('Sending put requests reliably to pixy', function () {
 

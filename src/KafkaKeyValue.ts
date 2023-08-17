@@ -9,12 +9,12 @@ const pGunzip = promisify<InputType, Buffer>(gunzip);
 const pGzip = promisify<InputType, Buffer>(gzip);
 
 const KKV_CACHE_HOST_READINESS_ENDPOINT = process.env.KKV_CACHE_HOST_READINESS_ENDPOINT || '/q/health/ready';
-const LAST_SEEN_OFFSETS_HEADER_NAME = 'x-kkv-last-seen-offsets';
+export const LAST_SEEN_OFFSETS_HEADER_NAME = 'x-kkv-last-seen-offsets';
 
-const KKV_FETCH_RETRY_OPTIONS = {
+export const KKV_FETCH_RETRY_OPTIONS = Object.freeze({
   intervalMs: Number.parseInt(process.env.KKV_FETCH_RETRY_INTERVAL_MS || '') || 1000,
   nRetries: Number.parseInt(process.env.KKV_FETCH_NUMBER_RETRIES || '') || 5
-};
+});
 
 export interface IKafkaKeyValueImpl { new (options: IKafkaKeyValue): KafkaKeyValue }
 
