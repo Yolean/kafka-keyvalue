@@ -13,7 +13,11 @@ export const ON_UPDATE_DEFAULT_PATH = '/kafka-keyvalue/v1/updates';
 export function getOnUpdateRoute(): any {
   return [bodyParser.json({}), (req: Request, res: Response) => {
     const body = req.body;
-    logger.debug({ body, req }, 'Incoming onupdate webhook');
+    logger.debug({
+      remoteAddress: req.connection && req.connection.remoteAddress,
+      topic: req.get('x-kkv-topic'),
+      offsets: req.get('x-kkv-offsets'),
+    }, 'Incoming onupdate webhook');
     updateEvents.emit('update', body);
     res.sendStatus(204);
   }];
