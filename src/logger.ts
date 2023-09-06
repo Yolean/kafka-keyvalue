@@ -1,6 +1,6 @@
 // NOTE: Copied from internal logging module
 
-import * as bunyan from 'bunyan';
+import * as bunyan from '@yolean/bunyan';
 import { join as pathJoin } from "path";
 
 export interface PerLoggerOptions {
