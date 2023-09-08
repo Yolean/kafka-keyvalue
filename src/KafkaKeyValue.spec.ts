@@ -104,6 +104,60 @@ describe('KafkaKeyValue', function () {
 
   describe('retries from gets triggered by onupdate as a way to handle scaled kkv deployments where replicas will some times be behind each other', function () {
 
+    it('does not retry forever', async function () {
+      const fetchMock = jest.fn();
+
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic05',
+        fetchImpl: fetchMock,
+      });
+
+      const missingGetResponse = {
+        status: 404,
+        ok: true,
+        headers: new Map([])
+      };
+
+      const update: UpdateRequestBody = {
+        offsets: {
+          '0': 3
+        },
+        topic: 'testtopic05',
+        updates: {
+          'key1': {}
+        },
+        v: 1
+      };
+
+      const onUpdateSpy = jest.fn();
+
+      kkv.onUpdate(onUpdateSpy);
+
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+
+      await expect(kkv.updateListener(update)).rejects.toEqual(new Error('Cache does not contain key: key1'));
+
+      expect(fetchMock.mock.calls).toEqual([
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+      ]);
+
+      expect(onUpdateSpy.mock.calls).toEqual([]);
+    });
+
     it('retries on 404', async function () {
       const fetchMock = jest.fn();
 
