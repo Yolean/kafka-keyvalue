@@ -231,51 +231,53 @@ export default class KafkaKeyValue {
     this.fetchImpl = getFetchImpl(config);
     this.logger = getLogger({ name: `kkv:${this.getCacheName()}` });
 
-    updateEvents.on('update', async (requestBody: UpdateRequestBody) => {
-      if (requestBody.v !== 1) throw new Error(`Unknown kkv onupdate protocol ${requestBody.v}!`);
+    updateEvents.on('update', this.updateListener.bind(this));
+  }
 
-      const {
-        topic, offsets, updates
-      } = requestBody;
+  async updateListener(requestBody: UpdateRequestBody) {
+    if (requestBody.v !== 1) throw new Error(`Unknown kkv onupdate protocol ${requestBody.v}!`);
 
-      const expectedTopic = this.topic;
-      this.logger.trace({ topic, expectedTopic }, 'Matching update event against expected topic');
-      if (topic !== expectedTopic) {
-        this.logger.trace({ topic, expectedTopic }, 'Update event ignored due to topic mismatch. Business as usual.');
-        return;
-      }
+    const {
+      topic, offsets, updates
+    } = requestBody;
 
-      const highestOffset: number = Object.values(offsets).reduce((memo, offset) => {
-        return Math.max(memo, offset);
-      }, -1);
+    const expectedTopic = this.topic;
+    this.logger.trace({ topic, expectedTopic }, 'Matching update event against expected topic');
+    if (topic !== expectedTopic) {
+      this.logger.trace({ topic, expectedTopic }, 'Update event ignored due to topic mismatch. Business as usual.');
+      return;
+    }
 
-      if (this.updateHandlers.length > 0) {
+    const highestOffset: number = Object.values(offsets).reduce((memo, offset) => {
+      return Math.max(memo, offset);
+    }, -1);
 
-        const updatedPropagated: Array<Promise<void>> = Object.keys(updates).map(async key => {
-          const pendingOffset = this.lastKeyUpdate.get(key);
-          if (pendingOffset === undefined || highestOffset > pendingOffset) {
-            this.lastKeyUpdate.set(key, highestOffset);
+    if (this.updateHandlers.length > 0) {
 
-            this.logger.trace({ key }, 'Received update event for key');
-            const value = await this.get(key, {
-              retryOnMissing: true,
-              requireOffset: highestOffset
-            });
-            this.updateHandlers.forEach(fn => fn(key, value));
-          }
-        });
+      const updatedPropagated: Array<Promise<void>> = Object.keys(updates).map(async key => {
+        const pendingOffset = this.lastKeyUpdate.get(key);
+        if (pendingOffset === undefined || highestOffset > pendingOffset) {
+          this.lastKeyUpdate.set(key, highestOffset);
 
-        await Promise.all(updatedPropagated);
-      } else {
-        this.logger.trace({ topic }, 'No update handlers registered, update event has no effect');
-      }
+          this.logger.trace({ key }, 'Received update event for key');
+          const value = await this.get(key, {
+            retryOnMissing: true,
+            requireOffset: highestOffset
+          });
+          this.updateHandlers.forEach(fn => fn(key, value));
+        }
+      });
 
-      // NOTE: Letting all handlers complete before updating the metric
-      // makes sense because that will also produce bugs, likely visible to users
-      this.updatePartitionOffsetMetrics(offsets);
+      await Promise.all(updatedPropagated);
+    } else {
+      this.logger.trace({ topic }, 'No update handlers registered, update event has no effect');
+    }
 
-      // TODO Resolve waitForOffset logic?
-    });
+    // NOTE: Letting all handlers complete before updating the metric
+    // makes sense because that will also produce bugs, likely visible to users
+    this.updatePartitionOffsetMetrics(offsets);
+
+    // TODO Resolve waitForOffset logic?
   }
 
   /**
