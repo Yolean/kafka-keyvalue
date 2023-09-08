@@ -13,7 +13,7 @@ export const ON_UPDATE_DEFAULT_PATH = '/kafka-keyvalue/v1/updates';
 export function getOnUpdateRoute(): any {
   return [bodyParser.json({}), (req: Request, res: Response) => {
     const body = req.body;
-    logger.debug({
+    logger.trace({
       remoteAddress: req.connection && req.connection.remoteAddress,
       topic: req.get('x-kkv-topic'),
       offsets: req.get('x-kkv-offsets'),
