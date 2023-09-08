@@ -68,7 +68,7 @@ const promClientMock = {
 
 describe('KafkaKeyValue', function () {
 
-  it('get retry on 404s by default', async function () {
+  it('get does not retry on 404s by default', async function () {
     const fetchMock = jest.fn();
 
     const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
