@@ -1,4 +1,4 @@
-import KafkaKeyValue, { streamResponseBody, compressGzipPayload, decompressGzipResponse, LAST_SEEN_OFFSETS_HEADER_NAME, KKV_FETCH_RETRY_OPTIONS } from './KafkaKeyValue';
+import KafkaKeyValue, { streamResponseBody, compressGzipPayload, decompressGzipResponse, LAST_SEEN_OFFSETS_HEADER_NAME, KKV_FETCH_RETRY_OPTIONS, NotFoundError, UpdateRequestBody } from './KafkaKeyValue';
 import updateEvents from './update-events';
 import { EventEmitter } from 'events';
 import { fail } from 'assert';
@@ -67,6 +67,246 @@ const promClientMock = {
 };
 
 describe('KafkaKeyValue', function () {
+
+  it('get does not retry on 404s by default', async function () {
+    const fetchMock = jest.fn();
+
+    const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+    const kkv = new KafkaKeyValue({
+      cacheHost: 'http://cache-kkv',
+      metrics,
+      pixyHost: 'http://pixy',
+      topicName: 'testtopic01',
+      fetchImpl: fetchMock,
+    });
+
+    const missingGetResponse = {
+      status: 404,
+      ok: true,
+      json: async () => ({}),
+      headers: new Map([])
+    };
+
+    const successGetResponse = {
+      status: 200,
+      ok: true,
+      json: async () => ({}),
+      headers: new Map([
+        [LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([])]
+      ])
+    };
+
+    fetchMock.mockResolvedValueOnce(missingGetResponse);
+    fetchMock.mockResolvedValueOnce(successGetResponse);
+
+    await expect(kkv.get('k1')).rejects.toEqual(new NotFoundError('Cache does not contain key: k1'));
+  });
+
+  describe('retries from gets triggered by onupdate as a way to handle scaled kkv deployments where replicas will some times be behind each other', function () {
+
+    it('does not retry forever', async function () {
+      const fetchMock = jest.fn();
+
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic05',
+        fetchImpl: fetchMock,
+      });
+
+      const missingGetResponse = {
+        status: 404,
+        ok: true,
+        headers: new Map([])
+      };
+
+      const update: UpdateRequestBody = {
+        offsets: {
+          '0': 3
+        },
+        topic: 'testtopic05',
+        updates: {
+          'key1': {}
+        },
+        v: 1
+      };
+
+      const onUpdateSpy = jest.fn();
+
+      kkv.onUpdate(onUpdateSpy);
+
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+
+      await expect(kkv.updateListener(update)).rejects.toEqual(new Error('Cache does not contain key: key1'));
+
+      expect(fetchMock.mock.calls).toEqual([
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+      ]);
+
+      expect(onUpdateSpy.mock.calls).toEqual([]);
+    });
+
+    it('retries on 404', async function () {
+      const fetchMock = jest.fn();
+
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic02',
+        fetchImpl: fetchMock,
+      });
+
+      const missingGetResponse = {
+        status: 404,
+        ok: true,
+        headers: new Map([])
+      };
+
+      const successGetResponse = {
+        status: 200,
+        ok: true,
+        json: async () => ({ myValue: true }),
+        headers: new Map([
+          [LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([
+            { topic: 'testtopic02', partition: 0, offset: 3 }
+          ])]
+        ])
+      };
+
+      const update: UpdateRequestBody = {
+        offsets: {
+          '0': 3
+        },
+        topic: 'testtopic02',
+        updates: {
+          'key1': {}
+        },
+        v: 1
+      };
+
+      const onUpdateSpy = jest.fn();
+
+      kkv.onUpdate(onUpdateSpy);
+
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(successGetResponse);
+
+      updateEvents.emit('update', update);
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(fetchMock.mock.calls).toEqual([
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+      ]);
+
+      expect(onUpdateSpy.mock.calls).toEqual([
+        ['key1', { myValue: true }]
+      ]);
+    });
+
+    it('retries if the offset requirement is not satisfied', async function () {
+      const fetchMock = jest.fn();
+
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        pixyHost: 'http://pixy',
+        topicName: 'testtopic03',
+        fetchImpl: fetchMock,
+      });
+
+      const missingGetResponse = {
+        status: 404,
+        ok: true,
+        headers: new Map([])
+      };
+
+      const outdatedGetResponse = {
+        status: 200,
+        ok: true,
+        json: async () => ({}),
+        headers: new Map([
+          [LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([
+            { topic: 'testtopic03', partition: 0, offset: 3 },
+            { topic: 'testtopic03', partition: 1, offset: 2 },
+            { topic: 'testtopic03', partition: 2, offset: 1 },
+          ])]
+        ])
+      };
+
+      const successGetResponse = {
+        status: 200,
+        ok: true,
+        json: async () => ({ myValue: true }),
+        headers: new Map([
+          [LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([
+            { topic: 'testtopic03', partition: 0, offset: 4 }
+          ])]
+        ])
+      };
+
+      const update: UpdateRequestBody = {
+        offsets: {
+          '0': 4
+        },
+        topic: 'testtopic03',
+        updates: {
+          'key1': {}
+        },
+        v: 1
+      };
+
+      const onUpdateSpy = jest.fn();
+
+      kkv.onUpdate(onUpdateSpy);
+
+      fetchMock.mockResolvedValueOnce(missingGetResponse);
+      fetchMock.mockResolvedValueOnce(outdatedGetResponse);
+      fetchMock.mockResolvedValueOnce(outdatedGetResponse);
+      fetchMock.mockResolvedValueOnce(outdatedGetResponse);
+      fetchMock.mockResolvedValueOnce(outdatedGetResponse);
+      fetchMock.mockResolvedValueOnce(successGetResponse);
+
+      updateEvents.emit('update', update);
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(fetchMock.mock.calls).toEqual([
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+        ['http://cache-kkv/cache/v1/raw/key1'],
+      ]);
+
+      expect(onUpdateSpy.mock.calls).toEqual([
+        ['key1', { myValue: true }]
+      ]);
+    });
+  });
 
   describe('retries as a way to avoid ECONNREFUSED and ETIMEDOUT errors when kkv pods are terminating', function () {
 

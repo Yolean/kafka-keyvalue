@@ -20,7 +20,7 @@ const globalOptions: LoggerOptions = {
   name: "no-logger-name-given",
   streams: [
     {
-      level: process.env.KAFKA_KEYVALUE_LOG_LEVEL || 'debug',
+      level: <bunyan.LogLevel>(process.env.KAFKA_KEYVALUE_LOG_LEVEL || 'debug'),
       stream: process.stdout
     }
   ],
