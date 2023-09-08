@@ -246,7 +246,7 @@ export default class KafkaKeyValue {
       this.logger.trace({ topic, expectedTopic }, 'Update event ignored due to topic mismatch. Business as usual.');
       return;
     } else {
-      this.logger.trace({ topic, expectedTopic }, 'update event equals expected topic');
+      this.logger.trace({ topic, expectedTopic }, 'update event matches expected topic');
     }
 
     const highestOffset: number = Object.values(offsets).reduce((memo, offset) => {
