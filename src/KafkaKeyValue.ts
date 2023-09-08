@@ -56,6 +56,10 @@ export class NotFoundError extends Error {
   notFound = true
 }
 
+export class TransientGetError extends Error {
+  retryable = true
+}
+
 export async function decompressGzipResponse(logger, buffer: Buffer): Promise<any> {
   let msg;
   try {
@@ -102,6 +106,19 @@ async function produceViaPixy(fetchImpl: IFetchImpl, logger, pixyHost: string, t
   const json = await res.json() as PixyPostTopicKeySyncResponse;
 
   return json.offset;
+}
+
+type TopicPartitionOffset = {
+  topic: string
+  partition: number
+  offset: number
+};
+
+function parseLastSeenOffsetsFromHeader(res: Pick<Response, "headers">): TopicPartitionOffset[] {
+  const lastSeenOffsetsHeader = res.headers.get(LAST_SEEN_OFFSETS_HEADER_NAME);
+  if (!lastSeenOffsetsHeader) throw new Error(`Missing header "${LAST_SEEN_OFFSETS_HEADER_NAME}"`);
+  const lastSeenOffsets = JSON.parse(lastSeenOffsetsHeader);
+  return lastSeenOffsets;
 }
 
 export async function streamResponseBody(logger, body: NodeJS.ReadableStream, onValue: (value: any) => void) {
@@ -164,6 +181,13 @@ export const PUT_RETRY_DEFAULTS: IRetryOptions = {
   intervalMs: 1000
 };
 
+export type UpdateRequestBody = {
+  v: number
+  offsets: { [partition: string]: number }
+  topic: string
+  updates: { [key: string]: { } }
+};
+
 export default class KafkaKeyValue {
 
   static createMetrics(counterCtr: CounterConstructor, gaugeCtr: GaugeConstructor, histogramCtr: HistogramConstructor): IKafkaKeyValueMetrics {
@@ -207,7 +231,7 @@ export default class KafkaKeyValue {
     this.fetchImpl = getFetchImpl(config);
     this.logger = getLogger({ name: `kkv:${this.getCacheName()}` });
 
-    updateEvents.on('update', async (requestBody: { v: number, offsets: { [partition: string]: number }, topic: string, updates: { [key: string]: {} } }) => {
+    updateEvents.on('update', async (requestBody: UpdateRequestBody) => {
       if (requestBody.v !== 1) throw new Error(`Unknown kkv onupdate protocol ${requestBody.v}!`);
 
       const {
@@ -227,23 +251,21 @@ export default class KafkaKeyValue {
 
       if (this.updateHandlers.length > 0) {
 
-        const updatesToPropagate: string[] = [];
-
-        Object.keys(updates).forEach(key => {
+        const updatedPropagated: Array<Promise<void>> = Object.keys(updates).map(async key => {
           const pendingOffset = this.lastKeyUpdate.get(key);
           if (pendingOffset === undefined || highestOffset > pendingOffset) {
-            updatesToPropagate.push(key);
             this.lastKeyUpdate.set(key, highestOffset);
+
+            this.logger.trace({ key }, 'Received update event for key');
+            const value = await this.get(key, {
+              retryOnMissing: true,
+              requireOffset: highestOffset
+            });
+            this.updateHandlers.forEach(fn => fn(key, value));
           }
         });
 
-        const updatesBeingPropagated = updatesToPropagate.map(async key => {
-          this.logger.trace({ key }, 'Received update event for key');
-          const value = await this.get(key);
-          this.updateHandlers.forEach(fn => fn(key, value));
-        });
-
-        await Promise.all(updatesBeingPropagated);
+        await Promise.all(updatedPropagated);
       } else {
         this.logger.trace({ topic }, 'No update handlers registered, update event has no effect');
       }
@@ -312,10 +334,28 @@ export default class KafkaKeyValue {
     return this.config.pixyHost;
   }
 
-  async get(key: string): Promise<any> {
+  async get(key: string, retryOptions: { retryOnMissing?: boolean, requireOffset?: number } = {}): Promise<any> {
     // NOTE: Expects raw=json|gzipped-json
     const httpGetTiming = this.metrics.kafka_key_value_get_latency_seconds.startTimer({ cache_name: this.getCacheName() })
-    const res = await retryTimes(() => this.fetchImpl(`${this.getCacheHost()}/cache/v1/raw/${key}`), {
+    const res = await retryTimes(async () => {
+
+      const res = await this.fetchImpl(`${this.getCacheHost()}/cache/v1/raw/${key}`);
+
+      if (retryOptions.retryOnMissing && res.status === 404) {
+        throw new TransientGetError('Cache does not contain key: ' + key);
+      }
+
+      const requiredOffset = retryOptions.requireOffset;
+      if (res.status === 200 && typeof requiredOffset === 'number') {
+        const lastSeenOffsets = parseLastSeenOffsetsFromHeader(res);
+        if (!lastSeenOffsets.some(({ offset }) => offset >= requiredOffset)) {
+          throw new TransientGetError(`get request for key ${key} requires offset ${requiredOffset}, but kkv broker has not seen it`);
+        }
+      }
+
+      return res;
+
+    }, {
       ...KKV_FETCH_RETRY_OPTIONS,
       onRetryAttempt: ({ retriesLeft, error }) => this.logger.warn({ retriesLeft, key, error }, 'Get request failed, retrying')
     });
@@ -377,9 +417,7 @@ export default class KafkaKeyValue {
   }
 
   private updateLastSeenOffsetsFromHeader(res: Pick<Response, "headers">) {
-    const lastSeenOffsetsHeader = res.headers.get(LAST_SEEN_OFFSETS_HEADER_NAME);
-    if (!lastSeenOffsetsHeader) throw new Error(`Missing header "${LAST_SEEN_OFFSETS_HEADER_NAME}"`);
-    const lastSeenOffsets = JSON.parse(lastSeenOffsetsHeader);
+    const lastSeenOffsets = parseLastSeenOffsetsFromHeader(res);
     lastSeenOffsets.forEach(({ topic, partition, offset }) => {
       this.metrics.kafka_key_value_last_seen_offset.set({ topic, partition }, offset);
     });
