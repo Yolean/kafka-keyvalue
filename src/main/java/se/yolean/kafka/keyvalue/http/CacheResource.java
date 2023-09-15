@@ -173,7 +173,6 @@ public class CacheResource implements HealthCheck {
 
   /**
    * @return Newline separated values (no keys)
-   * @throws IOException
    */
   @GET()
   @Path("/values")
@@ -181,6 +180,9 @@ public class CacheResource implements HealthCheck {
   public Response values() throws IOException {
     requireUpToDateCache();
     Iterator<byte[]> values = cache.getValues();
+
+    ResponseBuilder response = Response.status(200);
+    applyOffsetHeaders(response);
 
     StreamingOutput stream = new StreamingOutput() {
       @Override
@@ -191,9 +193,8 @@ public class CacheResource implements HealthCheck {
         }
       }
     };
-    ResponseBuilder response = Response.ok(stream);
-    // REVIEW do we know that offsets haven't changes since we retrieved values?
-    applyOffsetHeaders(response);
+
+    response.entity(stream);
     return response.build();
   }
 
