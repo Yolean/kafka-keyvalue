@@ -182,17 +182,18 @@ public class CacheResource implements HealthCheck {
     requireUpToDateCache();
     Iterator<byte[]> values = cache.getValues();
 
-    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-
-    while (values.hasNext()) {
-      buffer.write(values.next());
-      buffer.write('\n');
-    }
-
-    ResponseBuilder response = Response.ok(buffer);
-
+    StreamingOutput stream = new StreamingOutput() {
+      @Override
+      public void write(OutputStream out) throws IOException, WebApplicationException {
+        while (values.hasNext()) {
+          out.write(values.next());
+          out.write('\n');
+        }
+      }
+    };
+    ResponseBuilder response = Response.ok(stream);
+    // REVIEW do we know that offsets haven't changes since we retrieved values?
     applyOffsetHeaders(response);
-
     return response.build();
   }
 
