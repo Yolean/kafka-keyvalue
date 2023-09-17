@@ -14,7 +14,6 @@
 
 package se.yolean.kafka.keyvalue.http;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Iterator;
@@ -32,9 +31,9 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
-import javax.ws.rs.core.Response.ResponseBuilder;
 
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
@@ -179,23 +178,11 @@ public class CacheResource implements HealthCheck {
   @Produces(MediaType.TEXT_PLAIN)
   public Response values() throws IOException {
     requireUpToDateCache();
-    Iterator<byte[]> values = cache.getValues();
-
-    ResponseBuilder response = Response.status(200);
-    applyOffsetHeaders(response);
-
-    StreamingOutput stream = new StreamingOutput() {
-      @Override
-      public void write(OutputStream out) throws IOException, WebApplicationException {
-        while (values.hasNext()) {
-          out.write(values.next());
-          out.write('\n');
-        }
-      }
-    };
-
-    response.entity(stream);
-    return response.build();
+    ValuesResponse response = new ValuesResponse(
+        cache.getValues(),
+        cache.getCurrentOffsets()
+      );
+    return Response.ok(response).build();
   }
 
   private void applyOffsetHeaders(ResponseBuilder response) throws JsonProcessingException {

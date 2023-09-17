@@ -52,46 +52,20 @@ class CacheResourceTest {
   }
 
   @Test
-  void testStreamValues() throws IOException {
+  void testValues() throws IOException {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
     rest.mapper = new ObjectMapper();
     Mockito.when(rest.cache.isReady()).thenReturn(true);
     Mockito.when(rest.cache.getValues()).thenReturn(List.of("a".getBytes(), "b".getBytes()).iterator());
-    StreamingOutput r = null;
-    try {
-      r = (StreamingOutput) rest.values().getEntity();
-    } catch (ClassCastException e) {
-      fail("Not a streaming response? " + rest.values());
-    }
-    // TODO can we assert on StreamingOutput body without a REST endpoint test framework?
-    // assertEquals("a\nb\n", rest.values().getEntity().toString());
-  }
-
-  @Test
-  void testValueEndpointWithOffsetHeaders() throws IOException {
-    CacheResource rest = new CacheResource();
-    rest.cache = Mockito.mock(KafkaCache.class);
-    rest.mapper = new ObjectMapper();
-    rest.mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-
-    Mockito.when(rest.cache.isReady()).thenReturn(true);
-    Mockito.when(rest.cache.getValues()).thenReturn(List.of("a".getBytes()).iterator());
-    Mockito.when(rest.cache.getValue(any())).thenReturn("a".getBytes());
-    assertEquals("a", new String(rest.cache.getValue("key1"), StandardCharsets.UTF_8));
-
-    Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(List.of(
-        new TopicPartitionOffset("mytopic", 0, 0L)));
-
-    assertEquals("[x-kkv-last-seen-offsets]", "" + rest.values().getHeaders().keySet());
-    assertEquals("[{\"offset\":0,\"partition\":0,\"topic\":\"mytopic\"}]", rest.values().getHeaderString("x-kkv-last-seen-offsets"));
-    assertEquals("[{\"offset\":0,\"partition\":0,\"topic\":\"mytopic\"}]", rest.valueByKey("key1", null).getHeaderString("x-kkv-last-seen-offsets"));
-
-    Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(List.of(
-        new TopicPartitionOffset("mytopic", 0, 17045L)));
-
-    assertEquals("[{\"offset\":17045,\"partition\":0,\"topic\":\"mytopic\"}]", rest.values().getHeaderString("x-kkv-last-seen-offsets"));
-    assertEquals("[{\"offset\":17045,\"partition\":0,\"topic\":\"mytopic\"}]", rest.valueByKey("key1", null).getHeaderString("x-kkv-last-seen-offsets"));
+    List<TopicPartitionOffset> currentOffsets = List.of(new TopicPartitionOffset("mytopic", 0, 0L));
+    Mockito.when(rest.cache.getCurrentOffsets()).thenReturn(currentOffsets);
+    assertEquals(ValuesResponse.class, rest.values().getEntity().getClass());
+    ValuesResponse v = (ValuesResponse) rest.values().getEntity();
+    assertEquals("a", new String(v.values.next()));
+    assertEquals("b", new String(v.values.next()));
+    assertFalse(v.values.hasNext());
+    assertEquals(currentOffsets, v.currentOffsets);
   }
 
   @Test
