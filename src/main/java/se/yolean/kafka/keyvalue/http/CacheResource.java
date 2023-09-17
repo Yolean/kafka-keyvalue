@@ -14,7 +14,6 @@
 
 package se.yolean.kafka.keyvalue.http;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Iterator;
@@ -32,9 +31,9 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
-import javax.ws.rs.core.Response.ResponseBuilder;
 
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
@@ -128,7 +127,7 @@ public class CacheResource implements HealthCheck {
    * All keys in this instance (none from the partitions not represented here),
    * newline separated.
    */
-  @GET()
+  @GET
   @Path("/keys")
   public Response keys() {
     requireUpToDateCache();
@@ -143,13 +142,14 @@ public class CacheResource implements HealthCheck {
         }
       }
     };
+    // note that we can't add headers here because that doesn't work with StreamingOutput, see values()
     return Response.ok(stream).build();
   }
 
   /**
    * All keys in this instance (none from the partitions not represented here).
    */
-  @GET()
+  @GET
   @Path("/keys")
   @Produces(MediaType.APPLICATION_JSON)
   public Response keysJson() {
@@ -168,6 +168,7 @@ public class CacheResource implements HealthCheck {
         json.close();
       }
     };
+    // note that we can't add headers here because that doesn't work with StreamingOutput, see values()
     return Response.ok(stream).build();
   }
 
@@ -175,24 +176,16 @@ public class CacheResource implements HealthCheck {
    * @return Newline separated values (no keys)
    * @throws IOException
    */
-  @GET()
+  @GET
   @Path("/values")
   @Produces(MediaType.TEXT_PLAIN)
   public Response values() throws IOException {
     requireUpToDateCache();
     Iterator<byte[]> values = cache.getValues();
 
-    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-
-    while (values.hasNext()) {
-      buffer.write(values.next());
-      buffer.write('\n');
-    }
-
-    ResponseBuilder response = Response.ok(buffer);
-
+    ResponseBuilder response = Response.status(200);
     applyOffsetHeaders(response);
-
+    response.entity(values);
     return response.build();
   }
 
