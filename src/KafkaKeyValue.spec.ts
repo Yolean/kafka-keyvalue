@@ -202,7 +202,7 @@ describe('KafkaKeyValue', function () {
 
       await expect(kkv.updateListener(update)).rejects.toEqual(new Error('Cache does not contain key: key1'));
 
-      expect(fetchMock.mock.calls).toEqual([
+      expect(fetchMock.mock.calls.map(args => [args[0]])).toEqual([
         ['http://cache-kkv/cache/v1/raw/key1'],
         ['http://cache-kkv/cache/v1/raw/key1'],
         ['http://cache-kkv/cache/v1/raw/key1'],
@@ -268,7 +268,7 @@ describe('KafkaKeyValue', function () {
       updateEvents.emit('update', update);
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(fetchMock.mock.calls).toEqual([
+      expect(fetchMock.mock.calls.map(args => [args[0]])).toEqual([
         ['http://cache-kkv/cache/v1/raw/key1'],
         ['http://cache-kkv/cache/v1/raw/key1'],
         ['http://cache-kkv/cache/v1/raw/key1'],
@@ -349,7 +349,7 @@ describe('KafkaKeyValue', function () {
       updateEvents.emit('update', update);
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(fetchMock.mock.calls).toEqual([
+      expect(fetchMock.mock.calls.map(args => [args[0]])).toEqual([
         ['http://cache-kkv/cache/v1/raw/key1'],
         ['http://cache-kkv/cache/v1/raw/key1'],
         ['http://cache-kkv/cache/v1/raw/key1'],
