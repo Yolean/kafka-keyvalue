@@ -3,7 +3,7 @@ import updateEvents from './update-events';
 import { EventEmitter } from 'events';
 import { fail } from 'assert';
 import { LabelValues } from 'prom-client';
-import { BodyInit, RequestInit } from 'node-fetch';
+import { RequestInit } from 'node-fetch';
 
 const promClientMock = {
   Counter: class Counter {
