@@ -188,6 +188,12 @@ export type UpdateRequestBody = {
   updates: { [key: string]: { } }
 };
 
+export type GetRetryOptions = {
+  abortRequestsAfterMs?: number,
+  retryOnMissing?: boolean,
+  requireOffset?: number
+};
+
 export default class KafkaKeyValue {
 
   static createMetrics(counterCtr: CounterConstructor, gaugeCtr: GaugeConstructor, histogramCtr: HistogramConstructor): IKafkaKeyValueMetrics {
@@ -337,12 +343,25 @@ export default class KafkaKeyValue {
     return this.config.pixyHost;
   }
 
-  async get(key: string, retryOptions: { retryOnMissing?: boolean, requireOffset?: number } = {}): Promise<any> {
+  async get(key: string, retryOptions: GetRetryOptions = {}): Promise<any> {
     // NOTE: Expects raw=json|gzipped-json
     const httpGetTiming = this.metrics.kafka_key_value_get_latency_seconds.startTimer({ cache_name: this.getCacheName() })
     const res = await retryTimes(async () => {
 
-      const res = await this.fetchImpl(`${this.getCacheHost()}/cache/v1/raw/${key}`);
+      const options: RequestInit = { signal: null };
+
+      let timer: NodeJS.Timeout | null = null;
+      if (retryOptions.abortRequestsAfterMs) {
+        const controller = new AbortController();
+        options.signal = controller.signal;
+
+        timer = setTimeout(() => {
+          controller.abort();
+        }, retryOptions.abortRequestsAfterMs);
+      }
+
+      const res = await this.fetchImpl(`${this.getCacheHost()}/cache/v1/raw/${key}`, options);
+      if (timer) clearTimeout(timer);
 
       if (retryOptions.retryOnMissing && res.status === 404) {
         throw new TransientGetError('Cache does not contain key: ' + key);

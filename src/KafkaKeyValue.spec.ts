@@ -3,6 +3,7 @@ import updateEvents from './update-events';
 import { EventEmitter } from 'events';
 import { fail } from 'assert';
 import { LabelValues } from 'prom-client';
+import { BodyInit, RequestInit } from 'node-fetch';
 
 const promClientMock = {
   Counter: class Counter {
@@ -67,6 +68,61 @@ const promClientMock = {
 };
 
 describe('KafkaKeyValue', function () {
+
+  it('can be told to abort slow get requests', async function () {
+    const fetchMock = jest.fn();
+
+    const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+    const kkv = new KafkaKeyValue({
+      cacheHost: 'http://cache-kkv',
+      metrics,
+      pixyHost: 'http://pixy',
+      topicName: 'testtopic01',
+      fetchImpl: fetchMock,
+    });
+
+    const successGetResponse = {
+      status: 200,
+      ok: true,
+      json: async () => ({ myvalue: true }),
+      headers: new Map([
+        [LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([])]
+      ])
+    };
+
+    const respondSlowlyButSuccessfullyIfAllowed = (url: string, options: RequestInit) => {
+      return new Promise((resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => {
+          reject(new Error('MOCK_ABORTED_REQUEST'));
+          clearTimeout(timer);
+        });
+        const timer = setTimeout(() => {
+          resolve(successGetResponse);
+        }, timeoutMs * 2);
+      })
+    };
+
+    const timeoutMs = 100;
+
+    fetchMock.mockImplementationOnce(respondSlowlyButSuccessfullyIfAllowed);
+    fetchMock.mockImplementationOnce(respondSlowlyButSuccessfullyIfAllowed);
+    fetchMock.mockImplementationOnce(respondSlowlyButSuccessfullyIfAllowed);
+    fetchMock.mockImplementationOnce(respondSlowlyButSuccessfullyIfAllowed);
+    fetchMock.mockImplementationOnce(respondSlowlyButSuccessfullyIfAllowed);
+    fetchMock.mockImplementationOnce(respondSlowlyButSuccessfullyIfAllowed);
+
+    await expect(kkv.get('k1', { abortRequestsAfterMs: timeoutMs })).rejects.toEqual(new Error('MOCK_ABORTED_REQUEST'));
+
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+
+    fetchMock.mockImplementationOnce(respondSlowlyButSuccessfullyIfAllowed);
+    fetchMock.mockImplementationOnce(respondSlowlyButSuccessfullyIfAllowed);
+    fetchMock.mockResolvedValueOnce(successGetResponse);
+
+    await expect(kkv.get('k1', { abortRequestsAfterMs: timeoutMs })).resolves.toEqual({ myvalue: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(6 + 3);
+  });
 
   it('get does not retry on 404s by default', async function () {
     const fetchMock = jest.fn();
