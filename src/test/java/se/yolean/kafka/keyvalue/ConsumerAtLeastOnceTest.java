@@ -14,19 +14,19 @@ public class ConsumerAtLeastOnceTest {
 
     var registry = new SimpleMeterRegistry();
     var instance = new ConsumerAtLeastOnce(registry);
-    assertFalse(registry.getMetersAsString().contains("17"));
+    assertFalse(registry.getMetersAsString().contains("17"), "Unexpected metrics: \n" + registry.getMetersAsString());
     instance.toStats(new UpdateRecord("mytopic", 0, 17, "key1", 100), false);
-    assertTrue(registry.getMetersAsString().contains("17"));
+    assertTrue(registry.getMetersAsString().contains("17"), "Unexpected metrics: \n" + registry.getMetersAsString());
     instance.toStats(new UpdateRecord("mytopic", 0, 27, "key1", 100), false);
-    assertFalse(registry.getMetersAsString().contains("17"));
-    assertFalse(registry.getMetersAsString().contains("NaN"));
-    assertTrue(registry.getMetersAsString().contains("27"));
+    assertFalse(registry.getMetersAsString().contains("17"), "Unexpected metrics: \n" + registry.getMetersAsString());
+    assertFalse(registry.getMetersAsString().contains("NaN"), "Unexpected metrics: \n" + registry.getMetersAsString());
+    assertTrue(registry.getMetersAsString().contains("27"), "Unexpected metrics: \n" + registry.getMetersAsString());
     instance.toStats(new UpdateRecord("mytopic", 0, 30, "key1", 100), false);
-    assertTrue(registry.getMetersAsString().contains("30"));
+    assertTrue(registry.getMetersAsString().contains("30"), "Unexpected metrics: \n" + registry.getMetersAsString());
     instance.toStats(new UpdateRecord("mytopic", 0, 31, "key1", 100), false);
-    assertTrue(registry.getMetersAsString().contains("31"));
+    assertTrue(registry.getMetersAsString().contains("31"), "Unexpected metrics: \n" + registry.getMetersAsString());
     instance.toStats(new UpdateRecord("mytopic", 0, 32, "key1", 100), false);
-    assertTrue(registry.getMetersAsString().contains("32"));
+    assertTrue(registry.getMetersAsString().contains("32"), "Unexpected metrics: \n" + registry.getMetersAsString());
     instance.toStats(new UpdateRecord("mytopic", 0, 33, "key1", 100), false);
     assertTrue(registry.getMetersAsString().contains("33"));
   }
