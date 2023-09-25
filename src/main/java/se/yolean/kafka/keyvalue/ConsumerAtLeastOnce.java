@@ -16,6 +16,7 @@ package se.yolean.kafka.keyvalue;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -218,19 +219,23 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     //for (ConsumerRecord<String, byte[]> record : records)  {
       try {
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
-        toStats(update);
+        boolean valueEqual = isValueEqual(record.key(), record.value());
+        toStats(update, valueEqual);
         if (update.getKey() != null) {
           cache.put(record.key(), record.value());
         }
         long start = getEndOffset(update.getTopicPartition());
         if (record.offset() >= start) {
-          if (update.getKey() != null) {
-            if (logger.isTraceEnabled()) logger.trace("onupdate {}", record.offset());
-            onupdate.handle(update);
-            pollHasUpdates = true;
-          } else {
+          if (update.getKey() == null) {
             if (logger.isTraceEnabled()) logger.debug("onNullKey {}", record.offset());
             onNullKey(update);
+          } else if (valueEqual) {
+            if (logger.isTraceEnabled()) logger.trace("unchanged {} {}", record.offset(), record.key());
+            onNullKey(update);
+          } else {
+            if (logger.isTraceEnabled()) logger.trace("onupdate {} {}", record.offset(), record.key());
+            onupdate.handle(update);
+            pollHasUpdates = true;
           }
         } else {
           if (record.offset() == start - 1) {
@@ -259,8 +264,15 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     }
   }
 
-  void toStats(UpdateRecord update) {
-    var key = update.getTopicPartition();
+  /**
+   * @return true if value is equal to the current value stored for key
+   */
+  boolean isValueEqual(String key, byte[] value) {
+    return Arrays.equals(value, cache.get(key));
+  }
+
+  void toStats(UpdateRecord update, boolean valueEqual) {
+    TopicPartition key = update.getTopicPartition();
 
     // https://stackoverflow.com/questions/50821924/micrometer-prometheus-gauge-displays-nan
     // Apparently, it's complex to maintain gauges over dynamic labels in quarkus
@@ -270,9 +282,19 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       currentOffsets.get(key).set(update.getOffset());
     }
 
-    var tags = Tags.of("topic", update.getTopic(), "partition", "" + update.getPartition());
-
+    Tags tags = Tags.of("topic", update.getTopic(), "partition", "" + update.getPartition());
     registry.gauge("kkv.last.seen.offset", tags, currentOffsets.get(key));
+
+    Tags suppressReason = null;
+    // this must match actual suppress behavior in the consume loop
+    if (key == null) {
+      suppressReason = tags.and("suppress_reason", "null_key");
+    } else if (valueEqual) {
+      suppressReason = tags.and("suppress_reason", "value_deduplication");
+    }
+    if (suppressReason != null) {
+      registry.counter("kkv.onupdate.suppressed", suppressReason).increment();
+    }
   }
 
   void onNullKey(UpdateRecord update) {
