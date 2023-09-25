@@ -14,13 +14,15 @@
 
 package se.yolean.kafka.keyvalue.http;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponse.Status;
@@ -55,8 +57,10 @@ class CacheResourceTest {
     rest.cache = Mockito.mock(KafkaCache.class);
     rest.mapper = new ObjectMapper();
     Mockito.when(rest.cache.isReady()).thenReturn(true);
-    Mockito.when(rest.cache.getValues()).thenReturn(List.of("a".getBytes(), "b".getBytes()).iterator());
-    assertEquals("a\nb\n", rest.values().getEntity().toString());
+    final Iterator<byte[]> values = List.of("a".getBytes(), "b".getBytes()).iterator();
+    Mockito.when(rest.cache.getValues()).thenReturn(values);
+
+    assertTrue(rest.values().getEntity() == values);
   }
 
   @Test
