@@ -286,7 +286,9 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
     registry.gauge("kkv.last.seen.offset", tags, currentOffsets.get(key));
     if (valueEqual) {
-      registry.counter("kkv.onupdate.suppressed.deduplicated", tags).increment();
+      registry.counter("kkv.onupdate.suppressed",
+          tags.and("suppress_reason", "value_deduplication")
+        ).increment();
     }
   }
 
