@@ -21,7 +21,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import se.yolean.kafka.keyvalue.onupdate.DispatcherConfig;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopic;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopicJSON;
-import se.yolean.kafka.keyvalue.onupdate.UpdatesDispatcher;
 
 @Singleton
 public class DispatcherConfigHttpclient implements DispatcherConfig, RetryDecisions {
