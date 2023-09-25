@@ -272,7 +272,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   }
 
   void toStats(UpdateRecord update, boolean valueEqual) {
-    var key = update.getTopicPartition();
+    TopicPartition key = update.getTopicPartition();
 
     // https://stackoverflow.com/questions/50821924/micrometer-prometheus-gauge-displays-nan
     // Apparently, it's complex to maintain gauges over dynamic labels in quarkus
@@ -282,7 +282,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       currentOffsets.get(key).set(update.getOffset());
     }
 
-    var tags = Tags.of("topic", update.getTopic(), "partition", "" + update.getPartition());
+    Tags tags = Tags.of("topic", update.getTopic(), "partition", "" + update.getPartition());
 
     // this must match actual suppress behavior in the consume loop
     registry.gauge("kkv.last.seen.offset", tags, currentOffsets.get(key));
