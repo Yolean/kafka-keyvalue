@@ -284,8 +284,13 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
     var tags = Tags.of("topic", update.getTopic(), "partition", "" + update.getPartition());
 
+    // this must match actual suppress behavior in the consume loop
     registry.gauge("kkv.last.seen.offset", tags, currentOffsets.get(key));
-    if (valueEqual) {
+    if (key == null) {
+      registry.counter("kkv.onupdate.suppressed",
+          tags.and("suppress_reason", "null_key")
+        ).increment();
+    } else if (valueEqual) {
       registry.counter("kkv.onupdate.suppressed",
           tags.and("suppress_reason", "value_deduplication")
         ).increment();
