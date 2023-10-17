@@ -265,6 +265,9 @@ describe('KafkaKeyValue', function () {
       fetchMock.mockResolvedValueOnce(missingGetResponse);
       fetchMock.mockResolvedValueOnce(successGetResponse);
 
+      // @ts-expect-error
+      jest.spyOn(kkv.logger, 'warn');
+
       updateEvents.emit('update', update);
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -280,6 +283,9 @@ describe('KafkaKeyValue', function () {
       expect(onUpdateSpy.mock.calls).toEqual([
         ['key1', { myValue: true }]
       ]);
+
+      // @ts-expect-error
+      expect(kkv.logger.warn).toHaveBeenCalledTimes(5);
     });
 
     it('retries if the offset requirement is not satisfied', async function () {
