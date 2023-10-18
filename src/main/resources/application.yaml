@@ -2,7 +2,7 @@ kkv:
   target:
     path: ${ON_UPDATE_PATH:/kafka-keyvalue/v1/updates}
     service:
-      name: ${TARGET_SERVICE_NAME}
+      name: ${TARGET_SERVICE_NAME:}
       port: ${TARGET_SERVICE_PORT:8080}
   dispatcher:
     retry:

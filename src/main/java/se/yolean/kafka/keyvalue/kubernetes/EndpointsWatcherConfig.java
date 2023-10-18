@@ -1,5 +1,7 @@
 package se.yolean.kafka.keyvalue.kubernetes;
 
+import java.util.Optional;
+
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithName;
 
@@ -7,6 +9,6 @@ import io.smallrye.config.WithName;
 public interface EndpointsWatcherConfig {
 
   @WithName("name")
-  public String targetServiceName();
+  public Optional<String> targetServiceName();
 
 }
