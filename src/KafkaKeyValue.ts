@@ -172,7 +172,10 @@ async function retryTimes<T>(fn: () => Promise<T>, options: IRetryOptions): Prom
 
     if (options.onRetryAttempt) options.onRetryAttempt({ retriesLeft: options.nRetries - 1, error: err })
     await new Promise(resolve => setTimeout(resolve, options.intervalMs));
-    return retryTimes(fn, { nRetries: options.nRetries - 1, intervalMs: options.intervalMs });
+    return retryTimes(fn, {
+      ...options,
+      nRetries: options.nRetries - 1
+    });
   }
 }
 
