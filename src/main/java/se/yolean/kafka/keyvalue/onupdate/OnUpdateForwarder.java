@@ -27,15 +27,11 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.UpdateRecord;
-import se.yolean.kafka.keyvalue.kubernetes.EndpointsWatcher;
 
 @ApplicationScoped
 public class OnUpdateForwarder implements OnUpdate {
 
   static final Logger logger = LoggerFactory.getLogger(OnUpdateForwarder.class);
-
-  @Inject
-  EndpointsWatcher watcher;
 
   @Inject
   DispatcherConfig dispatcherConfig;
