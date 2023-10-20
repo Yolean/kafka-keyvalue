@@ -4,6 +4,9 @@ kkv:
     service:
       name: ${TARGET_SERVICE_NAME:}
       port: ${TARGET_SERVICE_PORT:8080}
+    static:
+      url: ${TARGET_STATIC_HOST:}
+      port: ${TARGET_STATIC_PORT:8080}
   dispatcher:
     retry:
       backoff-seconds: ${DISPATCHER_RETRY_BACKOFF_SECONDS:1}
