@@ -21,11 +21,14 @@ import java.util.Collections;
 
 import org.junit.jupiter.api.Test;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 class OnUpdateForwarderTest {
 
   @Test
   void testNoStart() {
-    OnUpdateForwarder forwarder = new OnUpdateForwarder();
+    SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    OnUpdateForwarder forwarder = new OnUpdateForwarder(registry);
     try {
       forwarder.sendUpdates();
       fail("Should have thrown");
@@ -36,7 +39,8 @@ class OnUpdateForwarderTest {
 
   @Test
   void testTwoStarts() {
-    OnUpdateForwarder forwarder = new OnUpdateForwarder();
+    SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    OnUpdateForwarder forwarder = new OnUpdateForwarder(registry);
     forwarder.pollStart(Collections.singleton("testtopic"));
     try {
       forwarder.pollStart(Collections.singleton("testtopic"));
