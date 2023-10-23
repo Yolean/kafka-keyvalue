@@ -109,6 +109,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     registry.gauge("kkv.stage", this, ConsumerAtLeastOnce::getStageMetric);
     this.meterNullKeys = registry.counter("kkv.null.keys");
     this.meterIdenticalValues = registry.counter("kkv.identical.values");
+    registry.gauge("kkv.cache.keys", this.cache, Map::size);
 
     this.registry = registry;
   }
