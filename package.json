@@ -1,6 +1,6 @@
 {
   "name": "@yolean/kafka-keyvalue",
-  "version": "1.6.7",
+  "version": "1.7.0",
   "keywords": [],
   "author": "Yolean AB",
   "license": "Apache-2.0",
@@ -12,11 +12,11 @@
     "type": "git",
     "url": "git+https://github.com/Yolean/kafka-keyvalue-nodejs"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "target/js/index.js",
+  "types": "target/js/index.d.ts",
   "scripts": {
     "test": "KKV_FETCH_RETRY_INTERVAL_MS=1 ./node_modules/.bin/jest",
-    "prepare": "rm -rf dist/ && tsc --skipLibCheck",
+    "prepare": "mkdir -p target && rm -rf target/js && tsc --skipLibCheck",
     "prepublishOnly": "npm test"
   },
   "dependencies": {

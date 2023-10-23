@@ -1,4 +1,4 @@
 *
-!dist/*
+!target/js/*
 !package.json
 !README.md

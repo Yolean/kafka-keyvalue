@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/",
+    "outDir": "./target/js/",
     "sourceMap": true,
     "removeComments": true,
     "declaration": true,
@@ -12,6 +12,6 @@
     "target": "es2017"
   },
   "include": [
-    "./src/**/*"
+    "./src/js/**/*"
   ]
 }
