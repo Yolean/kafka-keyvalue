@@ -103,10 +103,12 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   private boolean pollHasUpdates = false;
 
   private final Counter meterNullKeys;
+  private final Counter meterIdenticalValues;
 
   public ConsumerAtLeastOnce(MeterRegistry registry) {
     registry.gauge("kkv.stage", this, ConsumerAtLeastOnce::getStageMetric);
     this.meterNullKeys = registry.counter("kkv.null.keys");
+    this.meterIdenticalValues = registry.counter("kkv.identical.values");
 
     this.registry = registry;
   }
@@ -220,11 +222,11 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
         long start = getEndOffset(update.getTopicPartition());
         if (record.offset() >= start) {
           if (update.getKey() == null) {
-            if (logger.isTraceEnabled()) logger.debug("onNullKey {}", record.offset());
+            if (logger.isTraceEnabled()) logger.trace("onNullKey {}", record.offset());
             onNullKey(update);
           } else if (valueEqual) {
             if (logger.isTraceEnabled()) logger.trace("unchanged {} {}", record.offset(), record.key());
-            onNullKey(update);
+            onIdenticalValue(update);
           } else {
             if (logger.isTraceEnabled()) logger.trace("onupdate {} {}", record.offset(), record.key());
             onupdate.handle(update);
@@ -293,7 +295,11 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   void onNullKey(UpdateRecord update) {
     meterNullKeys.increment();
-    logger.error("Ignoring null key at {}", update);
+    logger.warn("Ignoring null key at {}", update);
+  }
+
+  void onIdenticalValue(UpdateRecord update) {
+    meterIdenticalValues.increment();
   }
 
   @Override
