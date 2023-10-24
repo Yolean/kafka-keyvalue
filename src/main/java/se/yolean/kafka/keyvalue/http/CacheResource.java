@@ -129,47 +129,14 @@ public class CacheResource implements HealthCheck {
    */
   @GET
   @Path("/keys")
-  public Response keys() {
+  public Response keys() throws IOException {
     requireUpToDateCache();
     Iterator<String> all = cache.getKeys();
 
-    StreamingOutput stream = new StreamingOutput() {
-      @Override
-      public void write(OutputStream out) throws IOException, WebApplicationException {
-        while (all.hasNext()) {
-          out.write(all.next().getBytes());
-          out.write('\n');
-        }
-      }
-    };
-    // note that we can't add headers here because that doesn't work with StreamingOutput, see values()
-    return Response.ok(stream).build();
-  }
-
-  /**
-   * All keys in this instance (none from the partitions not represented here).
-   */
-  @GET
-  @Path("/keys")
-  @Produces(MediaType.APPLICATION_JSON)
-  public Response keysJson() {
-    requireUpToDateCache();
-    Iterator<String> all = cache.getKeys();
-
-    StreamingOutput stream = new StreamingOutput() {
-      @Override
-      public void write(OutputStream out) throws IOException, WebApplicationException {
-        JsonGenerator json = Json.createGenerator(out);
-        JsonGenerator list = json.writeStartArray();
-        while (all.hasNext()) {
-          list.write(all.next());
-        }
-        list.writeEnd();
-        json.close();
-      }
-    };
-    // note that we can't add headers here because that doesn't work with StreamingOutput, see values()
-    return Response.ok(stream).build();
+    ResponseBuilder response = Response.status(200);
+    applyOffsetHeaders(response);
+    response.entity(all);
+    return response.build();
   }
 
   /**
