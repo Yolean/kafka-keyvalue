@@ -6,3 +6,8 @@
 # For docker build .
 !src
 !pom.xml
+# For client js
+!package.json
+!package-lock.json
+!tsconfig.json
+!jest.config.js

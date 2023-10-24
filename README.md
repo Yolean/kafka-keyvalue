@@ -46,3 +46,9 @@ y-skaffold build -p prod-build --file-output=images-native.json
 ## Logging
 
 See [Quarkus' logging configuration](https://quarkus.io/guides/logging-guide).
+
+# KKV Node.js Client
+
+Installable from https://www.npmjs.com/package/@yolean/kafka-keyvalue
+
+Implements the [kafka-cache](https://github.com/Yolean/kafka-cache/) interface but backed by [KKV](https://github.com/Yolean/kafka-keyvalue/).

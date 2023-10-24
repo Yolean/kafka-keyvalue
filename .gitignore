@@ -17,3 +17,4 @@ target
 .vscode
 kubeconfig-kkv-kind
 image*.json
+*.tgz

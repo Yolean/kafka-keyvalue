@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "outDir": "./target/js/",
+    "sourceMap": true,
+    "removeComments": true,
+    "declaration": true,
+    "noImplicitThis": true,
+    "strictNullChecks": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strictPropertyInitialization": true,
+    "target": "es2017"
+  },
+  "include": [
+    "./src/js/**/*"
+  ]
+}
