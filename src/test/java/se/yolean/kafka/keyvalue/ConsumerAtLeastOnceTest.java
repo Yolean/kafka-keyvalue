@@ -30,6 +30,7 @@ public class ConsumerAtLeastOnceTest {
 
     var registry = new SimpleMeterRegistry();
     var instance = new ConsumerAtLeastOnce(registry);
+    // TODO metrics registered after initialization aren't here
     // TODO as we add more metrics these assertions must extract the value of an actual metric name
     assertFalse(registry.getMetersAsString().contains("17"), "Unexpected metrics: \n" + registry.getMetersAsString());
     instance.toStats(new UpdateRecord("mytopic", 0, 17, "key1", 100), false);

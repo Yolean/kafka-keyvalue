@@ -109,7 +109,6 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     registry.gauge("kkv.stage", this, ConsumerAtLeastOnce::getStageMetric);
     this.meterNullKeys = registry.counter("kkv.null.keys");
     this.meterIdenticalValues = registry.counter("kkv.identical.values");
-    registry.gauge("kkv.cache.keys", this.cache, Map::size);
 
     this.registry = registry;
   }
@@ -130,6 +129,8 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     logger.info("Cache: {}", cache);
 
     logger.debug("DEBUG which duration do we get?? {}", assignmentsTimeout.toSeconds());
+
+    getRegistry().gaugeCollectionSize("kkv.cache.keys", Tags.empty(), this.cache.keySet());
   }
 
   public void stop(@Observes ShutdownEvent ev) {
