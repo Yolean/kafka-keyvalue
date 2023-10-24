@@ -23,6 +23,8 @@ import javax.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import se.yolean.kafka.keyvalue.OnUpdate;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 import se.yolean.kafka.keyvalue.kubernetes.EndpointsWatcher;
@@ -44,6 +46,12 @@ public class OnUpdateForwarder implements OnUpdate {
   Map<String, UpdatesBodyPerTopic> pollState = new LinkedHashMap<>(1);
 
   boolean inPoll = false;
+
+  private Counter meterOnupdateDispatch;
+
+  public OnUpdateForwarder(MeterRegistry registry) {
+    this.meterOnupdateDispatch = registry.counter("kkv.onupdate.dispatch");
+  }
 
   @Override
   public void pollStart(Iterable<String> topics) {
@@ -67,6 +75,7 @@ public class OnUpdateForwarder implements OnUpdate {
     }
     pollState.keySet().forEach(topic -> {
       var body = pollState.get(topic);
+      meterOnupdateDispatch.increment();
       dispatcher.dispatch(body);
     });
   }

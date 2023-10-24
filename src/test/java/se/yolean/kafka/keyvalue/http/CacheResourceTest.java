@@ -90,7 +90,7 @@ class CacheResourceTest {
   }
 
   @Test
-  void testKeysUnready() {
+  void testKeysUnready() throws IOException {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
     Mockito.when(rest.cache.isReady()).thenReturn(false);
@@ -103,7 +103,7 @@ class CacheResourceTest {
   }
 
   @Test
-  void testKeysJsonUnready() {
+  void testKeysJsonUnready() throws IOException {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
     Mockito.when(rest.cache.isReady()).thenReturn(false);
