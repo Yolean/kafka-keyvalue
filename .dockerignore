@@ -4,7 +4,8 @@
 #!target/*-runner.jar
 #!target/lib/*
 # For docker build .
-!src
+!src/main
+!src/test
 !pom.xml
 # For client js
 !package.json
