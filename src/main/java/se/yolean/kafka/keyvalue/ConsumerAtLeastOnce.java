@@ -128,8 +128,6 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
         System.getenv("IMAGE_NAME"));
     logger.info("Cache: {}", cache);
 
-    logger.debug("DEBUG which duration do we get?? {}", assignmentsTimeout.toSeconds());
-
     getRegistry().gaugeCollectionSize("kkv.cache.keys", Tags.empty(), this.cache.keySet());
   }
 
