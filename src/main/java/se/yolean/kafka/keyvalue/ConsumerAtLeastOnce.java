@@ -76,7 +76,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   // https://github.com/eclipse/microprofile-config/blob/master/spec/src/main/asciidoc/converters.asciidoc#automatic-converters
   // The microprofile language server still gets us a red squiggly here though...
   @ConfigProperty(name = "kkv.assignments.timeout", defaultValue="90s")
-  private Duration assignmentsTimeout;
+  Duration assignmentsTimeout;
 
   @Inject
   Map<String, byte[]> cache;
