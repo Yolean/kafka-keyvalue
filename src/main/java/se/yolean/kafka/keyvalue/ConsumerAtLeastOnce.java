@@ -98,7 +98,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       .named("consume-loop")
       .down();
 
-  Map<TopicPartition,AtomicLong> currentOffsets = new HashMap<>(1);
+  Map<TopicPartition, AtomicLong> currentOffsets = new HashMap<>(1);
 
   private boolean pollHasUpdates = false;
 
@@ -304,7 +304,12 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   @Override
   public Long getCurrentOffset(String topicName, int partition) {
-    return currentOffsets.get(new TopicPartition(topicName, partition)).get();
+    AtomicLong offset = currentOffsets.get(new TopicPartition(topicName, partition));
+    if (offset != null) {
+      return offset.get();
+    } else {
+      return null;
+    }
   }
 
   @Override

@@ -1,6 +1,8 @@
 package se.yolean.kafka.keyvalue;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -46,6 +48,19 @@ public class ConsumerAtLeastOnceTest {
     assertTrue(registry.getMetersAsString().contains("32"), "Unexpected metrics: \n" + registry.getMetersAsString());
     instance.toStats(new UpdateRecord("mytopic", 0, 33, "key1", 100), false);
     assertTrue(registry.getMetersAsString().contains("33"), "Unexpected metrics: \n" + registry.getMetersAsString());
+  }
+
+  @Test
+  void testGetCurrentOffset() {
+    var registry = new SimpleMeterRegistry();
+    var instance = new ConsumerAtLeastOnce(registry);
+
+    assertDoesNotThrow(() -> instance.getCurrentOffset("some-topic", 0), () -> {
+      return "getCurrentOffset should not throw when the requested topic-partition does not (yet) exist";
+    });
+    assertNull(instance.getCurrentOffset("some-topic", 0), () -> {
+      return "getCurrentOffset should return null when the requested topic-partition does not (yet) exist";
+    });
   }
 
   @Test
