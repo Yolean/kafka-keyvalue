@@ -1,5 +1,6 @@
 package se.yolean.kafka.keyvalue;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -28,26 +29,32 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 public class ConsumerAtLeastOnceTest {
 
   @Test
-  void testToStats() {
-
+  void testOffsetMetric() {
     var registry = new SimpleMeterRegistry();
     var instance = new ConsumerAtLeastOnce(registry);
-    // TODO metrics registered after initialization aren't here
-    // TODO as we add more metrics these assertions must extract the value of an actual metric name
-    assertFalse(registry.getMetersAsString().contains("17"), "Unexpected metrics: \n" + registry.getMetersAsString());
-    instance.toStats(new UpdateRecord("mytopic", 0, 17, "key1", 100), false);
-    assertTrue(registry.getMetersAsString().contains("17"), "Unexpected metrics: \n" + registry.getMetersAsString());
-    instance.toStats(new UpdateRecord("mytopic", 0, 27, "key1", 100), false);
-    assertFalse(registry.getMetersAsString().contains("17"), "Unexpected metrics: \n" + registry.getMetersAsString());
-    assertTrue(registry.getMetersAsString().contains("27"), "Unexpected metrics: \n" + registry.getMetersAsString());
-    instance.toStats(new UpdateRecord("mytopic", 0, 30, "key1", 100), false);
-    assertTrue(registry.getMetersAsString().contains("30"), "Unexpected metrics: \n" + registry.getMetersAsString());
-    instance.toStats(new UpdateRecord("mytopic", 0, 31, "key1", 100), false);
-    assertTrue(registry.getMetersAsString().contains("31"), "Unexpected metrics: \n" + registry.getMetersAsString());
-    instance.toStats(new UpdateRecord("mytopic", 0, 32, "key1", 100), false);
-    assertTrue(registry.getMetersAsString().contains("32"), "Unexpected metrics: \n" + registry.getMetersAsString());
-    instance.toStats(new UpdateRecord("mytopic", 0, 33, "key1", 100), false);
-    assertTrue(registry.getMetersAsString().contains("33"), "Unexpected metrics: \n" + registry.getMetersAsString());
+    instance.cache = new HashMap<>();
+    var onupdate = mock(OnUpdate.class);
+    instance.onupdate = onupdate;
+
+    instance.currentOffsets.put(new TopicPartition("mytopic", 0), new AtomicLong(-1L));
+    instance.registerCurrentOffsetMetrics();
+
+    assertEquals(2, registry.getMeters().size());
+    var lastSeenOffsetCounter = registry.find("kkv.last.seen.offset").gauge();
+    assertEquals(-1, lastSeenOffsetCounter.value());
+
+    instance.cacheRecord(new ConsumerRecord<String,byte[]>("mytopic", 0, 17, "key1", new byte[]{}));
+    assertEquals(17, lastSeenOffsetCounter.value());
+    instance.cacheRecord(new ConsumerRecord<String,byte[]>("mytopic", 0, 27, "key1", new byte[]{}));
+    assertEquals(27, lastSeenOffsetCounter.value());
+    instance.cacheRecord(new ConsumerRecord<String,byte[]>("mytopic", 0, 30, "key1", new byte[]{}));
+    assertEquals(30, lastSeenOffsetCounter.value());
+    instance.cacheRecord(new ConsumerRecord<String,byte[]>("mytopic", 0, 31, "key1", new byte[]{}));
+    assertEquals(31, lastSeenOffsetCounter.value());
+    instance.cacheRecord(new ConsumerRecord<String,byte[]>("mytopic", 0, 32, "key1", new byte[]{}));
+    assertEquals(32, lastSeenOffsetCounter.value());
+    instance.cacheRecord(new ConsumerRecord<String,byte[]>("mytopic", 0, 33, "key1", new byte[]{}));
+    assertEquals(33, lastSeenOffsetCounter.value());
   }
 
   @Test

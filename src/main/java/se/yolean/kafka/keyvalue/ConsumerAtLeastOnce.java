@@ -86,9 +86,12 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   private MeterRegistry registry;
 
-  private Map<TopicPartition, Long> endOffsets = null;
-
-  private Map<TopicPartition, Long> lowWaterMarkAtStart = null;
+  /**
+   * The highest offsets at startup for each TopicPartition
+   * After reaching this offset for each partition, we are ready
+   */
+  Map<TopicPartition, Long> endOffsets = null;
+  Map<TopicPartition, AtomicLong> currentOffsets = new HashMap<>(1);
 
   private Set<String> topics = new HashSet<>();
 
@@ -98,18 +101,10 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       .named("consume-loop")
       .down();
 
-  Map<TopicPartition, AtomicLong> currentOffsets = new HashMap<>(1);
-
   private boolean pollHasUpdates = false;
-
-  private final Counter meterNullKeys;
-  private final Counter meterIdenticalValues;
 
   public ConsumerAtLeastOnce(MeterRegistry registry) {
     registry.gauge("kkv.stage", this, ConsumerAtLeastOnce::getStageMetric);
-    this.meterNullKeys = registry.counter("kkv.null.keys");
-    this.meterIdenticalValues = registry.counter("kkv.identical.values");
-
     this.registry = registry;
   }
 
@@ -165,16 +160,6 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     return endOffsets.get(topicPartition);
   }
 
-  public long getLowWaterMarkAtStart(TopicPartition topicPartition) {
-    if (this.lowWaterMarkAtStart == null) {
-      throw new IllegalStateException("Waiting for partition assignment");
-    }
-    if (!lowWaterMarkAtStart.containsKey(topicPartition)) {
-      throw new IllegalStateException("Topic-partition " + topicPartition + " not found in low watermarks " + lowWaterMarkAtStart.keySet());
-    }
-    return lowWaterMarkAtStart.get(topicPartition);
-  }
-
   /**
    * Provides offset information to kkv logic.
    *
@@ -184,19 +169,31 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   @Override
   public void onPartitionsAssigned(Consumer<?, ?> consumer, Collection<TopicPartition> partitions) {
     if (this.endOffsets != null) {
+      // REVIEW We do not handle additional partitions during application lifecycle.
+      // This would only occur if the topic configuration changed.
+      if (!currentOffsets.keySet().containsAll(partitions)) {
+        throw new RuntimeException("Unsupported state, previously unknown partitions were assigned");
+      }
+
       logger.warn("Partition re-assignment ignored, with no check for differences in the set of partitions");
       return;
     }
     this.stage = Stage.Assigning;
     this.endOffsets = new HashMap<>();
-    this.lowWaterMarkAtStart = consumer.beginningOffsets(partitions, assignmentsTimeout);
+
+    Map<TopicPartition, Long> lowWaterMarksAtStart = consumer.beginningOffsets(partitions, assignmentsTimeout);
     for (TopicPartition partition : partitions) {
       topics.add(partition.topic());
-      long startOffset = getLowWaterMarkAtStart(partition);
+      long startOffset = lowWaterMarksAtStart.get(partition);
       long position = consumer.position(partition, assignmentsTimeout);
-      this.endOffsets.put(partition, position);
+
+      // Position is the offset of the next record
+      this.endOffsets.put(partition, position - 1);
+      this.currentOffsets.put(partition, new AtomicLong(position - 1));
+      registerCurrentOffsetMetrics();
+
       if (position == 0) {
-        logger.info("Got assigned offset {} for {}; topic is empty or someone wants onupdate for existing messages", position, partition);
+        logger.info("Got assigned position {} for {}; topic is empty or someone wants onupdate for existing messages", position, partition);
         this.stage = Stage.Polling;
         continue;
       }
@@ -207,40 +204,30 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     onupdate.pollStart(topics);
   }
 
+  /**
+   * Registers a gauage keeping track of the current offset for each topic-partition.
+   */
+  void registerCurrentOffsetMetrics() {
+    this.currentOffsets.forEach((topicPartition, offset) -> {
+      Tags tags = Tags.of("topic", topicPartition.topic(), "partition", String.valueOf(topicPartition.partition()));
+      registry.gauge("kkv.last.seen.offset", tags, offset);
+    });
+  }
+
   @Incoming("topic")
   public void consume(ConsumerRecord<String, byte[]> record) {
     // If we find a way to consume the entire batch we wouln't need the KafkaPollListener hack
     // or the pollHasUpdates instance state
     //for (ConsumerRecord<String, byte[]> record : records)  {
       try {
-        UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
         boolean valueEqual = isValueEqual(record.key(), record.value());
-        toStats(update, valueEqual);
-        if (update.getKey() != null) {
-          cache.put(record.key(), record.value());
-        }
+        cacheRecord(record);
+
+        UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
         long start = getEndOffset(update.getTopicPartition());
         if (record.offset() >= start) {
-          if (update.getKey() == null) {
-            if (logger.isTraceEnabled()) logger.trace("onNullKey {}", record.offset());
-            onNullKey(update);
-          } else if (valueEqual) {
-            if (logger.isTraceEnabled()) logger.trace("unchanged {} {}", record.offset(), record.key());
-            onIdenticalValue(update);
-          } else {
-            if (logger.isTraceEnabled()) logger.trace("onupdate {} {}", record.offset(), record.key());
-            onupdate.handle(update);
-            pollHasUpdates = true;
-          }
+          handleUpdateRecord(update, valueEqual);
         } else {
-          if (record.offset() == start - 1) {
-            this.stage = Stage.Polling;
-            logger.info("Reached last historical message for {} at offset {}", update.getTopicPartition(), update.getOffset());
-            // TODO do we want to restore this tracking from the old consumer logic?
-            // lastCommittedNotReached.remove(update.getTopicPartition());
-          } else {
-            this.stage = Stage.PollingHistorical;
-          }
           logger.trace("Suppressing onupdate for {} because start offset is {}", update, start);
         }
       } catch (RuntimeException e) {
@@ -248,7 +235,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
         throw e;
       }
     // }
-    if (KafkaPollListener.getIsPollEndOnce()) {;
+    if (KafkaPollListener.getIsPollEndOnce()) {
       logger.info("Poll end detected. Dispatching onUpdate.");
       if (pollHasUpdates) {
         pollHasUpdates = false;
@@ -267,39 +254,42 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     return Arrays.equals(value, cache.get(key));
   }
 
-  void toStats(UpdateRecord update, boolean valueEqual) {
-    TopicPartition key = update.getTopicPartition();
+  /**
+   * Adds the record to cache and updates current offsets
+   * @param record
+   */
+  void cacheRecord(ConsumerRecord<String, byte[]> record) {
+    this.currentOffsets.get(new TopicPartition(record.topic(), record.partition())).set(record.offset());
 
-    // https://stackoverflow.com/questions/50821924/micrometer-prometheus-gauge-displays-nan
-    // Apparently, it's complex to maintain gauges over dynamic labels in quarkus
-    if (!currentOffsets.containsKey(key)) {
-      currentOffsets.put(key, new AtomicLong(update.getOffset()));
+    if (record.key() != null) {
+      cache.put(record.key(), record.value());
     } else {
-      currentOffsets.get(key).set(update.getOffset());
+      logger.warn("Ignoring null key at topic: {}, partition: {}, offset: {}",
+          record.topic(), record.partition(), record.offset());
     }
+  }
+
+  void handleUpdateRecord(UpdateRecord update, boolean valueEqual) {
+    TopicPartition topicPartition = update.getTopicPartition();
 
     Tags tags = Tags.of("topic", update.getTopic(), "partition", "" + update.getPartition());
-    registry.gauge("kkv.last.seen.offset", tags, currentOffsets.get(key));
-
     Tags suppressReason = null;
-    // this must match actual suppress behavior in the consume loop
-    if (key == null) {
+
+    if (topicPartition == null) {
+      if (logger.isTraceEnabled()) logger.trace("onNullKey {}", update.getOffset());
       suppressReason = tags.and("suppress_reason", "null_key");
     } else if (valueEqual) {
+      if (logger.isTraceEnabled()) logger.trace("unchanged {} {}", update.getOffset(), update.getKey());
       suppressReason = tags.and("suppress_reason", "value_deduplication");
     }
+
     if (suppressReason != null) {
       registry.counter("kkv.onupdate.suppressed", suppressReason).increment();
+    } else {
+      if (logger.isTraceEnabled()) logger.trace("onupdate {} {}", update.getOffset(), update.getKey());
+      onupdate.handle(update);
+      pollHasUpdates = true;
     }
-  }
-
-  void onNullKey(UpdateRecord update) {
-    meterNullKeys.increment();
-    logger.warn("Ignoring null key at {}", update);
-  }
-
-  void onIdenticalValue(UpdateRecord update) {
-    meterIdenticalValues.increment();
   }
 
   @Override
