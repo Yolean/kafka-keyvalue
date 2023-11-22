@@ -15,7 +15,6 @@
 package se.yolean.kafka.keyvalue.http;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Iterator;
 
 import jakarta.inject.Inject;
@@ -38,30 +37,27 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.smallrye.common.annotation.Identifier;
+import se.yolean.kafka.keyvalue.ConsumeLoopReadiness;
 import se.yolean.kafka.keyvalue.KafkaCache;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopic;
 
 @Path("/cache/v1")
-public class CacheResource implements HealthCheck {
+public class CacheResource {
 
   @Inject
   ObjectMapper mapper;
 
-  @Inject // Note that this can be null if cache is still in it's startup event handler
+  @Inject
   @Identifier("kkv")
-  KafkaCache cache = null;
+  KafkaCache cache;
 
-  @Override
-  public HealthCheckResponse call() {
-    return HealthCheckResponse.named("REST liveness").up().build();
-  }
+  @Inject
+  @Readiness
+  ConsumeLoopReadiness cacheReadiness;
 
-  void requireUpToDateCache() throws javax.ws.rs.ServiceUnavailableException {
-    if (cache == null) {
-      throw new javax.ws.rs.ServiceUnavailableException("Denied because cache isn't started yet, check /health for status");
-    }
-    if (!cache.isReady()) {
-      throw new javax.ws.rs.ServiceUnavailableException("Denied because cache is unready, check /health for status");
+  void requireUpToDateCache() throws jakarta.ws.rs.ServiceUnavailableException {
+    if (!cacheReadiness.call().getStatus().equals(Status.UP)) {
+      throw new jakarta.ws.rs.ServiceUnavailableException("Denied because cache is unready, check /health for status");
     }
   }
 
@@ -78,10 +74,10 @@ public class CacheResource implements HealthCheck {
   byte[] getCacheValue(String key) throws NotFoundException {
     requireUpToDateCache();
     if (key == null) {
-      throw new javax.ws.rs.BadRequestException("Request key can not be null");
+      throw new jakarta.ws.rs.BadRequestException("Request key can not be null");
     }
     if (key == "") {
-      throw new javax.ws.rs.BadRequestException("Request key can not be empty");
+      throw new jakarta.ws.rs.BadRequestException("Request key can not be empty");
     }
     final byte[] value = cache.getValue(key);
     if (value == null) {

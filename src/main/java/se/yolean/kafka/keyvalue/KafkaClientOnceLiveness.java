@@ -39,7 +39,7 @@ public class KafkaClientOnceLiveness implements HealthCheck {
 
   @Inject
   @Identifier("kkv")
-  ConsumerAtLeastOnce consumer;
+  KafkaCache consumer;
 
   HealthCheckResponse ok = HealthCheckResponse.builder().name("Had a Kafka connection").up().build();
   boolean assigningSuccessWasSeen = false;
@@ -47,11 +47,11 @@ public class KafkaClientOnceLiveness implements HealthCheck {
   @Override
   public HealthCheckResponse call() {
     logger.trace("Health check start", consumer);
-    if (consumer != null && consumer.stage != null) {
-      if (consumer.stage.metricValue > ConsumerAtLeastOnce.Stage.Assigning.metricValue) {
+    if (consumer != null && consumer.getStage() != null) {
+      if (consumer.getStage().metricValue > ConsumerAtLeastOnce.Stage.Assigning.metricValue) {
         assigningSuccessWasSeen = true;
       }
-      if (!assigningSuccessWasSeen && consumer.stage.equals(ConsumerAtLeastOnce.Stage.Assigning)) {
+      if (!assigningSuccessWasSeen && consumer.getStage().equals(ConsumerAtLeastOnce.Stage.Assigning)) {
         return HealthCheckResponse.builder().name("Had a Kafka connection").down().build();
       }
     }

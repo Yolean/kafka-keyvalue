@@ -31,15 +31,17 @@ public class ConsumerAtLeastOnceTest {
   @Test
   void testOffsetMetric() {
     var registry = new SimpleMeterRegistry();
-    var instance = new ConsumerAtLeastOnce(registry);
+    var instance = new ConsumerAtLeastOnce();
+    instance.registry = registry;
     instance.cache = new HashMap<>();
     var onupdate = mock(OnUpdate.class);
     instance.onupdate = onupdate;
 
     instance.currentOffsets.put(new TopicPartition("mytopic", 0), new AtomicLong(-1L));
     instance.registerCurrentOffsetMetrics();
+    assertEquals(1, registry.getMeters().size());
+    assertEquals("kkv.last.seen.offset", registry.getMeters().get(0).getId().getName());
 
-    assertEquals(2, registry.getMeters().size());
     var lastSeenOffsetCounter = registry.find("kkv.last.seen.offset").gauge();
     assertEquals(-1, lastSeenOffsetCounter.value());
 
@@ -60,7 +62,8 @@ public class ConsumerAtLeastOnceTest {
   @Test
   void testGetCurrentOffset() {
     var registry = new SimpleMeterRegistry();
-    var instance = new ConsumerAtLeastOnce(registry);
+    var instance = new ConsumerAtLeastOnce();
+    instance.registry = registry;
 
     assertDoesNotThrow(() -> instance.getCurrentOffset("some-topic", 0), () -> {
       return "getCurrentOffset should not throw when the requested topic-partition does not (yet) exist";
@@ -73,7 +76,8 @@ public class ConsumerAtLeastOnceTest {
   @Test
   void testValueEqual() {
     var registry = new SimpleMeterRegistry();
-    var instance = new ConsumerAtLeastOnce(registry);
+    var instance = new ConsumerAtLeastOnce();
+    instance.registry = registry;
 
     instance.cache = new HashMap<>();
     instance.cache.put("k1", "v1".getBytes());
@@ -102,7 +106,8 @@ public class ConsumerAtLeastOnceTest {
   @Test
   void testValueDuplicate() {
     var registry = new SimpleMeterRegistry();
-    var instance = new ConsumerAtLeastOnce(registry);
+    var instance = new ConsumerAtLeastOnce();
+    instance.registry = registry;
 
     KafkaPollListener listener = new KafkaPollListener();
 

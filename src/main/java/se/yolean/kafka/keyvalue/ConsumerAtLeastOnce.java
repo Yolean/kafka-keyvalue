@@ -34,14 +34,10 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.health.HealthCheck;
-import org.eclipse.microprofile.health.HealthCheckResponse;
-import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.quarkus.runtime.ShutdownEvent;
@@ -51,24 +47,7 @@ import io.smallrye.reactive.messaging.kafka.KafkaConsumerRebalanceListener;
 
 @ApplicationScoped
 @Identifier("kkv")
-public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, KafkaCache, HealthCheck {
-
-  public enum Stage {
-    Created (10),
-    //CreatingConsumer (20),
-    //Initializing (30),
-    //WaitingForKafkaConnection (40),
-    Assigning (50),
-    Resetting (60),
-    //InitialPoll (70),
-    PollingHistorical (80),
-    Polling (90);
-
-    final int metricValue;
-    Stage(int metricValue) {
-      this.metricValue = metricValue;
-    }
-  }
+public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, KafkaCache {
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -84,33 +63,17 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
   @Inject
   OnUpdate onupdate;
 
-  private MeterRegistry registry;
+  @Inject
+  MeterRegistry registry;
 
-  /**
-   * The highest offsets at startup for each TopicPartition
-   * After reaching this offset for each partition, we are ready
-   */
   Map<TopicPartition, Long> endOffsets = null;
   Map<TopicPartition, AtomicLong> currentOffsets = new HashMap<>(1);
 
   private Set<String> topics = new HashSet<>();
 
-  Stage stage = Stage.Created;
-
-  HealthCheckResponseBuilder health = HealthCheckResponse
-      .named("consume-loop")
-      .down();
+  private Stage stage = Stage.Created;
 
   private boolean pollHasUpdates = false;
-
-  public ConsumerAtLeastOnce(MeterRegistry registry) {
-    registry.gauge("kkv.stage", this, ConsumerAtLeastOnce::getStageMetric);
-    this.registry = registry;
-  }
-
-  MeterRegistry getRegistry() {
-      return registry;
-  }
 
   Integer getStageMetric() {
     return stage.metricValue;
@@ -123,28 +86,12 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
         System.getenv("IMAGE_NAME"));
     logger.info("Cache: {}", cache);
 
-    getRegistry().gaugeCollectionSize("kkv.cache.keys", Tags.empty(), this.cache.keySet());
+    registry.gauge("kkv.stage", this, ConsumerAtLeastOnce::getStageMetric);
+    registry.gaugeCollectionSize("kkv.cache.keys", Tags.empty(), this.cache.keySet());
   }
 
   public void stop(@Observes ShutdownEvent ev) {
     logger.info("Stopping");
-  }
-
-  public boolean isReady() {
-    return stage == Stage.Polling;
-  }
-
-  /**
-   * https://github.com/eclipse/microprofile-health to trigger termination
-   */
-  @Override
-  public HealthCheckResponse call() {
-    if (this.isReady()) {
-      health = health.up();
-    } else {
-      health = health.down();
-    }
-    return health.withData("stage", stage.toString()).build();
   }
 
   /**
@@ -290,6 +237,21 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
       onupdate.handle(update);
       pollHasUpdates = true;
     }
+  }
+
+  @Override
+  public boolean isEndOffsetsReached() {
+    return endOffsets != null && endOffsets.entrySet().stream().allMatch(entry -> {
+      TopicPartition topicPartition = entry.getKey();
+      Long endOffset = entry.getValue();
+      Long currentOffset = getCurrentOffset(topicPartition.topic(), topicPartition.partition());
+      return currentOffset != null && endOffset <= currentOffset;
+    });
+  }
+
+  @Override
+  public Stage getStage() {
+    return this.stage;
   }
 
   @Override

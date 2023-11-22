@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +26,6 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.eclipse.microprofile.health.HealthCheckResponse;
-import org.eclipse.microprofile.health.HealthCheckResponse.Status;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -33,6 +33,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import se.yolean.kafka.keyvalue.ConsumeLoopReadiness;
 import se.yolean.kafka.keyvalue.KafkaCache;
 import se.yolean.kafka.keyvalue.TopicPartitionOffset;
 
@@ -41,12 +42,12 @@ class CacheResourceTest {
   @Test
   void testValueByKeyUnready() throws JsonProcessingException {
     CacheResource rest = new CacheResource();
-    rest.cache = Mockito.mock(KafkaCache.class);
-    Mockito.when(rest.cache.isReady()).thenReturn(false);
+    rest.cacheReadiness = Mockito.mock(ConsumeLoopReadiness.class);
+    when(rest.cacheReadiness.call()).thenReturn(HealthCheckResponse.down("consume-loop"));
     try {
       rest.valueByKey("a", null);
       fail("Should have deined the request when cache isn't ready");
-    } catch (javax.ws.rs.ServiceUnavailableException e) {
+    } catch (jakarta.ws.rs.ServiceUnavailableException e) {
       assertEquals("Denied because cache is unready, check /health for status", e.getMessage());
     }
   }
@@ -56,7 +57,8 @@ class CacheResourceTest {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
     rest.mapper = new ObjectMapper();
-    Mockito.when(rest.cache.isReady()).thenReturn(true);
+    rest.cacheReadiness = Mockito.mock(ConsumeLoopReadiness.class);
+    when(rest.cacheReadiness.call()).thenReturn(HealthCheckResponse.up("consume-loop"));
     final Iterator<byte[]> values = List.of("a".getBytes(), "b".getBytes()).iterator();
     Mockito.when(rest.cache.getValues()).thenReturn(values);
 
@@ -70,7 +72,8 @@ class CacheResourceTest {
     rest.mapper = new ObjectMapper();
     rest.mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
 
-    Mockito.when(rest.cache.isReady()).thenReturn(true);
+    rest.cacheReadiness = Mockito.mock(ConsumeLoopReadiness.class);
+    when(rest.cacheReadiness.call()).thenReturn(HealthCheckResponse.up("consume-loop"));
     Mockito.when(rest.cache.getValues()).thenReturn(List.of("a".getBytes()).iterator());
     Mockito.when(rest.cache.getValue(any())).thenReturn("a".getBytes());
     assertEquals("a", new String(rest.cache.getValue("key1"), StandardCharsets.UTF_8));
@@ -93,11 +96,12 @@ class CacheResourceTest {
   void testKeysUnready() throws IOException {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
-    Mockito.when(rest.cache.isReady()).thenReturn(false);
+    rest.cacheReadiness = Mockito.mock(ConsumeLoopReadiness.class);
+    when(rest.cacheReadiness.call()).thenReturn(HealthCheckResponse.down("consume-loop"));
     try {
       rest.keys();
       fail("Should have deined the request when cache isn't ready");
-    } catch (javax.ws.rs.ServiceUnavailableException e) {
+    } catch (jakarta.ws.rs.ServiceUnavailableException e) {
       assertEquals("Denied because cache is unready, check /health for status", e.getMessage());
     }
   }
@@ -106,11 +110,12 @@ class CacheResourceTest {
   void testKeysJsonUnready() throws IOException {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
-    Mockito.when(rest.cache.isReady()).thenReturn(false);
+    rest.cacheReadiness = Mockito.mock(ConsumeLoopReadiness.class);
+    when(rest.cacheReadiness.call()).thenReturn(HealthCheckResponse.down("consume-loop"));
     try {
       rest.keys();
       fail("Should have deined the request when cache isn't ready");
-    } catch (javax.ws.rs.ServiceUnavailableException e) {
+    } catch (jakarta.ws.rs.ServiceUnavailableException e) {
       assertEquals("Denied because cache is unready, check /health for status", e.getMessage());
     }
   }
@@ -119,11 +124,12 @@ class CacheResourceTest {
   void testValuesUnready() throws IOException {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
-    Mockito.when(rest.cache.isReady()).thenReturn(false);
+    rest.cacheReadiness = Mockito.mock(ConsumeLoopReadiness.class);
+    when(rest.cacheReadiness.call()).thenReturn(HealthCheckResponse.down("consume-loop"));
     try {
       rest.values();
       fail("Should have deined the request when cache isn't ready");
-    } catch (javax.ws.rs.ServiceUnavailableException e) {
+    } catch (jakarta.ws.rs.ServiceUnavailableException e) {
       assertEquals("Denied because cache is unready, check /health for status", e.getMessage());
     }
   }
@@ -132,24 +138,9 @@ class CacheResourceTest {
   void testGetCurrentOffsetUnreadyAllowed() {
     CacheResource rest = new CacheResource();
     rest.cache = Mockito.mock(KafkaCache.class);
-    Mockito.when(rest.cache.isReady()).thenReturn(false);
+    rest.cacheReadiness = Mockito.mock(ConsumeLoopReadiness.class);
+    when(rest.cacheReadiness.call()).thenReturn(HealthCheckResponse.down("consume-loop"));
     rest.getCurrentOffset("t", 5);
-  }
-
-  @Test
-  void testLivenessRegardlessOfCacheHealth() {
-    CacheResource rest = new CacheResource();
-    rest.cache = Mockito.mock(KafkaCache.class);
-    HealthCheckResponse health = rest.call();
-    assertTrue(health.getStatus().equals(Status.UP), "Liveness should be true so we don't get killed during startup");
-  }
-
-  @Test
-  void testLivenessWhenCacheIsNull() {
-    CacheResource rest = new CacheResource();
-    rest.cache = null; // Quarkus is allowed to do this. It's reasonable when cache is still in the StartupEvent handler
-    HealthCheckResponse health = rest.call();
-    assertTrue(health.getStatus().equals(Status.UP), "Liveness should be true even when cache isn't initialized");
   }
 
 }
