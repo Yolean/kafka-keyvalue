@@ -2,6 +2,7 @@ package se.yolean.kafka.keyvalue;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import se.yolean.kafka.keyvalue.KafkaCache.Stage;
 
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
@@ -21,12 +22,14 @@ public class ConsumeLoopReadiness implements HealthCheck {
   @Override
   public HealthCheckResponse call() {
 
+    Stage stage = consumer.getStage();
+
     HealthCheckResponseBuilder health = HealthCheckResponse
       .named("consume-loop")
-      .withData("stage", consumer.getStage().toString())
+      .withData("stage", stage.toString())
       .down();
 
-    if (consumer.isEndOffsetsReached()) {
+    if (stage.metricValue >= Stage.Polling.metricValue && consumer.isEndOffsetsReached()) {
       return health.up().build();
     } else {
       return health.down().build();

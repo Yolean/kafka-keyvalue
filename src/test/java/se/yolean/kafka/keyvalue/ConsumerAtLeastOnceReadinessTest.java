@@ -35,7 +35,7 @@ class ConsumerAtLeastOnceReadinessTest {
     readiness.consumer = consumer;
     when(consumer.isEndOffsetsReached()).thenCallRealMethod();
 
-    when(consumer.getStage()).thenReturn(Stage.Created);
+    when(consumer.getStage()).thenReturn(Stage.Polling);
     consumer.endOffsets = Map.of(
       new TopicPartition("topic", 0), 0L,
       new TopicPartition("topic", 1), 1L,
@@ -61,6 +61,9 @@ class ConsumerAtLeastOnceReadinessTest {
     when(consumer.getCurrentOffset("topic", 1)).thenReturn(2L);
     when(consumer.getCurrentOffset("topic", 2)).thenReturn(3L);
     assertEquals(Status.UP, readiness.call().getStatus(), "It should be ready when all endOffsets are reached");
+
+    when(consumer.getStage()).thenReturn(Stage.PollingHistorical);
+    assertEquals(Status.DOWN, readiness.call().getStatus(), "It should be unready stage is less than \"Polling\"");
   }
 
 }
