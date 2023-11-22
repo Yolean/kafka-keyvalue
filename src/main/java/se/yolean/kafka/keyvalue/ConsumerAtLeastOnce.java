@@ -136,17 +136,22 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
       // Position is the offset of the next record
       this.endOffsets.put(partition, position - 1);
-      this.currentOffsets.put(partition, new AtomicLong(position - 1));
+      this.currentOffsets.put(partition, new AtomicLong(startOffset - 1));
       registerCurrentOffsetMetrics();
 
       if (position == 0) {
         logger.info("Got assigned position {} for {}; topic is empty or someone wants onupdate for existing messages", position, partition);
-        this.stage = Stage.Polling;
         continue;
       }
       this.stage = Stage.Resetting;
-      logger.info("Got assigned offset {} for {}; seeking to low water mark {}", position, partition, startOffset);
+      logger.info("Got assigned position {} for {}; seeking to low water mark {}", position, partition, startOffset);
       consumer.seek(partition, startOffset);
+    }
+
+    if (isEndOffsetsReached()) {
+      this.stage = Stage.Polling;
+    } else {
+      this.stage = Stage.PollingHistorical;
     }
     onupdate.pollStart(topics);
   }
@@ -172,7 +177,7 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
         UpdateRecord update = new UpdateRecord(record.topic(), record.partition(), record.offset(), record.key());
         long start = getEndOffset(update.getTopicPartition());
-        if (record.offset() >= start) {
+        if (record.offset() > start) {
           handleUpdateRecord(update, valueEqual);
         } else {
           logger.trace("Suppressing onupdate for {} because start offset is {}", update, start);
@@ -206,23 +211,24 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
    * @param record
    */
   void cacheRecord(ConsumerRecord<String, byte[]> record) {
-    this.currentOffsets.get(new TopicPartition(record.topic(), record.partition())).set(record.offset());
-
     if (record.key() != null) {
       cache.put(record.key(), record.value());
     } else {
       logger.warn("Ignoring null key at topic: {}, partition: {}, offset: {}",
           record.topic(), record.partition(), record.offset());
     }
+
+    this.currentOffsets.get(new TopicPartition(record.topic(), record.partition())).set(record.offset());
+    if (isEndOffsetsReached()) {
+      this.stage = Stage.Polling;
+    }
   }
 
   void handleUpdateRecord(UpdateRecord update, boolean valueEqual) {
-    TopicPartition topicPartition = update.getTopicPartition();
-
     Tags tags = Tags.of("topic", update.getTopic(), "partition", "" + update.getPartition());
     Tags suppressReason = null;
 
-    if (topicPartition == null) {
+    if (update.getKey() == null) {
       if (logger.isTraceEnabled()) logger.trace("onNullKey {}", update.getOffset());
       suppressReason = tags.and("suppress_reason", "null_key");
     } else if (valueEqual) {

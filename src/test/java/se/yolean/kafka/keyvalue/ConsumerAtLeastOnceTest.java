@@ -12,9 +12,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -25,8 +27,189 @@ import org.apache.kafka.common.TopicPartition;
 import org.junit.jupiter.api.Test;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import se.yolean.kafka.keyvalue.KafkaCache.Stage;
 
 public class ConsumerAtLeastOnceTest {
+
+  @Test
+  void testAssignmentNoHistorical() {
+    ConsumerAtLeastOnce instance = new ConsumerAtLeastOnce();
+    instance.assignmentsTimeout = Duration.ofSeconds(1);
+    instance.registry = new SimpleMeterRegistry();
+    instance.onupdate = new OnUpdate() {
+      @Override
+      public void pollStart(Iterable<String> topics) {}
+
+      @Override
+      public void handle(UpdateRecord update) {}
+
+      @Override
+      public void sendUpdates() {}
+    };
+
+    assertEquals(false, instance.isEndOffsetsReached());
+    assertEquals(Stage.Created, instance.getStage(), "Stage should initially be \"Created\"");
+    assertEquals(null, instance.endOffsets, "endOffsets should be null before partition assignment");
+    assertEquals(Map.of(), instance.currentOffsets, "currrentOffsets should be empty before partition assignment");
+
+
+    TopicPartition partition = new TopicPartition("mytopic", 0);
+    Collection<TopicPartition> partitions = List.of(partition);
+    Consumer<?, ?> consumer = mock(Consumer.class);
+
+    when(consumer.beginningOffsets(partitions, instance.assignmentsTimeout)).thenReturn(Map.of(partition, 0L));
+    when(consumer.position(partition, instance.assignmentsTimeout)).thenReturn(0L);
+    instance.onPartitionsAssigned(consumer, partitions);
+    assertEquals(true, instance.isEndOffsetsReached(),
+        "endOffsets should be immediately reached when there are no historical records");
+    assertEquals(Stage.Polling, instance.getStage(),
+        "Stage should be \"Polling\" immediately after assignment when there are no historical records");
+    assertEquals(-1L, instance.currentOffsets.get(partition).get(),
+        "currentOffsets should be -1 before the first (offset 0) record is consumed");
+    assertEquals(-1L, instance.endOffsets.get(partition),
+        "endOffsets should be -1 when there are no historical records");
+  }
+
+  @Test
+  void testAssignmentHistoricalDueToRetention() {
+    ConsumerAtLeastOnce instance = new ConsumerAtLeastOnce();
+    instance.assignmentsTimeout = Duration.ofSeconds(1);
+    instance.registry = new SimpleMeterRegistry();
+    instance.onupdate = new OnUpdate() {
+      @Override
+      public void pollStart(Iterable<String> topics) {}
+
+      @Override
+      public void handle(UpdateRecord update) {}
+
+      @Override
+      public void sendUpdates() {}
+    };
+
+    TopicPartition partition = new TopicPartition("mytopic", 0);
+    Collection<TopicPartition> partitions = List.of(partition);
+    Consumer<?, ?> consumer = mock(Consumer.class);
+
+    when(consumer.beginningOffsets(partitions, instance.assignmentsTimeout)).thenReturn(Map.of(partition, 10L));
+    when(consumer.position(partition, instance.assignmentsTimeout)).thenReturn(10L);
+    instance.onPartitionsAssigned(consumer, partitions);
+    assertEquals(true, instance.isEndOffsetsReached(),
+        "endOffsets should be immediately reached when there are no historical records");
+    assertEquals(Stage.Polling, instance.getStage(),
+        "Stage should be \"Polling\" immediately after assignment when there are no historical records");
+    assertEquals(9L, instance.currentOffsets.get(partition).get(),
+        "currentOffsets should be 9 before the first (offset 10) record is consumed");
+    assertEquals(9L, instance.endOffsets.get(partition),
+        "endOffsets should equal (position - 1)");
+  }
+
+  @Test
+  void testAssignmentHistorical() {
+    ConsumerAtLeastOnce instance = new ConsumerAtLeastOnce();
+    instance.assignmentsTimeout = Duration.ofSeconds(1);
+    instance.registry = new SimpleMeterRegistry();
+    instance.onupdate = new OnUpdate() {
+      @Override
+      public void pollStart(Iterable<String> topics) {}
+
+      @Override
+      public void handle(UpdateRecord update) {}
+
+      @Override
+      public void sendUpdates() {}
+    };
+
+
+    TopicPartition partition = new TopicPartition("mytopic", 0);
+    Collection<TopicPartition> partitions = List.of(partition);
+    Consumer<?, ?> consumer = mock(Consumer.class);
+
+    when(consumer.beginningOffsets(partitions, instance.assignmentsTimeout)).thenReturn(Map.of(partition, 0L));
+    when(consumer.position(partition, instance.assignmentsTimeout)).thenReturn(20L);
+    instance.onPartitionsAssigned(consumer, partitions);
+    assertEquals(false, instance.isEndOffsetsReached(),
+        "endOffsets should not be reached before historical records are consumed");
+    assertEquals(Stage.PollingHistorical, instance.getStage(),
+        "Stage should be \"PollingHistorical\" when there are historical records to consume");
+    assertEquals(-1L, instance.currentOffsets.get(partition).get(),
+        "currentOffsets should be -1 before the first (offset 0) record is consumed");
+    assertEquals(19, instance.endOffsets.get(partition),
+        "endOffsets should equal (position - 1)");
+  }
+
+  @Test
+  void testAssignmentHistoricalAndRetention() {
+    ConsumerAtLeastOnce instance = new ConsumerAtLeastOnce();
+    instance.assignmentsTimeout = Duration.ofSeconds(1);
+    instance.registry = new SimpleMeterRegistry();
+    instance.onupdate = new OnUpdate() {
+      @Override
+      public void pollStart(Iterable<String> topics) {}
+
+      @Override
+      public void handle(UpdateRecord update) {}
+
+      @Override
+      public void sendUpdates() {}
+    };
+
+
+    TopicPartition partition = new TopicPartition("mytopic", 0);
+    Collection<TopicPartition> partitions = List.of(partition);
+    Consumer<?, ?> consumer = mock(Consumer.class);
+
+    when(consumer.beginningOffsets(partitions, instance.assignmentsTimeout)).thenReturn(Map.of(partition, 10L));
+    when(consumer.position(partition, instance.assignmentsTimeout)).thenReturn(20L);
+    instance.onPartitionsAssigned(consumer, partitions);
+    assertEquals(false, instance.isEndOffsetsReached(),
+        "endOffsets should not be reached before historical records are consumed");
+    assertEquals(Stage.PollingHistorical, instance.getStage(),
+        "Stage should be \"PollingHistorical\" when there are historical records to consume");
+    assertEquals(9L, instance.currentOffsets.get(partition).get(),
+        "currentOffsets should be 9 before the first (offset 10) record is consumed");
+    assertEquals(19L, instance.endOffsets.get(partition),
+        "endOffsets should equal (position - 1)");
+  }
+
+  @Test
+  void testAssignmentMultiplePartitions() {
+    ConsumerAtLeastOnce instance = new ConsumerAtLeastOnce();
+    instance.assignmentsTimeout = Duration.ofSeconds(1);
+    instance.registry = new SimpleMeterRegistry();
+    instance.onupdate = new OnUpdate() {
+      @Override
+      public void pollStart(Iterable<String> topics) {}
+
+      @Override
+      public void handle(UpdateRecord update) {}
+
+      @Override
+      public void sendUpdates() {}
+    };
+
+
+    TopicPartition partition0 = new TopicPartition("mytopic", 0);
+    TopicPartition partition1 = new TopicPartition("mytopic", 1);
+    Collection<TopicPartition> partitions = List.of(partition0, partition1);
+    Consumer<?, ?> consumer = mock(Consumer.class);
+
+    when(consumer.beginningOffsets(partitions, instance.assignmentsTimeout)).thenReturn(Map.of(partition0, 0L, partition1, 0L));
+    when(consumer.position(partition0, instance.assignmentsTimeout)).thenReturn(0L);
+    when(consumer.position(partition1, instance.assignmentsTimeout)).thenReturn(1L);
+    instance.onPartitionsAssigned(consumer, partitions);
+    assertEquals(false, instance.isEndOffsetsReached(),
+        "endOffsets should not be reached before historical records from all partitionsare consumed");
+    assertEquals(Stage.PollingHistorical, instance.getStage(),
+        "Stage should be \"PollingHistorical\" when there are historical records to consume");
+    assertEquals(-1L, instance.currentOffsets.get(partition0).get(),
+        "currentOffsets should be -1 before the first (offset 0) record is consumed");
+    assertEquals(-1L, instance.currentOffsets.get(partition1).get(),
+        "currentOffsets should be -1 before the first (offset 0) record is consumed");
+    assertEquals(-1L, instance.endOffsets.get(partition0),
+        "endOffsets should equal (position - 1)");
+    assertEquals(0L, instance.endOffsets.get(partition1),
+        "endOffsets should equal (position - 1)");
+  }
 
   @Test
   void testOffsetMetric() {
