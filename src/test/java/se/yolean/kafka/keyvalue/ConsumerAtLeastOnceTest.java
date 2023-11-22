@@ -34,7 +34,15 @@ public class ConsumerAtLeastOnceTest {
   @Test
   void testAssignmentNoHistorical() {
     ConsumerAtLeastOnce instance = new ConsumerAtLeastOnce();
-    instance.assignmentsTimeout = Duration.ofSeconds(1);
+    instance.config = new KafkaCacheConfig() {
+
+      @Override
+      public Duration getAssignmentsTimeout() {
+        return Duration.ofSeconds(1);
+      }
+
+    };
+
     instance.registry = new SimpleMeterRegistry();
     instance.onupdate = new OnUpdate() {
       @Override
@@ -57,8 +65,8 @@ public class ConsumerAtLeastOnceTest {
     Collection<TopicPartition> partitions = List.of(partition);
     Consumer<?, ?> consumer = mock(Consumer.class);
 
-    when(consumer.beginningOffsets(partitions, instance.assignmentsTimeout)).thenReturn(Map.of(partition, 0L));
-    when(consumer.position(partition, instance.assignmentsTimeout)).thenReturn(0L);
+    when(consumer.beginningOffsets(partitions, instance.config.getAssignmentsTimeout())).thenReturn(Map.of(partition, 0L));
+    when(consumer.position(partition, instance.config.getAssignmentsTimeout())).thenReturn(0L);
     instance.onPartitionsAssigned(consumer, partitions);
     assertEquals(true, instance.isEndOffsetsReached(),
         "endOffsets should be immediately reached when there are no historical records");
@@ -73,7 +81,14 @@ public class ConsumerAtLeastOnceTest {
   @Test
   void testAssignmentHistoricalDueToRetention() {
     ConsumerAtLeastOnce instance = new ConsumerAtLeastOnce();
-    instance.assignmentsTimeout = Duration.ofSeconds(1);
+    instance.config = new KafkaCacheConfig() {
+
+      @Override
+      public Duration getAssignmentsTimeout() {
+        return Duration.ofSeconds(1);
+      }
+
+    };
     instance.registry = new SimpleMeterRegistry();
     instance.onupdate = new OnUpdate() {
       @Override
@@ -90,8 +105,8 @@ public class ConsumerAtLeastOnceTest {
     Collection<TopicPartition> partitions = List.of(partition);
     Consumer<?, ?> consumer = mock(Consumer.class);
 
-    when(consumer.beginningOffsets(partitions, instance.assignmentsTimeout)).thenReturn(Map.of(partition, 10L));
-    when(consumer.position(partition, instance.assignmentsTimeout)).thenReturn(10L);
+    when(consumer.beginningOffsets(partitions, instance.config.getAssignmentsTimeout())).thenReturn(Map.of(partition, 10L));
+    when(consumer.position(partition, instance.config.getAssignmentsTimeout())).thenReturn(10L);
     instance.onPartitionsAssigned(consumer, partitions);
     assertEquals(true, instance.isEndOffsetsReached(),
         "endOffsets should be immediately reached when there are no historical records");
@@ -106,7 +121,14 @@ public class ConsumerAtLeastOnceTest {
   @Test
   void testAssignmentHistorical() {
     ConsumerAtLeastOnce instance = new ConsumerAtLeastOnce();
-    instance.assignmentsTimeout = Duration.ofSeconds(1);
+    instance.config = new KafkaCacheConfig() {
+
+      @Override
+      public Duration getAssignmentsTimeout() {
+        return Duration.ofSeconds(1);
+      }
+
+    };
     instance.registry = new SimpleMeterRegistry();
     instance.onupdate = new OnUpdate() {
       @Override
@@ -124,8 +146,8 @@ public class ConsumerAtLeastOnceTest {
     Collection<TopicPartition> partitions = List.of(partition);
     Consumer<?, ?> consumer = mock(Consumer.class);
 
-    when(consumer.beginningOffsets(partitions, instance.assignmentsTimeout)).thenReturn(Map.of(partition, 0L));
-    when(consumer.position(partition, instance.assignmentsTimeout)).thenReturn(20L);
+    when(consumer.beginningOffsets(partitions, instance.config.getAssignmentsTimeout())).thenReturn(Map.of(partition, 0L));
+    when(consumer.position(partition, instance.config.getAssignmentsTimeout())).thenReturn(20L);
     instance.onPartitionsAssigned(consumer, partitions);
     assertEquals(false, instance.isEndOffsetsReached(),
         "endOffsets should not be reached before historical records are consumed");
@@ -140,7 +162,14 @@ public class ConsumerAtLeastOnceTest {
   @Test
   void testAssignmentHistoricalAndRetention() {
     ConsumerAtLeastOnce instance = new ConsumerAtLeastOnce();
-    instance.assignmentsTimeout = Duration.ofSeconds(1);
+    instance.config = new KafkaCacheConfig() {
+
+      @Override
+      public Duration getAssignmentsTimeout() {
+        return Duration.ofSeconds(1);
+      }
+
+    };
     instance.registry = new SimpleMeterRegistry();
     instance.onupdate = new OnUpdate() {
       @Override
@@ -158,8 +187,8 @@ public class ConsumerAtLeastOnceTest {
     Collection<TopicPartition> partitions = List.of(partition);
     Consumer<?, ?> consumer = mock(Consumer.class);
 
-    when(consumer.beginningOffsets(partitions, instance.assignmentsTimeout)).thenReturn(Map.of(partition, 10L));
-    when(consumer.position(partition, instance.assignmentsTimeout)).thenReturn(20L);
+    when(consumer.beginningOffsets(partitions, instance.config.getAssignmentsTimeout())).thenReturn(Map.of(partition, 10L));
+    when(consumer.position(partition, instance.config.getAssignmentsTimeout())).thenReturn(20L);
     instance.onPartitionsAssigned(consumer, partitions);
     assertEquals(false, instance.isEndOffsetsReached(),
         "endOffsets should not be reached before historical records are consumed");
@@ -174,7 +203,14 @@ public class ConsumerAtLeastOnceTest {
   @Test
   void testAssignmentMultiplePartitions() {
     ConsumerAtLeastOnce instance = new ConsumerAtLeastOnce();
-    instance.assignmentsTimeout = Duration.ofSeconds(1);
+    instance.config = new KafkaCacheConfig() {
+
+      @Override
+      public Duration getAssignmentsTimeout() {
+        return Duration.ofSeconds(1);
+      }
+
+    };
     instance.registry = new SimpleMeterRegistry();
     instance.onupdate = new OnUpdate() {
       @Override
@@ -193,9 +229,9 @@ public class ConsumerAtLeastOnceTest {
     Collection<TopicPartition> partitions = List.of(partition0, partition1);
     Consumer<?, ?> consumer = mock(Consumer.class);
 
-    when(consumer.beginningOffsets(partitions, instance.assignmentsTimeout)).thenReturn(Map.of(partition0, 0L, partition1, 0L));
-    when(consumer.position(partition0, instance.assignmentsTimeout)).thenReturn(0L);
-    when(consumer.position(partition1, instance.assignmentsTimeout)).thenReturn(1L);
+    when(consumer.beginningOffsets(partitions, instance.config.getAssignmentsTimeout())).thenReturn(Map.of(partition0, 0L, partition1, 0L));
+    when(consumer.position(partition0, instance.config.getAssignmentsTimeout())).thenReturn(0L);
+    when(consumer.position(partition1, instance.config.getAssignmentsTimeout())).thenReturn(1L);
     instance.onPartitionsAssigned(consumer, partitions);
     assertEquals(false, instance.isEndOffsetsReached(),
         "endOffsets should not be reached before historical records from all partitionsare consumed");
@@ -291,6 +327,14 @@ public class ConsumerAtLeastOnceTest {
     var registry = new SimpleMeterRegistry();
     var instance = new ConsumerAtLeastOnce();
     instance.registry = registry;
+    instance.config = new KafkaCacheConfig() {
+
+      @Override
+      public Duration getAssignmentsTimeout() {
+        return Duration.ofSeconds(1);
+      }
+
+    };
 
     KafkaPollListener listener = new KafkaPollListener();
 

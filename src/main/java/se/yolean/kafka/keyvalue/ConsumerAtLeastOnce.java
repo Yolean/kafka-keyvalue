@@ -14,7 +14,6 @@
 
 package se.yolean.kafka.keyvalue;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,7 +32,6 @@ import jakarta.inject.Inject;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,11 +49,8 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
 
   final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  // REVIEW This (the defaultValue) actually works without custom converters since Duration has a static parse function
-  // https://github.com/eclipse/microprofile-config/blob/master/spec/src/main/asciidoc/converters.asciidoc#automatic-converters
-  // The microprofile language server still gets us a red squiggly here though...
-  @ConfigProperty(name = "kkv.assignments.timeout", defaultValue="90s")
-  Duration assignmentsTimeout;
+  @Inject
+  KafkaCacheConfig config;
 
   @Inject
   Map<String, byte[]> cache;
@@ -128,11 +123,11 @@ public class ConsumerAtLeastOnce implements KafkaConsumerRebalanceListener, Kafk
     this.stage = Stage.Assigning;
     this.endOffsets = new HashMap<>();
 
-    Map<TopicPartition, Long> lowWaterMarksAtStart = consumer.beginningOffsets(partitions, assignmentsTimeout);
+    Map<TopicPartition, Long> lowWaterMarksAtStart = consumer.beginningOffsets(partitions, config.getAssignmentsTimeout());
     for (TopicPartition partition : partitions) {
       topics.add(partition.topic());
       long startOffset = lowWaterMarksAtStart.get(partition);
-      long position = consumer.position(partition, assignmentsTimeout);
+      long position = consumer.position(partition, config.getAssignmentsTimeout());
 
       // Position is the offset of the next record
       this.endOffsets.put(partition, position - 1);
