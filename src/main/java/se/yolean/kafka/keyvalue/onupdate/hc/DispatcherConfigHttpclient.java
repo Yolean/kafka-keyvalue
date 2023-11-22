@@ -14,7 +14,7 @@
 
 package se.yolean.kafka.keyvalue.onupdate.hc;
 
-import javax.inject.Singleton;
+import jakarta.inject.Singleton;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 

@@ -19,14 +19,14 @@ import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.json.Json;
-import javax.json.JsonObject;
-import javax.json.JsonObjectBuilder;
-import javax.json.JsonWriter;
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.json.JsonWriter;
 
 import se.yolean.kafka.keyvalue.UpdateRecord;
 
-// NOTE javax.json is unfit for what this class tried to do -- incrementally update a JSON.
+// NOTE jakarta.json is unfit for what this class tried to do -- incrementally update a JSON.
 // Unless we find a lib that is designed to keep state as json, not one-off conversions of object trees,
 // we should drop this impl and go for the object tree strategy
 public class UpdatesBodyPerTopicJSON implements UpdatesBodyPerTopic {

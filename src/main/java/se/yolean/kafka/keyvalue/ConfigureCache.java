@@ -17,9 +17,9 @@ package se.yolean.kafka.keyvalue;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.enterprise.inject.Produces;
-import javax.inject.Provider;
-import javax.inject.Singleton;
+import jakarta.enterprise.inject.Produces;
+import jakarta.inject.Provider;
+import jakarta.inject.Singleton;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
@@ -44,7 +44,7 @@ public class ConfigureCache implements Provider<Map<String, byte[]>> {
   String cacheType;
 
   @Produces
-  //@javax.inject.Named("cache")
+  //@jakarta.inject.Named("cache")
   @Override
   public Map<String, byte[]> get() {
     if (CACHE_TYPE_INMEMORY.equals(cacheType)) {
