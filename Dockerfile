@@ -3,7 +3,7 @@ FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:9e78afadc64b01e
 
 # https://github.com/xerial/snappy-java/blob/master/src/main/java/org/xerial/snappy/OSInfo.java#L113
 RUN set -ex; \
-  curl -o snappy.jar -sLSf https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/1.1.9.0/snappy-java-1.1.9.0.jar; \
+  curl -o snappy.jar -sLSf https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/1.1.10.5/snappy-java-1.1.10.5.jar; \
   LIBPATH=$(java -cp snappy.jar org.xerial.snappy.OSInfo); \
   ARCH=$(java -cp snappy.jar org.xerial.snappy.OSInfo --arch); \
   mkdir -pv native/$LIBPATH; \
