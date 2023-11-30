@@ -40,7 +40,7 @@ Multi-arch native
 (expect 3 hrs build time on a 3 core 7Gi Buildkit with qemu):
 
 ```
-y-skaffold build -p prod-build --file-output=images-native.json
+y-skaffold build -p prod-build --file-output=images-native.json --cache-artifacts=false
 ```
 
 ## Logging
