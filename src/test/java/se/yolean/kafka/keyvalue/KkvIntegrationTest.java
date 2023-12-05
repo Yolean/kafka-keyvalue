@@ -8,7 +8,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +26,7 @@ import io.smallrye.reactive.messaging.kafka.companion.KafkaCompanion;
 import jakarta.inject.Inject;
 import se.yolean.kafka.keyvalue.KafkaCache.Stage;
 
-@Disabled // You can enable this test if you have a Docker environment!
+@Tag("devservices")
 @QuarkusTest
 @QuarkusTestResource(KafkaCompanionResource.class)
 @WithKubernetesTestServer
