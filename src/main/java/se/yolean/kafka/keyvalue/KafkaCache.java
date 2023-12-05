@@ -23,14 +23,26 @@ import java.util.List;
  */
 public interface KafkaCache {
 
-  /**
-   * Meant to be used with Kubernetes readiness probes to block use of the cache
-   * during startup whey it may lag behind the topic.
-   * Or if there's any other reason to suspect that the cache is unreliable.
-   *
-   * @return true if the cache can be considered up-to-date
-   */
-  boolean isReady();
+  public enum Stage {
+    Created (10),
+    //CreatingConsumer (20),
+    //Initializing (30),
+    //WaitingForKafkaConnection (40),
+    Assigning (50),
+    Resetting (60),
+    //InitialPoll (70),
+    PollingHistorical (80),
+    Polling (90);
+
+    final int metricValue;
+    Stage(int metricValue) {
+      this.metricValue = metricValue;
+    }
+  }
+
+  Stage getStage();
+
+  boolean isEndOffsetsReached();
 
   byte[] getValue(String key);
 

@@ -1,18 +1,30 @@
 package se.yolean.kafka.keyvalue.kubernetes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import io.fabric8.kubernetes.api.model.EndpointAddress;
 import io.fabric8.kubernetes.api.model.EndpointSubset;
 import io.fabric8.kubernetes.api.model.Endpoints;
+import io.fabric8.kubernetes.api.model.EndpointsList;
 import io.fabric8.kubernetes.api.model.ObjectReference;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher.Action;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopicJSON;
 
@@ -26,8 +38,69 @@ public class EndpointsWatcherTest {
   }
 
   @Test
+  public void watchDisabledTest() {
+    interface MixedOperationMock extends MixedOperation<Endpoints, EndpointsList, Resource<Endpoints>> {}
+    MixedOperation<Endpoints, EndpointsList, Resource<Endpoints>> mixedOperationMock = mock(MixedOperationMock.class);
+    interface ResourceMock extends Resource<Endpoints> {}
+    Resource<Endpoints> resourceMock = mock(ResourceMock.class);
+    when(mixedOperationMock.withName(any())).thenReturn(resourceMock);
+    when(resourceMock.watch(any())).thenReturn(mock(Watch.class));
+    var watcher = new EndpointsWatcher(new EndpointsWatcherConfig() {
+
+      @Override
+      public Optional<String> targetServiceName() {
+        return Optional.empty();
+      }
+
+    });
+    watcher.client = mock(KubernetesClient.class);
+    when(watcher.client.endpoints()).thenReturn(mixedOperationMock);
+
+    watcher.start(null);
+
+    verify(watcher.client, times(0)).endpoints();
+    verify(mixedOperationMock, times(0)).withName(any());
+    verify(resourceMock, times(0)).watch(any());
+  }
+
+  @Test
+  public void watchEnabledTest() {
+    interface MixedOperationMock extends MixedOperation<Endpoints, EndpointsList, Resource<Endpoints>> {}
+    MixedOperation<Endpoints, EndpointsList, Resource<Endpoints>> mixedOperationMock = mock(MixedOperationMock.class);
+    interface ResourceMock extends Resource<Endpoints> {}
+    Resource<Endpoints> resourceMock = mock(ResourceMock.class);
+    when(mixedOperationMock.withName(any())).thenReturn(resourceMock);
+    when(resourceMock.watch(any())).thenReturn(mock(Watch.class));
+    var watcher = new EndpointsWatcher(new EndpointsWatcherConfig() {
+
+      @Override
+      public Optional<String> targetServiceName() {
+        return Optional.of("target-service-name");
+      }
+
+    });
+    watcher.client = mock(KubernetesClient.class);
+    when(watcher.client.endpoints()).thenReturn(mixedOperationMock);
+
+    watcher.start(null);
+
+    ArgumentCaptor<String> targetServiceNameCaptor = ArgumentCaptor.forClass(String.class);
+    verify(watcher.client, times(1)).endpoints();
+    verify(mixedOperationMock, times(1)).withName(targetServiceNameCaptor.capture());
+    assertEquals("target-service-name", targetServiceNameCaptor.getValue());
+    verify(resourceMock, times(1)).watch(any());
+  }
+
+  @Test
   public void unreadyEndpointsSequence() {
-    var watcher = new EndpointsWatcher();
+    var watcher = new EndpointsWatcher(new EndpointsWatcherConfig() {
+
+      @Override
+      public Optional<String> targetServiceName() {
+        return Optional.empty();
+      }
+
+    });
 
     List<EndpointAddress> notReadyAddresses = List.of(
       createEndpoint("192.168.0.1", "pod1"),
@@ -61,7 +134,14 @@ public class EndpointsWatcherTest {
 
   @Test
   public void endpointsUpdateTest() {
-    var watcher = new EndpointsWatcher();
+    var watcher = new EndpointsWatcher(new EndpointsWatcherConfig() {
+
+      @Override
+      public Optional<String> targetServiceName() {
+        return Optional.empty();
+      }
+
+    });
 
     List<EndpointAddress> notReadyAddresses = List.of(
       createEndpoint("192.168.0.1", "pod1"),

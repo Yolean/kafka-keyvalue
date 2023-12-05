@@ -1,15 +1,15 @@
-FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:43013261fdd8e4da16cf29f8336c0fc522db5ee3@sha256:810a23f91afec784a73ff9de32489c33fbc749b753e417619327da0f194a6af8 \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:9e78afadc64b01ef70c00add6039f3f31e1c2542@sha256:c8fba1c08a1af43a7038f3337fe2af98aec15a7cf31c3dc12c39ade540c827f7 \
   as jnilib
 
 # https://github.com/xerial/snappy-java/blob/master/src/main/java/org/xerial/snappy/OSInfo.java#L113
 RUN set -ex; \
-  curl -o snappy.jar -sLSf https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/1.1.9.0/snappy-java-1.1.9.0.jar; \
+  curl -o snappy.jar -sLSf https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/1.1.10.5/snappy-java-1.1.10.5.jar; \
   LIBPATH=$(java -cp snappy.jar org.xerial.snappy.OSInfo); \
   ARCH=$(java -cp snappy.jar org.xerial.snappy.OSInfo --arch); \
   mkdir -pv native/$LIBPATH; \
   cp -v /usr/lib/$ARCH-linux-gnu/jni/* native/$LIBPATH/
 
-FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:43013261fdd8e4da16cf29f8336c0fc522db5ee3@sha256:810a23f91afec784a73ff9de32489c33fbc749b753e417619327da0f194a6af8 \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/builder-quarkus:9e78afadc64b01ef70c00add6039f3f31e1c2542@sha256:c8fba1c08a1af43a7038f3337fe2af98aec15a7cf31c3dc12c39ade540c827f7 \
   as dev
 
 COPY pom.xml .
@@ -38,7 +38,7 @@ ARG build="package -Pnative"
 
 RUN mvn --batch-mode $build
 
-FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu-jre:43013261fdd8e4da16cf29f8336c0fc522db5ee3@sha256:e46a9bb44952ef82765158f86376d686c6c5835aff9080a5adb50296fb4ed712 \
+FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu-jre:9e78afadc64b01ef70c00add6039f3f31e1c2542@sha256:4d8ed25a81daac1f0434081346fcad719be13fd8dfbf4a793821b22149d5b79e \
   as jvm
 
 WORKDIR /app
@@ -50,7 +50,7 @@ ENTRYPOINT [ "java", \
   "-Djava.util.logging.manager=org.jboss.logmanager.LogManager", \
   "-jar", "quarkus-run.jar" ]
 
-FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu:43013261fdd8e4da16cf29f8336c0fc522db5ee3@sha256:e560bc7e18dbcf80ca325afb4a1e54df78b80ed7a064cfeb08da8e71d4f0cf65
+FROM --platform=$TARGETPLATFORM docker.io/yolean/runtime-quarkus-ubuntu:177518b0a77298d34f0caf1d0fcdc13750c355a8@sha256:ccd94ad8f1b6d90aa90f5fa5efaf2db57b0d3e6a29faea84ab1edc5777a23c99
 
 COPY --from=dev /workspace/target/*-runner /usr/local/bin/quarkus
 

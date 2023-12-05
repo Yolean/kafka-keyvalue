@@ -15,6 +15,7 @@
 package se.yolean.kafka.keyvalue;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.when;
 
 import org.eclipse.microprofile.health.HealthCheckResponse.Status;
 import org.junit.jupiter.api.Test;
@@ -28,17 +29,18 @@ class KafkaClientOnceLivenessTest {
   @Test
   void testCallAtAssigned() {
     KafkaClientOnceLiveness liveness = new KafkaClientOnceLiveness();
-    liveness.consumer = Mockito.mock(ConsumerAtLeastOnce.class);
+    ConsumerAtLeastOnce consumer = Mockito.mock(ConsumerAtLeastOnce.class);
+    liveness.consumer = consumer;
 
     assertEquals(true, liveness.call().getStatus().equals(Status.UP),
         "Should report live until the opposite is proven");
-    liveness.consumer.stage = ConsumerAtLeastOnce.Stage.Assigning;
+    when(consumer.getStage()).thenReturn(KafkaCache.Stage.Assigning);
     assertEquals(true, liveness.call().getStatus().equals(Status.DOWN),
         "Might be ok to trigger non-liveness on the hopefully brief assigning phase");
-    liveness.consumer.stage = ConsumerAtLeastOnce.Stage.Resetting;
+    when(consumer.getStage()).thenReturn(KafkaCache.Stage.Resetting);
     assertEquals(true, liveness.call().getStatus().equals(Status.UP),
         "As soon as we're out of Assigning we should be live");
-    liveness.consumer.stage = ConsumerAtLeastOnce.Stage.Assigning;
+    when(consumer.getStage()).thenReturn(KafkaCache.Stage.Assigning);
     assertEquals(true, liveness.call().getStatus().equals(Status.UP),
         "From now on we should always be up");
   }

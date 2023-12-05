@@ -15,57 +15,49 @@
 package se.yolean.kafka.keyvalue.http;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Iterator;
 
-import javax.inject.Inject;
-import javax.json.Json;
-import javax.json.stream.JsonGenerator;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.GET;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.ResponseBuilder;
-import javax.ws.rs.core.StreamingOutput;
-import javax.ws.rs.core.UriInfo;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.ResponseBuilder;
+import jakarta.ws.rs.core.UriInfo;
 
-import org.eclipse.microprofile.health.HealthCheck;
-import org.eclipse.microprofile.health.HealthCheckResponse;
+import org.eclipse.microprofile.health.Readiness;
+import org.eclipse.microprofile.health.HealthCheckResponse.Status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.smallrye.common.annotation.Identifier;
+import se.yolean.kafka.keyvalue.ConsumeLoopReadiness;
 import se.yolean.kafka.keyvalue.KafkaCache;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopic;
 
 @Path("/cache/v1")
-public class CacheResource implements HealthCheck {
+public class CacheResource {
 
   @Inject
   ObjectMapper mapper;
 
-  @Inject // Note that this can be null if cache is still in it's startup event handler
+  @Inject
   @Identifier("kkv")
-  KafkaCache cache = null;
+  KafkaCache cache;
 
-  @Override
-  public HealthCheckResponse call() {
-    return HealthCheckResponse.named("REST liveness").up().build();
-  }
+  @Inject
+  @Readiness
+  ConsumeLoopReadiness cacheReadiness;
 
-  void requireUpToDateCache() throws javax.ws.rs.ServiceUnavailableException {
-    if (cache == null) {
-      throw new javax.ws.rs.ServiceUnavailableException("Denied because cache isn't started yet, check /health for status");
-    }
-    if (!cache.isReady()) {
-      throw new javax.ws.rs.ServiceUnavailableException("Denied because cache is unready, check /health for status");
+  void requireUpToDateCache() throws jakarta.ws.rs.ServiceUnavailableException {
+    if (!cacheReadiness.call().getStatus().equals(Status.UP)) {
+      throw new jakarta.ws.rs.ServiceUnavailableException("Denied because cache is unready, check /health for status");
     }
   }
 
@@ -82,10 +74,10 @@ public class CacheResource implements HealthCheck {
   byte[] getCacheValue(String key) throws NotFoundException {
     requireUpToDateCache();
     if (key == null) {
-      throw new javax.ws.rs.BadRequestException("Request key can not be null");
+      throw new jakarta.ws.rs.BadRequestException("Request key can not be null");
     }
     if (key == "") {
-      throw new javax.ws.rs.BadRequestException("Request key can not be empty");
+      throw new jakarta.ws.rs.BadRequestException("Request key can not be empty");
     }
     final byte[] value = cache.getValue(key);
     if (value == null) {

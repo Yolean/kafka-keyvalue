@@ -9,11 +9,10 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Observes;
-import javax.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
 
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,18 +35,30 @@ public class EndpointsWatcher {
 
   private List<BiConsumer<UpdatesBodyPerTopic, Map<String, String>>> onTargetReadyConsumers = new ArrayList<>();
 
-  @ConfigProperty(name = "kkv.target.service.name")
-  String serviceName;
-
-  @Inject
-  EndpointsWatcherConfig config;
+  private final String targetServiceName;
+  private final boolean watchEnabled;
 
   @Inject
   KubernetesClient client;
 
+  @Inject
+  public EndpointsWatcher(EndpointsWatcherConfig config) {
+    if (config.targetServiceName().isPresent()) {
+      watchEnabled = true;
+      targetServiceName = config.targetServiceName().orElseThrow();
+    } else {
+      watchEnabled = false;
+      targetServiceName = null;
+    }
+  }
+
   void start(@Observes StartupEvent ev) {
     logger.info("EndpointsWatcher onStart");
-    watch();
+    if (watchEnabled) {
+      watch();
+    } else {
+      logger.info("No target service name configured, EndpointsWatcher is disabled");
+    }
   }
 
   public void addOnReadyConsumer(BiConsumer<UpdatesBodyPerTopic, Map<String, String>> consumer) {
@@ -99,7 +110,7 @@ public class EndpointsWatcher {
   }
 
   private void watch() {
-    client.endpoints().withName(config.targetServiceName()).watch(new Watcher<Endpoints>() {
+    client.endpoints().withName(targetServiceName).watch(new Watcher<Endpoints>() {
       @Override
       public void eventReceived(Action action, Endpoints resource) {
         handleEvent(action, resource);
