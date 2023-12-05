@@ -30,9 +30,9 @@ import se.yolean.kafka.keyvalue.KafkaCache.Stage;
 @QuarkusTest
 @QuarkusTestResource(KafkaCompanionResource.class)
 @WithKubernetesTestServer
-public class QuarkusIntegrationTest {
+public class KkvIntegrationTest {
 
-  private static final Logger logger = LoggerFactory.getLogger(QuarkusIntegrationTest.class);
+  private static final Logger logger = LoggerFactory.getLogger(KkvIntegrationTest.class);
 
   @InjectKafkaCompanion
   KafkaCompanion companion;
