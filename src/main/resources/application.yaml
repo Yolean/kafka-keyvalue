@@ -52,6 +52,8 @@ quarkus:
         level: DEBUG
       "io.fabric8.kubernetes.client":
         level: DEBUG
+      "io.vertx.core.http":
+        level: DEBUG
 
   kafka:
     snappy:
