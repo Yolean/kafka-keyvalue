@@ -119,8 +119,14 @@ public class EndpointsWatcher {
       @Override
       public void onClose(WatcherException cause) {
         // REVIEW what is a reasonable strategy here?
-        logger.warn("Exiting application due to watch closed");
+        logger.warn("Exiting application due to watch exceptionally closed");
         logger.error(cause.getMessage());
+        Quarkus.asyncExit(11);
+      }
+
+      @Override
+      public void onClose() {
+        logger.warn("Exiting application due to graceful watch closed");
         Quarkus.asyncExit(11);
       }
     });
