@@ -39,10 +39,10 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
   private Counter countSuccess;
 
   void initMetrics(MeterRegistry registry) {
-    countFailures = Counter.builder("kkv.onupdate.failed")
+    countFailures = Counter.builder("kkv.target.update.failure")
       .description("Failures to confirm update of a target endpoint, after retries")
       .register(registry);
-    countSuccess = Counter.builder("kkv.onupdate.ok")
+    countSuccess = Counter.builder("kkv.target.update.ok")
       .description("Confirm updates of a target endpoint, after retries")
       .register(registry);
     countFailures.increment(0);
