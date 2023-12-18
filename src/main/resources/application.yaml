@@ -50,6 +50,8 @@ quarkus:
         level: DEBUG
       "org.apache.kafka.clients.Metadata":
         level: DEBUG
+      "io.fabric8.kubernetes.client":
+        level: DEBUG
 
   kafka:
     snappy:
