@@ -25,7 +25,6 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.fabric8.kubernetes.client.Watcher.Action;
-import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.StartupEvent;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopic;
 
@@ -43,6 +42,8 @@ public class EndpointsWatcher {
 
   @Inject
   KubernetesClient client;
+
+  private Watcher<Endpoints> watcher = null;
 
   private boolean healthUnknown = true;
   private Counter countEvent;
@@ -128,7 +129,13 @@ public class EndpointsWatcher {
   }
 
   private void watch() {
-    client.endpoints().withName(targetServiceName).watch(new Watcher<Endpoints>() {
+    if (watcher == null) createWatcher();
+    logger.info("Starting watch");
+    client.endpoints().withName(targetServiceName).watch(watcher);
+  }
+
+  private void createWatcher() {
+    watcher = new Watcher<Endpoints>() {
       @Override
       public void eventReceived(Action action, Endpoints resource) {
         healthUnknown = false;
@@ -150,6 +157,7 @@ public class EndpointsWatcher {
         healthUnknown = true;
         countClose.increment();
         logger.error("Watch closed with error", cause);
+        watch();
       }
 
       @Override
@@ -157,8 +165,9 @@ public class EndpointsWatcher {
         healthUnknown = true;
         countClose.increment();
         logger.info("Watch closed");
+        watch();
       }
-    });
+    };
   }
 
   private void emitPendingUpdatesToNowReadyTarget(EndpointAddress address, List<UpdatesBodyPerTopic> updates) {
