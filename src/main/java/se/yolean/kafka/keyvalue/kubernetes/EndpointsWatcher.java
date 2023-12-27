@@ -117,6 +117,13 @@ public class EndpointsWatcher {
       }
 
       @Override
+      public boolean reconnecting() {
+        boolean reconnecting = Watcher.super.reconnecting();
+        logger.warn("Watcher reconnecting {}", reconnecting);
+        return reconnecting;
+      }
+
+      @Override
       public void onClose(WatcherException cause) {
         // REVIEW what is a reasonable strategy here?
         logger.warn("Exiting application due to watch exceptionally closed");
