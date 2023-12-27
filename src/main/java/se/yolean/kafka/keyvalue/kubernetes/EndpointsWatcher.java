@@ -21,6 +21,9 @@ import io.fabric8.kubernetes.api.model.Endpoints;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.WatcherException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.StartupEvent;
@@ -41,8 +44,13 @@ public class EndpointsWatcher {
   @Inject
   KubernetesClient client;
 
+  private boolean healthUnknown = true;
+  private Counter countEvent;
+  private Counter countReconnect;
+  private Counter countClose;
+
   @Inject
-  public EndpointsWatcher(EndpointsWatcherConfig config) {
+  public EndpointsWatcher(EndpointsWatcherConfig config, MeterRegistry registry) {
     if (config.targetServiceName().isPresent()) {
       watchEnabled = true;
       targetServiceName = config.targetServiceName().orElseThrow();
@@ -50,6 +58,16 @@ public class EndpointsWatcher {
       watchEnabled = false;
       targetServiceName = null;
     }
+    Gauge.builder("kkv.watcher.health.unknown", () -> {
+      if (healthUnknown) return 1.0;
+      return 0.0;
+    }).register(registry);
+    countEvent = Counter.builder("kkv.watcher.event").register(registry);
+    countReconnect = Counter.builder("kkv.watcher.reconnect").register(registry);
+    countClose = Counter.builder("kkv.watcher.close").register(registry);
+    countEvent.increment(0);
+    countReconnect.increment(0);
+    countClose.increment(0);
   }
 
   void start(@Observes StartupEvent ev) {
@@ -113,11 +131,15 @@ public class EndpointsWatcher {
     client.endpoints().withName(targetServiceName).watch(new Watcher<Endpoints>() {
       @Override
       public void eventReceived(Action action, Endpoints resource) {
+        healthUnknown = false;
+        countEvent.increment();
         handleEvent(action, resource);
       }
 
       @Override
       public boolean reconnecting() {
+        healthUnknown = true;
+        countReconnect.increment();
         boolean reconnecting = Watcher.super.reconnecting();
         logger.warn("Watcher reconnecting {}", reconnecting);
         return reconnecting;
@@ -125,16 +147,16 @@ public class EndpointsWatcher {
 
       @Override
       public void onClose(WatcherException cause) {
-        // REVIEW what is a reasonable strategy here?
-        logger.warn("Exiting application due to watch exceptionally closed");
-        logger.error(cause.getMessage());
-        Quarkus.asyncExit(11);
+        healthUnknown = true;
+        countClose.increment();
+        logger.error("Watch closed with error", cause);
       }
 
       @Override
       public void onClose() {
-        logger.warn("Exiting application due to graceful watch closed");
-        Quarkus.asyncExit(11);
+        healthUnknown = true;
+        countClose.increment();
+        logger.info("Watch closed");
       }
     });
   }

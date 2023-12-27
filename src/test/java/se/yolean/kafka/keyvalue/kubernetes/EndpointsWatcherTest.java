@@ -25,6 +25,7 @@ import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopicJSON;
 
@@ -52,7 +53,7 @@ public class EndpointsWatcherTest {
         return Optional.empty();
       }
 
-    });
+    }, new SimpleMeterRegistry());
     watcher.client = mock(KubernetesClient.class);
     when(watcher.client.endpoints()).thenReturn(mixedOperationMock);
 
@@ -78,7 +79,7 @@ public class EndpointsWatcherTest {
         return Optional.of("target-service-name");
       }
 
-    });
+    }, new SimpleMeterRegistry());
     watcher.client = mock(KubernetesClient.class);
     when(watcher.client.endpoints()).thenReturn(mixedOperationMock);
 
@@ -100,7 +101,7 @@ public class EndpointsWatcherTest {
         return Optional.empty();
       }
 
-    });
+    }, new SimpleMeterRegistry());
 
     List<EndpointAddress> notReadyAddresses = List.of(
       createEndpoint("192.168.0.1", "pod1"),
@@ -141,7 +142,7 @@ public class EndpointsWatcherTest {
         return Optional.empty();
       }
 
-    });
+    }, new SimpleMeterRegistry());
 
     List<EndpointAddress> notReadyAddresses = List.of(
       createEndpoint("192.168.0.1", "pod1"),
