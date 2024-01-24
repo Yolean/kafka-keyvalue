@@ -1,6 +1,8 @@
 '%test':
   quarkus:
     kafka:
+      snappy:
+        enabled: false
       devservices:
         topic-partitions:
           mytopic: 3
