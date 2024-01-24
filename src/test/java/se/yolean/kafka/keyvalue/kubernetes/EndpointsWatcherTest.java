@@ -7,6 +7,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -54,8 +55,13 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public Integer watchRestartDelaySeconds() {
-        return 1;
+      public Duration watchRestartDelayMin() {
+        return Duration.ofSeconds(1);
+      }
+
+      @Override
+      public Duration watchRestartDelayMax() {
+        return Duration.ofSeconds(1);
       }
 
     }, new SimpleMeterRegistry());
@@ -85,8 +91,13 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public Integer watchRestartDelaySeconds() {
-        return 1;
+      public Duration watchRestartDelayMin() {
+        return Duration.ofSeconds(1);
+      }
+
+      @Override
+      public Duration watchRestartDelayMax() {
+        return Duration.ofSeconds(1);
       }
 
     }, new SimpleMeterRegistry());
@@ -112,8 +123,13 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public Integer watchRestartDelaySeconds() {
-        return 1;
+      public Duration watchRestartDelayMin() {
+        return Duration.ofSeconds(1);
+      }
+
+      @Override
+      public Duration watchRestartDelayMax() {
+        return Duration.ofSeconds(1);
       }
 
     }, new SimpleMeterRegistry());
@@ -158,8 +174,13 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public Integer watchRestartDelaySeconds() {
-        return 1;
+      public Duration watchRestartDelayMin() {
+        return Duration.ofSeconds(1);
+      }
+
+      @Override
+      public Duration watchRestartDelayMax() {
+        return Duration.ofSeconds(1);
       }
 
     }, new SimpleMeterRegistry());
@@ -215,6 +236,56 @@ public class EndpointsWatcherTest {
     assertEquals(receivedUpdates, List.of(update, Map.of("192.168.0.3", "pod3")));
     assertEquals(Map.of(), watcher.getUnreadyTargets());
     assertEquals(Map.of("192.168.0.1", "pod1", "192.168.0.3", "pod3"), watcher.getTargets());
+  }
+
+  @Test
+  void testGetRetryDelayMs() {
+    EndpointsWatcher watcher = new EndpointsWatcher(new EndpointsWatcherConfig() {
+
+      @Override
+      public Optional<String> targetServiceName() {
+        return Optional.empty();
+      }
+
+      @Override
+      public Duration watchRestartDelayMin() {
+        return Duration.ofSeconds(1);
+      }
+
+      @Override
+      public Duration watchRestartDelayMax() {
+        return Duration.ofSeconds(10);
+      }
+
+    }, new SimpleMeterRegistry());
+
+    assertEquals(1000, watcher.getRetryDelayMs(0));
+    assertEquals(5.5 * 1000, watcher.getRetryDelayMs(0.5));
+    assertEquals(7.3 * 1000, watcher.getRetryDelayMs(0.7));
+    assertEquals(10 * 1000, watcher.getRetryDelayMs(1));
+
+    watcher = new EndpointsWatcher(new EndpointsWatcherConfig() {
+
+      @Override
+      public Optional<String> targetServiceName() {
+        return Optional.empty();
+      }
+
+      @Override
+      public Duration watchRestartDelayMin() {
+        return Duration.ofMillis(1);
+      }
+
+      @Override
+      public Duration watchRestartDelayMax() {
+        return Duration.ofSeconds(60);
+      }
+
+    }, new SimpleMeterRegistry());
+    assertEquals(1, watcher.getRetryDelayMs(0));
+    assertEquals(30 * 1000, watcher.getRetryDelayMs(0.5));
+    assertEquals(42 * 1000, watcher.getRetryDelayMs(0.7));
+    assertEquals(60 * 1000, watcher.getRetryDelayMs(1));
   }
 
 }

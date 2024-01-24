@@ -1,5 +1,6 @@
 package se.yolean.kafka.keyvalue.kubernetes;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -41,7 +42,8 @@ public class EndpointsWatcher {
 
   private final String targetServiceName;
   private final boolean watchEnabled;
-  private final int watchRestartDelaySeconds;
+  private final Duration watchRestartDelayMin;
+  private final Duration watchRestartDelayMax;
 
   @Inject
   KubernetesClient client;
@@ -59,7 +61,8 @@ public class EndpointsWatcher {
 
   @Inject
   public EndpointsWatcher(EndpointsWatcherConfig config, MeterRegistry registry) {
-    this.watchRestartDelaySeconds = config.watchRestartDelaySeconds();
+    this.watchRestartDelayMin = config.watchRestartDelayMin();
+    this.watchRestartDelayMax = config.watchRestartDelayMax();
     if (config.targetServiceName().isPresent()) {
       watchEnabled = true;
       targetServiceName = config.targetServiceName().orElseThrow();
@@ -149,8 +152,7 @@ public class EndpointsWatcher {
       vwatch.close();
     }
 
-    double jitter = Math.random() * 0.2 + 1;
-    long delay = Double.valueOf(jitter * watchRestartDelaySeconds * 1000).longValue();
+    long delay = getRetryDelayMs();
 
     logger.info("Retrying watch in {} seconds ({}ms)", delay / 1000, delay);
     vertx.setTimer(delay, id -> {
@@ -165,6 +167,27 @@ public class EndpointsWatcher {
         retryWatch();
       });
     });
+  }
+
+  /**
+   * @return A random value between the maximum and minimum retry delay duration
+   */
+  long getRetryDelayMs() {
+    return getRetryDelayMs(Math.random());
+  }
+
+  /**
+   * @param x A value between 0 and 1. Its the x in kx+m where k=(max-min) and m=min.
+   * @return A random value between the maximum and minimum retry delay duration
+   */
+  long getRetryDelayMs(double x) {
+    if (x < 0 || x > 1) {
+      throw new RuntimeException("x must be between 0 and 1!");
+    }
+    long minMs = watchRestartDelayMin.toMillis();
+    long maxMs = watchRestartDelayMax.toMillis();
+
+    return Double.valueOf((maxMs - minMs) * x + minMs).longValue();
   }
 
   private void createWatcher() {

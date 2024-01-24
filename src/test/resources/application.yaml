@@ -2,7 +2,8 @@
   kkv:
     endpoints-watcher:
       # Quick retries for unit tests
-      watch-restart-delay-seconds: 1
+      watch-restart-delay-min: 1s
+      watch-restart-delay-max: 1s
 
   quarkus:
     kafka:

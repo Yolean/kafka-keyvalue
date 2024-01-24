@@ -1,6 +1,7 @@
 kkv:
   endpoints-watcher:
-    watch-restart-delay-seconds: ${WATCH_RESTART_DELAY_SECONDS:30}
+    watch-restart-delay-min: ${WATCH_RESTART_DELAY_MIN:1ms}
+    watch-restart-delay-max: ${WATCH_RESTART_DELAY_MAX:60s}
   target:
     path: ${ON_UPDATE_PATH:/kafka-keyvalue/v1/updates}
     service:
