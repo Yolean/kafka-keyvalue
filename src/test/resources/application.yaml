@@ -1,4 +1,9 @@
 '%test':
+  kkv:
+    endpoints-watcher:
+      # Quick retries for unit tests
+      watch-restart-delay-seconds: 1
+
   quarkus:
     kafka:
       snappy:

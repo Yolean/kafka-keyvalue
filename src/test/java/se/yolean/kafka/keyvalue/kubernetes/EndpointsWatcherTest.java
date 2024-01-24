@@ -53,6 +53,11 @@ public class EndpointsWatcherTest {
         return Optional.empty();
       }
 
+      @Override
+      public Integer watchRestartDelaySeconds() {
+        return 1;
+      }
+
     }, new SimpleMeterRegistry());
     watcher.client = mock(KubernetesClient.class);
     when(watcher.client.endpoints()).thenReturn(mixedOperationMock);
@@ -79,6 +84,11 @@ public class EndpointsWatcherTest {
         return Optional.of("target-service-name");
       }
 
+      @Override
+      public Integer watchRestartDelaySeconds() {
+        return 1;
+      }
+
     }, new SimpleMeterRegistry());
     watcher.client = mock(KubernetesClient.class);
     when(watcher.client.endpoints()).thenReturn(mixedOperationMock);
@@ -99,6 +109,11 @@ public class EndpointsWatcherTest {
       @Override
       public Optional<String> targetServiceName() {
         return Optional.empty();
+      }
+
+      @Override
+      public Integer watchRestartDelaySeconds() {
+        return 1;
       }
 
     }, new SimpleMeterRegistry());
@@ -140,6 +155,11 @@ public class EndpointsWatcherTest {
       @Override
       public Optional<String> targetServiceName() {
         return Optional.empty();
+      }
+
+      @Override
+      public Integer watchRestartDelaySeconds() {
+        return 1;
       }
 
     }, new SimpleMeterRegistry());

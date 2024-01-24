@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.EndpointAddress;
 import io.fabric8.kubernetes.api.model.Endpoints;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.WatcherException;
 import io.micrometer.core.instrument.Counter;
@@ -26,6 +27,7 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.quarkus.runtime.StartupEvent;
+import io.vertx.mutiny.core.Vertx;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopic;
 
 @ApplicationScoped
@@ -39,11 +41,16 @@ public class EndpointsWatcher {
 
   private final String targetServiceName;
   private final boolean watchEnabled;
+  private final int watchRestartDelaySeconds;
 
   @Inject
   KubernetesClient client;
 
+  @Inject
+  Vertx vertx;
+
   private Watcher<Endpoints> watcher = null;
+  private Watch watch = null;
 
   private boolean healthUnknown = true;
   private Counter countEvent;
@@ -52,6 +59,7 @@ public class EndpointsWatcher {
 
   @Inject
   public EndpointsWatcher(EndpointsWatcherConfig config, MeterRegistry registry) {
+    this.watchRestartDelaySeconds = config.watchRestartDelaySeconds();
     if (config.targetServiceName().isPresent()) {
       watchEnabled = true;
       targetServiceName = config.targetServiceName().orElseThrow();
@@ -131,7 +139,32 @@ public class EndpointsWatcher {
   private void watch() {
     if (watcher == null) createWatcher();
     logger.info("Starting watch");
-    client.endpoints().withName(targetServiceName).watch(watcher);
+    watch = client.endpoints().withName(targetServiceName).watch(watcher);
+  }
+
+  private void retryWatch() {
+    if (watch != null) {
+      var vwatch = watch;
+      watch = null;
+      vwatch.close();
+    }
+
+    double jitter = Math.random() * 0.2 + 1;
+    long delay = Double.valueOf(jitter * watchRestartDelaySeconds * 1000).longValue();
+
+    logger.info("Retrying watch in {} seconds ({}ms)", delay / 1000, delay);
+    vertx.setTimer(delay, id -> {
+      vertx.executeBlocking(() -> {
+        logger.info("Retrying watch...");
+        watch();
+        return null;
+      }).subscribe().with(item -> {
+        logger.info("Successfully reconnected");
+      }, e -> {
+        logger.error("Failed to watch, trying again", e);
+        retryWatch();
+      });
+    });
   }
 
   private void createWatcher() {
@@ -148,7 +181,7 @@ public class EndpointsWatcher {
         healthUnknown = true;
         countReconnect.increment();
         boolean reconnecting = Watcher.super.reconnecting();
-        logger.warn("Watcher reconnecting {}", reconnecting);
+        logger.warn("Watcher reconnecting. \"If the Watcher can reconnect itself after an error\": {}", reconnecting);
         return reconnecting;
       }
 
@@ -157,7 +190,7 @@ public class EndpointsWatcher {
         healthUnknown = true;
         countClose.increment();
         logger.error("Watch closed with error", cause);
-        watch();
+        retryWatch();
       }
 
       @Override
@@ -165,7 +198,7 @@ public class EndpointsWatcher {
         healthUnknown = true;
         countClose.increment();
         logger.info("Watch closed");
-        watch();
+        retryWatch();
       }
     };
   }
