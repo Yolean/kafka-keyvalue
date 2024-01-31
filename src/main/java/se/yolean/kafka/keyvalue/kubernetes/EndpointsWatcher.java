@@ -98,7 +98,7 @@ public class EndpointsWatcher {
     onTargetReadyConsumers.add(consumer);
   }
 
-  void handleEvent(Action action, Endpoints resource) {
+  synchronized void handleEvent(Action action, Endpoints resource) {
     logger.debug("endpoints watch received action: {}", action.toString());
     if (action.equals(Action.DELETED)) {
       clearEndpoints();
