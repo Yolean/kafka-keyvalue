@@ -40,7 +40,7 @@ public class EndpointsWatcher {
   private List<BiConsumer<UpdatesBodyPerTopic, Map<String, String>>> onTargetReadyConsumers = new ArrayList<>();
 
   private final String targetServiceName;
-  private final String namespace;
+  private final String targetServiceNamespace;
   private final Duration resyncPeriod;
   private final boolean watchEnabled;
 
@@ -56,14 +56,17 @@ public class EndpointsWatcher {
 
   @Inject
   public EndpointsWatcher(EndpointsWatcherConfig config, MeterRegistry registry) {
-    this.namespace = config.namespace();
     this.resyncPeriod = config.informerResyncPeriod();
     if (config.targetServiceName().isPresent()) {
       watchEnabled = true;
       targetServiceName = config.targetServiceName().orElseThrow();
+      targetServiceNamespace = config.targetServiceNamespace().orElseThrow(() -> {
+        return new RuntimeException("target service namespace is required when watch is enabled");
+      });
     } else {
       watchEnabled = false;
       targetServiceName = null;
+      targetServiceNamespace = null;
     }
     Gauge.builder("kkv.watcher.down", () -> {
       if (isWatching()) return 0.0;
@@ -161,7 +164,7 @@ public class EndpointsWatcher {
 
   private void createInformer() {
     informer = client.endpoints()
-      .inNamespace(namespace)
+      .inNamespace(targetServiceNamespace)
       .withName(targetServiceName)
       .inform(
         new ResourceEventHandler<Endpoints>() {

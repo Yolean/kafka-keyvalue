@@ -10,7 +10,7 @@ import io.smallrye.config.WithName;
 public interface EndpointsWatcherConfig {
 
   @WithName("namespace")
-  public String namespace();
+  public Optional<String> targetServiceNamespace();
 
   @WithName("name")
   public Optional<String> targetServiceName();

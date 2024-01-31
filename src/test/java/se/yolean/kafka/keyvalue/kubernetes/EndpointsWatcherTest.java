@@ -57,8 +57,8 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public String namespace() {
-        return "dev";
+      public Optional<String> targetServiceNamespace() {
+        return Optional.of("dev");
       }
 
       @Override
@@ -96,8 +96,8 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public String namespace() {
-        return "dev";
+      public Optional<String> targetServiceNamespace() {
+        return Optional.of("dev");
       }
 
       @Override
@@ -131,8 +131,8 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public String namespace() {
-        return "dev";
+      public Optional<String> targetServiceNamespace() {
+        return Optional.of("dev");
       }
 
       @Override
@@ -182,8 +182,8 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public String namespace() {
-        return "dev";
+      public Optional<String> targetServiceNamespace() {
+        return Optional.of("dev");
       }
 
       @Override
