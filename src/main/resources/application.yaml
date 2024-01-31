@@ -1,12 +1,11 @@
 kkv:
-  namespace: ${NAMESPACE}
-  endpoints-watcher:
-    resync-period: ${INFORMER_RESYNC_PERIOD:5m}
   target:
     path: ${ON_UPDATE_PATH:/kafka-keyvalue/v1/updates}
     service:
       name: ${TARGET_SERVICE_NAME:}
       port: ${TARGET_SERVICE_PORT:8080}
+      namespace: ${TARGET_SERVICE_NAMESPACE}
+      informer-resync-period: ${INFORMER_RESYNC_PERIOD:5m}
     static:
       host: ${TARGET_STATIC_HOST:}
       port: ${TARGET_STATIC_PORT:8080}

@@ -62,7 +62,7 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public Duration resyncPeriod() {
+      public Duration informerResyncPeriod() {
         return Duration.ofMinutes(5);
       }
 
@@ -101,7 +101,7 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public Duration resyncPeriod() {
+      public Duration informerResyncPeriod() {
         return Duration.ofMinutes(5);
       }
 
@@ -136,7 +136,7 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public Duration resyncPeriod() {
+      public Duration informerResyncPeriod() {
         return Duration.ofMinutes(5);
       }
 
@@ -187,7 +187,7 @@ public class EndpointsWatcherTest {
       }
 
       @Override
-      public Duration resyncPeriod() {
+      public Duration informerResyncPeriod() {
         return Duration.ofMinutes(5);
       }
 

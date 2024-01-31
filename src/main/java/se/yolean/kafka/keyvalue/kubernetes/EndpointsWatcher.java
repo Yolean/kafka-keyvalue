@@ -52,16 +52,12 @@ public class EndpointsWatcher {
 
   private SharedIndexInformer<Endpoints> informer;
 
-  private boolean healthUnknown = true;
   private Counter countEvent;
-  private Counter countReconnect;
-  private Counter countClose;
 
   @Inject
   public EndpointsWatcher(EndpointsWatcherConfig config, MeterRegistry registry) {
     this.namespace = config.namespace();
-    this.resyncPeriod = config.resyncPeriod();
-    config.resyncPeriod();
+    this.resyncPeriod = config.informerResyncPeriod();
     if (config.targetServiceName().isPresent()) {
       watchEnabled = true;
       targetServiceName = config.targetServiceName().orElseThrow();
@@ -69,16 +65,12 @@ public class EndpointsWatcher {
       watchEnabled = false;
       targetServiceName = null;
     }
-    Gauge.builder("kkv.watcher.health.unknown", () -> {
-      if (healthUnknown) return 1.0;
-      return 0.0;
+    Gauge.builder("kkv.watcher.down", () -> {
+      if (isWatching()) return 0.0;
+      return 1.0;
     }).register(registry);
     countEvent = Counter.builder("kkv.watcher.event").register(registry);
-    countReconnect = Counter.builder("kkv.watcher.reconnect").register(registry);
-    countClose = Counter.builder("kkv.watcher.close").register(registry);
     countEvent.increment(0);
-    countReconnect.increment(0);
-    countClose.increment(0);
   }
 
   void start(@Observes StartupEvent ev) {

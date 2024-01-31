@@ -1,6 +1,6 @@
 package se.yolean.kafka.keyvalue.kubernetes;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -52,10 +52,10 @@ public class WatcherReconnectIntegrationTest {
 
   @Test
   void test() {
-    assertEquals(0, (int) registry.counter("kkv.watcher.close").count());
     performAndWaitOrThrow("Waiting for readiness", () -> {
       return RestAssured.get("/q/health/ready").andReturn();
     }, res -> res.statusCode() == 200, 10);
+    assertTrue(RestAssured.get("/q/metrics").andReturn().asString().contains("kkv_watcher_down 0.0"));
 
     logger.info("initial targets: {}", watcher.getTargets());
     performAndWaitOrThrow("Waiting for the pod to be ready so that EndpointsWatcher picks up  the target", () -> {
@@ -118,7 +118,7 @@ public class WatcherReconnectIntegrationTest {
       // Here we find existing pods in the k3s cluster
       return Map.of(
         "kkv.target.service.name", "metrics-server",
-        "kkv.namespace", "kube-system"
+        "kkv.target.service.namespace", "kube-system"
       );
     }
 

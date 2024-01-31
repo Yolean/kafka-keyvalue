@@ -1,8 +1,9 @@
 '%test':
   kkv:
-    namespace: dev
-    endpoints-watcher:
-      resync-period: 5m
+    target:
+      service:
+        namespace: dev
+        informer-resync-period: 5m
 
   quarkus:
     kafka:
