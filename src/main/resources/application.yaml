@@ -1,7 +1,7 @@
 kkv:
+  namespace: ${NAMESPACE}
   endpoints-watcher:
-    watch-restart-delay-min: ${WATCH_RESTART_DELAY_MIN:1ms}
-    watch-restart-delay-max: ${WATCH_RESTART_DELAY_MAX:60s}
+    resync-period: ${INFORMER_RESYNC_PERIOD:5m}
   target:
     path: ${ON_UPDATE_PATH:/kafka-keyvalue/v1/updates}
     service:

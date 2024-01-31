@@ -1,9 +1,8 @@
 '%test':
   kkv:
+    namespace: dev
     endpoints-watcher:
-      # Quick retries for unit tests
-      watch-restart-delay-min: 1s
-      watch-restart-delay-max: 1s
+      resync-period: 5m
 
   quarkus:
     kafka:

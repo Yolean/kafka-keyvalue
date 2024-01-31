@@ -9,13 +9,14 @@ import io.smallrye.config.WithName;
 @ConfigMapping(prefix = "kkv")
 public interface EndpointsWatcherConfig {
 
+  @WithName("namespace")
+  public String namespace();
+
   @WithName("target.service.name")
   public Optional<String> targetServiceName();
 
-  @WithName("endpoints-watcher.watch-restart-delay-min")
-  public Duration watchRestartDelayMin();
-
-  @WithName("endpoints-watcher.watch-restart-delay-max")
-  public Duration watchRestartDelayMax();
+  /** @return How often the informer rebuilds it cache. */
+  @WithName("endpoints-watcher.resync-period")
+  public Duration resyncPeriod();
 
 }

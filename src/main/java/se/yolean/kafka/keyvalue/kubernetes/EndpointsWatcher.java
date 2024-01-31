@@ -20,9 +20,8 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.EndpointAddress;
 import io.fabric8.kubernetes.api.model.Endpoints;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.Watch;
-import io.fabric8.kubernetes.client.Watcher;
-import io.fabric8.kubernetes.client.WatcherException;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -41,9 +40,9 @@ public class EndpointsWatcher {
   private List<BiConsumer<UpdatesBodyPerTopic, Map<String, String>>> onTargetReadyConsumers = new ArrayList<>();
 
   private final String targetServiceName;
+  private final String namespace;
+  private final Duration resyncPeriod;
   private final boolean watchEnabled;
-  private final Duration watchRestartDelayMin;
-  private final Duration watchRestartDelayMax;
 
   @Inject
   KubernetesClient client;
@@ -51,8 +50,7 @@ public class EndpointsWatcher {
   @Inject
   Vertx vertx;
 
-  private Watcher<Endpoints> watcher = null;
-  private Watch watch = null;
+  private SharedIndexInformer<Endpoints> informer;
 
   private boolean healthUnknown = true;
   private Counter countEvent;
@@ -61,8 +59,9 @@ public class EndpointsWatcher {
 
   @Inject
   public EndpointsWatcher(EndpointsWatcherConfig config, MeterRegistry registry) {
-    this.watchRestartDelayMin = config.watchRestartDelayMin();
-    this.watchRestartDelayMax = config.watchRestartDelayMax();
+    this.namespace = config.namespace();
+    this.resyncPeriod = config.resyncPeriod();
+    config.resyncPeriod();
     if (config.targetServiceName().isPresent()) {
       watchEnabled = true;
       targetServiceName = config.targetServiceName().orElseThrow();
@@ -85,10 +84,14 @@ public class EndpointsWatcher {
   void start(@Observes StartupEvent ev) {
     logger.info("EndpointsWatcher onStart");
     if (watchEnabled) {
-      watch();
+      inform();
     } else {
       logger.info("No target service name configured, EndpointsWatcher is disabled");
     }
+  }
+
+  public boolean isWatching() {
+    return informer != null && informer.isWatching();
   }
 
   public void addOnReadyConsumer(BiConsumer<UpdatesBodyPerTopic, Map<String, String>> consumer) {
@@ -97,6 +100,10 @@ public class EndpointsWatcher {
 
   void handleEvent(Action action, Endpoints resource) {
     logger.debug("endpoints watch received action: {}", action.toString());
+    if (action.equals(Action.DELETED)) {
+      clearEndpoints();
+      return;
+    }
 
     endpoints = resource.getSubsets().stream()
         .map(subset -> subset.getAddresses())
@@ -139,91 +146,57 @@ public class EndpointsWatcher {
     logger.info("Set new targets: {}", mapEndpointsToTargets(endpoints));
   }
 
-  private void watch() {
-    if (watcher == null) createWatcher();
-    logger.info("Starting watch");
-    watch = client.endpoints().withName(targetServiceName).watch(watcher);
-  }
-
-  private void retryWatch() {
-    if (watch != null) {
-      var vwatch = watch;
-      watch = null;
-      vwatch.close();
-    }
-
-    long delay = getRetryDelayMs();
-
-    logger.info("Retrying watch in {} seconds ({}ms)", delay / 1000, delay);
-    vertx.setTimer(delay, id -> {
-      vertx.executeBlocking(() -> {
-        logger.info("Retrying watch...");
-        watch();
-        return null;
-      }).subscribe().with(item -> {
-        logger.info("Successfully reconnected");
-      }, e -> {
-        logger.error("Failed to watch, trying again", e);
-        retryWatch();
-      });
-    });
-  }
-
   /**
-   * @return A random value between the maximum and minimum retry delay duration
+   * Clears the collections of (unready or not) endpoints.
+   *
+   * REVIEW Since we're only watching a single "Endpoints" (collection of
+   * addresses), a delete event means that we should clear all endpoints. If we
+   * change from watching "Endpoints" to "EndpointSlices" as suggested in
+   * https://kubernetes.io/docs/concepts/services-networking/service/#endpoints we
+   * cannot know that the slice contains all addresses which would make this
+   * method more complex.
    */
-  long getRetryDelayMs() {
-    return getRetryDelayMs(Math.random());
+  private void clearEndpoints() {
+    unreadyEndpoints.clear();
+    endpoints.clear();
+    logger.info("Cleared all targets");
   }
 
-  /**
-   * @param x A value between 0 and 1. Its the x in kx+m where k=(max-min) and m=min.
-   * @return A random value between the maximum and minimum retry delay duration
-   */
-  long getRetryDelayMs(double x) {
-    if (x < 0 || x > 1) {
-      throw new RuntimeException("x must be between 0 and 1!");
-    }
-    long minMs = watchRestartDelayMin.toMillis();
-    long maxMs = watchRestartDelayMax.toMillis();
-
-    return Double.valueOf((maxMs - minMs) * x + minMs).longValue();
+  private void inform() {
+    if (informer == null) createInformer();
+    logger.info("Started informer");
   }
 
-  private void createWatcher() {
-    watcher = new Watcher<Endpoints>() {
-      @Override
-      public void eventReceived(Action action, Endpoints resource) {
-        healthUnknown = false;
-        countEvent.increment();
-        handleEvent(action, resource);
-      }
+  private void createInformer() {
+    informer = client.endpoints()
+      .inNamespace(namespace)
+      .withName(targetServiceName)
+      .inform(
+        new ResourceEventHandler<Endpoints>() {
 
-      @Override
-      public boolean reconnecting() {
-        healthUnknown = true;
-        countReconnect.increment();
-        boolean reconnecting = Watcher.super.reconnecting();
-        logger.warn("Watcher reconnecting. \"If the Watcher can reconnect itself after an error\": {}", reconnecting);
-        return reconnecting;
-      }
+          @Override
+          public void onAdd(Endpoints obj) {
+            countEvent.increment();
+            handleEvent(Action.ADDED, obj);
+          }
 
-      @Override
-      public void onClose(WatcherException cause) {
-        healthUnknown = true;
-        countClose.increment();
-        logger.error("Watch closed with error", cause);
-        retryWatch();
-      }
+          @Override
+          public void onUpdate(Endpoints oldObj, Endpoints newObj) {
+            countEvent.increment();
+            handleEvent(Action.MODIFIED, newObj);
+          }
 
-      @Override
-      public void onClose() {
-        healthUnknown = true;
-        countClose.increment();
-        logger.info("Watch closed");
-        retryWatch();
-      }
-    };
+          @Override
+          public void onDelete(Endpoints obj, boolean deletedFinalStateUnknown) {
+            // The "Endpoints" object we watch contains all endpoints for the target
+            // service. Delete only happens if the service itself is deleted, never when
+            // individual endpoint-addresses change.
+            logger.warn("Endpoints onDelete {}", obj);
+            handleEvent(Action.DELETED, obj);
+          }
+
+        }, resyncPeriod.toMillis()
+      );
   }
 
   private void emitPendingUpdatesToNowReadyTarget(EndpointAddress address, List<UpdatesBodyPerTopic> updates) {
