@@ -12,7 +12,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-    <quarkus.platform.version>3.6.0</quarkus.platform.version>
+    <quarkus.platform.version>3.6.8</quarkus.platform.version>
     <skipITs>true</skipITs>
     <surefire-plugin.version>3.1.2</surefire-plugin.version>
     <x-test-exclude-groups>devservices</x-test-exclude-groups>
@@ -60,6 +60,25 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-kubernetes-client</artifactId>
+    </dependency>
+    <!-- These are optional dependencies of kubernetes-client, needed for testcontainers k3s to work -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>1.77</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk18on</artifactId>
+      <version>1.77</version>
+      <scope>test</scope>
+    </dependency>
+    <!--  -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>k3s</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>

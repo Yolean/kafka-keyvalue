@@ -10,6 +10,7 @@ import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.buffer.Buffer;
@@ -28,21 +29,29 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
 
   EndpointsWatcher watcher;
 
-  private MeterRegistry registry;
-
   @Inject
   UpdatesDispatcherWebclientConfig config;
 
   private final WebClient webClient;
 
-  static void initMetrics(MeterRegistry registry) {
-    registry.counter("kkv.target.update.failure").increment(0);
+  private Counter countFailures;
+
+  private Counter countSuccess;
+
+  void initMetrics(MeterRegistry registry) {
+    countFailures = Counter.builder("kkv.target.update.failure")
+      .description("Failures to confirm update of a target endpoint, after retries")
+      .register(registry);
+    countSuccess = Counter.builder("kkv.target.update.ok")
+      .description("Confirm updates of a target endpoint, after retries")
+      .register(registry);
+    countFailures.increment(0);
+    countSuccess.increment(0);
   }
 
   @Inject
   public UpdatesDispatcherWebclient(Vertx vertx, MeterRegistry registry, EndpointsWatcher watcher) {
     this.webClient = WebClient.create(vertx);
-    this.registry = registry;
     this.watcher = watcher;
 
     initMetrics(registry);
@@ -76,6 +85,7 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
       String name = entry.getValue();
 
       dispatch(json, headers, ip, config.targetServicePort()).subscribe().with(item -> {
+        countSuccess.increment();
         logger.info("Successfully sent update to {}", name);
       }, getDispatchFailureConsumer(name));
     });
@@ -91,7 +101,7 @@ public class UpdatesDispatcherWebclient implements UpdatesDispatcher {
 
   private Consumer<Throwable> getDispatchFailureConsumer(String name) {
     return (t) -> {
-      registry.counter("kkv.target.update.failure").increment();
+      countFailures.increment();
       logger.error("Failed to send update to " + name, t);
     };
   }

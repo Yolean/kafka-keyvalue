@@ -7,6 +7,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +25,10 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import se.yolean.kafka.keyvalue.UpdateRecord;
 import se.yolean.kafka.keyvalue.onupdate.UpdatesBodyPerTopicJSON;
 
@@ -52,7 +56,17 @@ public class EndpointsWatcherTest {
         return Optional.empty();
       }
 
-    });
+      @Override
+      public Optional<String> targetServiceNamespace() {
+        return Optional.of("dev");
+      }
+
+      @Override
+      public Duration informerResyncPeriod() {
+        return Duration.ofMinutes(5);
+      }
+
+    }, new SimpleMeterRegistry());
     watcher.client = mock(KubernetesClient.class);
     when(watcher.client.endpoints()).thenReturn(mixedOperationMock);
 
@@ -64,13 +78,16 @@ public class EndpointsWatcherTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void watchEnabledTest() {
     interface MixedOperationMock extends MixedOperation<Endpoints, EndpointsList, Resource<Endpoints>> {}
     MixedOperation<Endpoints, EndpointsList, Resource<Endpoints>> mixedOperationMock = mock(MixedOperationMock.class);
     interface ResourceMock extends Resource<Endpoints> {}
     Resource<Endpoints> resourceMock = mock(ResourceMock.class);
-    when(mixedOperationMock.withName(any())).thenReturn(resourceMock);
-    when(resourceMock.watch(any())).thenReturn(mock(Watch.class));
+    NonNamespaceOperation<Endpoints, EndpointsList, Resource<Endpoints>> nonNamespaceOperationMock = mock(NonNamespaceOperation.class);
+    when(mixedOperationMock.inNamespace(any())).thenReturn(nonNamespaceOperationMock);
+    when(nonNamespaceOperationMock.withName(any())).thenReturn(resourceMock);
+    when(resourceMock.inform(any())).thenReturn(mock(SharedIndexInformer.class));
     var watcher = new EndpointsWatcher(new EndpointsWatcherConfig() {
 
       @Override
@@ -78,17 +95,30 @@ public class EndpointsWatcherTest {
         return Optional.of("target-service-name");
       }
 
-    });
+      @Override
+      public Optional<String> targetServiceNamespace() {
+        return Optional.of("dev");
+      }
+
+      @Override
+      public Duration informerResyncPeriod() {
+        return Duration.ofMinutes(5);
+      }
+
+    }, new SimpleMeterRegistry());
     watcher.client = mock(KubernetesClient.class);
     when(watcher.client.endpoints()).thenReturn(mixedOperationMock);
 
     watcher.start(null);
 
-    ArgumentCaptor<String> targetServiceNameCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<Long> resyncPeriodCaptor = ArgumentCaptor.forClass(Long.class);
+    // ArgumentCaptor<String> targetServiceNameCaptor = ArgumentCaptor.forClass(String.class);
     verify(watcher.client, times(1)).endpoints();
-    verify(mixedOperationMock, times(1)).withName(targetServiceNameCaptor.capture());
-    assertEquals("target-service-name", targetServiceNameCaptor.getValue());
-    verify(resourceMock, times(1)).watch(any());
+    verify(nonNamespaceOperationMock, times(1)).withName("target-service-name");
+    verify(mixedOperationMock, times(1)).inNamespace("dev");
+    // assertEquals("target-service-name", targetServiceNameCaptor.getValue());
+    verify(resourceMock, times(1)).inform(any(), resyncPeriodCaptor.capture());
+    assertEquals(5 * 60 * 1000, resyncPeriodCaptor.getValue());
   }
 
   @Test
@@ -100,7 +130,17 @@ public class EndpointsWatcherTest {
         return Optional.empty();
       }
 
-    });
+      @Override
+      public Optional<String> targetServiceNamespace() {
+        return Optional.of("dev");
+      }
+
+      @Override
+      public Duration informerResyncPeriod() {
+        return Duration.ofMinutes(5);
+      }
+
+    }, new SimpleMeterRegistry());
 
     List<EndpointAddress> notReadyAddresses = List.of(
       createEndpoint("192.168.0.1", "pod1"),
@@ -141,7 +181,17 @@ public class EndpointsWatcherTest {
         return Optional.empty();
       }
 
-    });
+      @Override
+      public Optional<String> targetServiceNamespace() {
+        return Optional.of("dev");
+      }
+
+      @Override
+      public Duration informerResyncPeriod() {
+        return Duration.ofMinutes(5);
+      }
+
+    }, new SimpleMeterRegistry());
 
     List<EndpointAddress> notReadyAddresses = List.of(
       createEndpoint("192.168.0.1", "pod1"),

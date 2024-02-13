@@ -15,7 +15,7 @@ build:
     #   buildArgs:
     #     build: package
     custom:
-      buildCommand: y-build --opt target=jvm --opt build-arg:build=package
+      buildCommand: EXPORT_CACHE=false y-build --opt target=jvm --opt build-arg:build=package
       dependencies:
         dockerfile:
           path: ./Dockerfile

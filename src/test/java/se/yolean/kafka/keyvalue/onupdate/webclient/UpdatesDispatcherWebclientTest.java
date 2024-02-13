@@ -75,8 +75,8 @@ public class UpdatesDispatcherWebclientTest {
     var registry = new SimpleMeterRegistry();
 
     assertEquals("", registry.getMetersAsString());
-    UpdatesDispatcherWebclient.initMetrics(registry);
-    assertEquals("kkv.target.update.failure(COUNTER)[]; count=0.0", registry.getMetersAsString());
+    dispatcher.initMetrics(registry);
+    assertEquals("kkv.target.update.failure(COUNTER)[]; count=0.0\nkkv.target.update.ok(COUNTER)[]; count=0.0", registry.getMetersAsString());
   }
 
 

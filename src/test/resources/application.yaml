@@ -1,6 +1,14 @@
 '%test':
+  kkv:
+    target:
+      service:
+        namespace: dev
+        informer-resync-period: 5m
+
   quarkus:
     kafka:
+      snappy:
+        enabled: false
       devservices:
         topic-partitions:
           mytopic: 3
