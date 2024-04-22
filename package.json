@@ -1,12 +1,12 @@
 {
   "name": "@yolean/kafka-keyvalue",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "keywords": [],
   "author": "Yolean AB",
   "license": "Apache-2.0",
   "description": "",
   "engines": {
-    "node": ">=16.15"
+    "node": ">=20.11"
   },
   "repository": {
     "type": "git",
@@ -14,9 +14,15 @@
   },
   "main": "target/js/index.js",
   "types": "target/js/index.d.ts",
+  "exports": {
+    "import": "./target/esm/index.js",
+    "require": "./target/js/index.js"
+  },
   "scripts": {
     "test": "KKV_FETCH_RETRY_INTERVAL_MS=1 ./node_modules/.bin/jest",
-    "prepare": "mkdir -p target && rm -rf target/js && tsc --skipLibCheck",
+    "prepare:esm": "rm -rf target/esm && tsc --skipLibCheck --module es2022 --target es2022 --outDir target/esm",
+    "prepare:cjs": "rm -rf target/js && tsc --skipLibCheck --outDir target/js",
+    "prepare": "mkdir -p target && npm run prepare:cjs && npm run prepare:esm",
     "prepublishOnly": "npm test"
   },
   "dependencies": {
