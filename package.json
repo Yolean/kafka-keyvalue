@@ -13,7 +13,6 @@
     "url": "git+https://github.com/Yolean/kafka-keyvalue-nodejs"
   },
   "main": "target/js/index.js",
-  "types": "target/js/index.d.ts",
   "exports": {
     "import": "./target/esm/index.js",
     "require": "./target/js/index.js"
