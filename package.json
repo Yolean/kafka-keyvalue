@@ -13,10 +13,7 @@
     "url": "git+https://github.com/Yolean/kafka-keyvalue-nodejs"
   },
   "main": "target/js/index.js",
-  "exports": {
-    "import": "./target/esm/index.js",
-    "require": "./target/js/index.js"
-  },
+  "module": "target/esm/index.js",
   "scripts": {
     "test": "KKV_FETCH_RETRY_INTERVAL_MS=1 ./node_modules/.bin/jest",
     "prepare:esm": "rm -rf target/esm && tsc --skipLibCheck --module es2022 --target es2022 --outDir target/esm",
