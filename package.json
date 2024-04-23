@@ -1,6 +1,6 @@
 {
   "name": "@yolean/kafka-keyvalue",
-  "version": "1.7.4",
+  "version": "1.7.5",
   "keywords": [],
   "author": "Yolean AB",
   "license": "Apache-2.0",
@@ -14,6 +14,12 @@
   },
   "main": "target/js/index.js",
   "module": "target/esm/index.js",
+  "exports": {
+    ".": {
+      "require": "./target/js/index.js",
+      "import": "./target/esm/index.js"
+    }
+  },
   "scripts": {
     "test": "KKV_FETCH_RETRY_INTERVAL_MS=1 ./node_modules/.bin/jest",
     "prepare:esm": "rm -rf target/esm && tsc --skipLibCheck --module es2022 --target es2022 --outDir target/esm",
