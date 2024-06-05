@@ -21,11 +21,28 @@ export interface IKafkaKeyValueImpl { new (options: IKafkaKeyValue): KafkaKeyVal
 export interface IKafkaKeyValue {
   topicName: string
   cacheHost: string
-  pixyHost: string
   gzip?: boolean
   metrics: IKafkaKeyValueMetrics
   fetchImpl?: IFetchImpl
 }
+
+export interface IKafkaKeyValueWithPixy extends IKafkaKeyValue {
+  pixyHost: string
+}
+
+export interface IKafkaKeyValueWithProducer extends IKafkaKeyValue {
+  producer: ProducerFunction
+}
+
+export interface IProducerFunctionArgs {
+  fetchImpl: IFetchImpl
+  topic: string
+  key: string
+  value: string | Buffer
+  logger: any
+}
+
+export type ProducerFunction = (args: IProducerFunctionArgs) => Promise<number>
 
 export interface CounterConstructor {
   new(options: CounterConfiguration<string>): Counter<string>
@@ -86,17 +103,20 @@ async function parseResponse(logger, res: Response, assumeGzipped: boolean): Pro
   else return res.json();
 }
 
-async function produceViaPixy(fetchImpl: IFetchImpl, logger, pixyHost: string, topic: string, key: string, value: any, gzip: boolean) {
-  const stringValue: string = JSON.stringify(value);
-  let valueReady: Promise<string | Buffer> = Promise.resolve(stringValue);
-  if (gzip) valueReady = compressGzipPayload(stringValue);
+async function produceViaPixy({
+  fetchImpl,
+  pixyHost,
+  topic,
+  key,
+  value,
+}: IProducerFunctionArgs & { pixyHost: string }) {
 
   const res = await fetchImpl(`${pixyHost}/topics/${topic}/messages?key=${key}&sync`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: await valueReady
+    body: value
   });
 
   if (res.status !== 200) {
@@ -224,12 +244,12 @@ export default class KafkaKeyValue {
     }
   }
 
-  private readonly topic: string
-  private readonly config: IKafkaKeyValue
+  protected readonly topic: string
+  protected readonly config: IKafkaKeyValue
   private readonly updateHandlers: UpdateHandler[] = [];
   private readonly metrics: IKafkaKeyValueMetrics;
-  private readonly fetchImpl: IFetchImpl;
-  private readonly logger;
+  protected readonly fetchImpl: IFetchImpl;
+  protected readonly logger;
   private readonly lastKeyUpdate: Map<string, number> = new Map();
   private readonly partitionOffsets: Map<string, number> = new Map();
 
@@ -342,10 +362,6 @@ export default class KafkaKeyValue {
     return this.config.cacheHost.replace('http://', '');
   }
 
-  private getPixyHost() {
-    return this.config.pixyHost;
-  }
-
   async get(key: string, retryOptions: GetRetryOptions = {}): Promise<any> {
     // NOTE: Expects raw=json|gzipped-json
     const httpGetTiming = this.metrics.kafka_key_value_get_latency_seconds.startTimer({ cache_name: this.getCacheName() })
@@ -425,14 +441,6 @@ export default class KafkaKeyValue {
     this.updateLastSeenOffsetsFromHeader(res);
   }
 
-  async put(key: string, value: any, options: IRetryOptions = PUT_RETRY_DEFAULTS): Promise<number> {
-    return retryTimes<number>(() => produceViaPixy(this.fetchImpl, this.logger, this.getPixyHost(), this.topic, key, value, this.config.gzip || false), options);
-  }
-
-  async putOther(topic: string, key: string, value: any, gzip = false, options: IRetryOptions = PUT_RETRY_DEFAULTS): Promise<number> {
-    return retryTimes<number>(() => produceViaPixy(this.fetchImpl, this.logger, this.getPixyHost(), topic, key, value, gzip), options);
-  }
-
   on(event: 'put', fn: UpdateHandler): void {
     this.onUpdate(fn);
   }
@@ -446,5 +454,53 @@ export default class KafkaKeyValue {
     lastSeenOffsets.forEach(({ topic, partition, offset }) => {
       this.metrics.kafka_key_value_last_seen_offset.set({ topic, partition }, offset);
     });
+  }
+}
+
+export class KafkaKeyValueWithProducer extends KafkaKeyValue {
+
+  /**
+   * @deprecated pixy is legacy, it's recommended to use the constructor and provide your own producer funtion
+   */
+  static withPixyProducer(options: IKafkaKeyValueWithPixy): KafkaKeyValueWithProducer {
+    const producer: ProducerFunction = (args) => produceViaPixy({ pixyHost: options.pixyHost, ...args });
+    return new KafkaKeyValueWithProducer({ producer, ...options });
+  }
+
+  private readonly producer: ProducerFunction;
+
+  constructor(options: IKafkaKeyValueWithProducer) {
+    super(options);
+    this.producer = options.producer;
+  }
+
+  async put(key: string, value: any, options: IRetryOptions = PUT_RETRY_DEFAULTS): Promise<number> {
+    return this.putOther(this.topic, key, value, this.config.gzip, options);
+  }
+
+  async putOther(topic: string, key: string, value: any, gzip = false, options: IRetryOptions = PUT_RETRY_DEFAULTS): Promise<number> {
+    return this.putOtherWithProducer(this.producer, topic, key, value, gzip, options);
+  }
+
+  async putWithProducer(producer: ProducerFunction, key: string, value: any, options: IRetryOptions = PUT_RETRY_DEFAULTS): Promise<number> {
+    return this.putOtherWithProducer(producer, this.topic, key, value, this.config.gzip, options);
+  }
+
+  async putOtherWithProducer(producer: ProducerFunction, topic: string, key: string, value: any, gzip = false, options: IRetryOptions = PUT_RETRY_DEFAULTS): Promise<number> {
+    const valueReady: Promise<string | Buffer> = new Promise(resolve => {
+      const stringValue: string = JSON.stringify(value);
+      if (gzip) {
+        return resolve(compressGzipPayload(stringValue));
+      }
+      resolve(stringValue);
+    });
+
+    return retryTimes(async () => producer({
+      fetchImpl: this.fetchImpl,
+      logger: this.logger,
+      topic,
+      key,
+      value: await valueReady,
+    }), options);
   }
 }

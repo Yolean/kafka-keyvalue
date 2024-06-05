@@ -1,4 +1,14 @@
-import KafkaKeyValue, { streamResponseBody, compressGzipPayload, decompressGzipResponse, LAST_SEEN_OFFSETS_HEADER_NAME, KKV_FETCH_RETRY_OPTIONS, NotFoundError, UpdateRequestBody } from './KafkaKeyValue';
+import KafkaKeyValue, {
+  streamResponseBody,
+  compressGzipPayload,
+  decompressGzipResponse,
+  LAST_SEEN_OFFSETS_HEADER_NAME,
+  KKV_FETCH_RETRY_OPTIONS,
+  NotFoundError,
+  UpdateRequestBody,
+  KafkaKeyValueWithProducer,
+  ProducerFunction
+} from './KafkaKeyValue';
 import updateEvents from './update-events';
 import { EventEmitter } from 'events';
 import { fail } from 'assert';
@@ -76,7 +86,6 @@ describe('KafkaKeyValue', function () {
     const kkv = new KafkaKeyValue({
       cacheHost: 'http://cache-kkv',
       metrics,
-      pixyHost: 'http://pixy',
       topicName: 'testtopic01',
       fetchImpl: fetchMock,
     });
@@ -131,7 +140,6 @@ describe('KafkaKeyValue', function () {
     const kkv = new KafkaKeyValue({
       cacheHost: 'http://cache-kkv',
       metrics,
-      pixyHost: 'http://pixy',
       topicName: 'testtopic01',
       fetchImpl: fetchMock,
     });
@@ -167,7 +175,6 @@ describe('KafkaKeyValue', function () {
       const kkv = new KafkaKeyValue({
         cacheHost: 'http://cache-kkv',
         metrics,
-        pixyHost: 'http://pixy',
         topicName: 'testtopic05',
         fetchImpl: fetchMock,
       });
@@ -221,7 +228,6 @@ describe('KafkaKeyValue', function () {
       const kkv = new KafkaKeyValue({
         cacheHost: 'http://cache-kkv',
         metrics,
-        pixyHost: 'http://pixy',
         topicName: 'testtopic02',
         fetchImpl: fetchMock,
       });
@@ -295,7 +301,6 @@ describe('KafkaKeyValue', function () {
       const kkv = new KafkaKeyValue({
         cacheHost: 'http://cache-kkv',
         metrics,
-        pixyHost: 'http://pixy',
         topicName: 'testtopic03',
         fetchImpl: fetchMock,
       });
@@ -373,14 +378,13 @@ describe('KafkaKeyValue', function () {
   describe('retries as a way to avoid ECONNREFUSED and ETIMEDOUT errors when kkv pods are terminating', function () {
 
     it('works for get requests', async function () {
-     
+
       const fetchMock = jest.fn();
 
       const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
       const kkv = new KafkaKeyValue({
         cacheHost: 'http://cache-kkv',
         metrics,
-        pixyHost: 'http://pixy',
         topicName: 'testtopic01',
         fetchImpl: fetchMock,
       });
@@ -408,7 +412,6 @@ describe('KafkaKeyValue', function () {
       const kkv = new KafkaKeyValue({
         cacheHost: 'http://cache-kkv',
         metrics,
-        pixyHost: 'http://pixy',
         topicName: 'testtopic01',
         fetchImpl: fetchMock,
       });
@@ -457,7 +460,7 @@ describe('KafkaKeyValue', function () {
       fetchMock.mockResolvedValueOnce(successResponse);
 
       const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
-      const kkv = new KafkaKeyValue({
+      const kkv = KafkaKeyValueWithProducer.withPixyProducer({
         cacheHost: 'http://cache-kkv',
         metrics,
         pixyHost: 'http://pixy',
@@ -481,7 +484,7 @@ describe('KafkaKeyValue', function () {
       fetchMock.mockResolvedValue(failedResponse);
 
       const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
-      const kkv = new KafkaKeyValue({
+      const kkv = KafkaKeyValueWithProducer.withPixyProducer({
         cacheHost: 'http://cache-kkv',
         metrics,
         pixyHost: 'http://pixy',
@@ -495,6 +498,195 @@ describe('KafkaKeyValue', function () {
       } catch (err) {
         expect(fetchMock).toHaveBeenCalledTimes(11);
       }
+    });
+  });
+
+  describe('Sending put requests with any producer', function () {
+    it('works', async function () {
+      const mockProducer = jest.fn();
+      mockProducer.mockResolvedValue(0);
+
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValueWithProducer({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        topicName: 'testtopic01',
+        fetchImpl: jest.fn(),
+        producer: mockProducer,
+      });
+
+      await kkv.put('key1', 'value1');
+      expect(mockProducer.mock.calls.map(v => {
+        let args = v[0];
+        delete args.logger;
+        delete args.fetchImpl;
+        return args;
+      })).toEqual([
+        {
+          key: 'key1',
+          value: '"value1"',
+          topic: 'testtopic01',
+        },
+      ]);
+
+      await kkv.putOther('othertopic', 'key2', 'value2');
+      expect(mockProducer.mock.calls.map(v => {
+        let args = v[0];
+        delete args.logger;
+        delete args.fetchImpl;
+        return args;
+      })).toEqual([
+        {
+          key: 'key1',
+          value: '"value1"',
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key2',
+          value: '"value2"',
+          topic: 'othertopic',
+        },
+      ]);
+
+      const mockProducer2 = jest.fn();
+      mockProducer2.mockResolvedValue(0);
+
+      await kkv.putWithProducer(mockProducer2, 'key3', 'value3');
+      await kkv.putOtherWithProducer(mockProducer2, 'othertopic', 'key4', 'value4');
+      expect(mockProducer.mock.calls.length).toEqual(2);
+      expect(mockProducer2.mock.calls.map(v => {
+        let args = v[0];
+        delete args.logger;
+        delete args.fetchImpl;
+        return args;
+      })).toEqual([
+        {
+          key: 'key3',
+          value: '"value3"',
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key4',
+          value: '"value4"',
+          topic: 'othertopic',
+        },
+      ]);
+    });
+
+    it('defaults to non-gzipped payloads unless specified in .putOther... args', async function () {
+      const mockProducer = jest.fn();
+      mockProducer.mockResolvedValue(0);
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkvWithoutGzip = new KafkaKeyValueWithProducer({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        topicName: 'testtopic01',
+        fetchImpl: jest.fn(),
+        producer: mockProducer,
+      });
+
+      await kkvWithoutGzip.put('key', 'value1');
+      await kkvWithoutGzip.putWithProducer(mockProducer, 'key', 'value2');
+      await kkvWithoutGzip.putOther('testtopic01', 'key', 'value3');
+      await kkvWithoutGzip.putOther('testtopic01', 'key', 'value4', true);
+      await kkvWithoutGzip.putOtherWithProducer(mockProducer, 'testtopic01', 'key', 'value5');
+      await kkvWithoutGzip.putOtherWithProducer(mockProducer, 'testtopic01', 'key', 'value6', true);
+      expect(mockProducer.mock.calls.map(v => {
+        let args = v[0];
+        delete args.logger;
+        delete args.fetchImpl;
+        return args;
+      })).toEqual([
+        {
+          key: 'key',
+          value: '"value1"',
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key',
+          value: '"value2"',
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key',
+          value: '"value3"',
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key',
+          value: await compressGzipPayload('"value4"'),
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key',
+          value: '"value5"',
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key',
+          value: await compressGzipPayload('"value6"'),
+          topic: 'testtopic01',
+        },
+      ]);
+    });
+
+    it('defaults to gzipped payloads if specified in constructor', async function () {
+      const mockProducer = jest.fn();
+      mockProducer.mockResolvedValue(0);
+      const kkvWithGzip = new KafkaKeyValueWithProducer({
+        cacheHost: 'http://cache-kkv',
+        metrics: KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram),
+        topicName: 'testtopic01',
+        fetchImpl: jest.fn(),
+        producer: mockProducer,
+        gzip: true,
+      });
+
+      await kkvWithGzip.put('key', 'value1');
+      await kkvWithGzip.putWithProducer(mockProducer, 'key', 'value2');
+      // ...Other defaults to no gzip since we cannot know if the specified topic is gzipped
+      await kkvWithGzip.putOther('testtopic01', 'key', 'value3');
+      await kkvWithGzip.putOther('testtopic01', 'key', 'value4', true);
+      // ...Other defaults to no gzip since we cannot know if the specified topic is gzipped
+      await kkvWithGzip.putOtherWithProducer(mockProducer, 'testtopic01', 'key', 'value5');
+      await kkvWithGzip.putOtherWithProducer(mockProducer, 'testtopic01', 'key', 'value6', true);
+      expect(mockProducer.mock.calls.map(v => {
+        let args = v[0];
+        delete args.logger;
+        delete args.fetchImpl;
+        return args;
+      })).toEqual([
+        {
+          key: 'key',
+          value: await compressGzipPayload('"value1"'),
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key',
+          value: await compressGzipPayload('"value2"'),
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key',
+          value: '"value3"',
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key',
+          value: await compressGzipPayload('"value4"'),
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key',
+          value: '"value5"',
+          topic: 'testtopic01',
+        },
+        {
+          key: 'key',
+          value: await compressGzipPayload('"value6"'),
+          topic: 'testtopic01',
+        },
+      ]);
     });
   });
 
@@ -556,7 +748,6 @@ describe('KafkaKeyValue', function () {
       const kkv = new KafkaKeyValue({
         cacheHost: 'http://cache-kkv',
         metrics,
-        pixyHost: 'http://pixy',
         topicName: 'testtopic01',
         fetchImpl: fetchMock
       });
@@ -586,7 +777,6 @@ describe('KafkaKeyValue', function () {
       const kkv = new KafkaKeyValue({
         cacheHost: 'http://cache-kkv',
         metrics,
-        pixyHost: 'http://pixy',
         topicName: 'testtopic01',
       });
 
@@ -639,7 +829,6 @@ describe('KafkaKeyValue', function () {
       const kkv = new KafkaKeyValue({
         cacheHost: 'http://cache-kkv',
         metrics,
-        pixyHost: 'http://pixy',
         topicName: 'testtopic01',
       });
 
@@ -741,7 +930,6 @@ describe('KafkaKeyValue', function () {
       const kkv = new KafkaKeyValue({
         cacheHost: 'http://cache-kkv',
         metrics,
-        pixyHost: 'http://pixy',
         topicName: 'testtopic01',
       });
 
