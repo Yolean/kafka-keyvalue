@@ -103,7 +103,7 @@ async function parseResponse(logger, res: Response, assumeGzipped: boolean): Pro
   else return res.json();
 }
 
-async function produceViaPixy({
+export async function produceViaPixy({
   fetchImpl,
   pixyHost,
   topic,
