@@ -1,7 +1,7 @@
 import KafkaKeyValue, { getOnUpdateRoute, ON_UPDATE_DEFAULT_PATH,  } from './';
 import * as promClient from 'prom-client';
 import * as express from 'express';
-import { UpdateHandler } from './KafkaKeyValue';
+import { KafkaKeyValueWithProducer, UpdateHandler } from './KafkaKeyValue';
 
 describe('waiting for initial cache readiness', function () {
 
@@ -27,8 +27,8 @@ describe('waiting for initial cache readiness', function () {
   it('is a lightweight way to let us write to any topic we can specify', async function () {
 
     const metrics = KafkaKeyValue.createMetrics(promClient.Counter, promClient.Gauge, promClient.Histogram);
-    
-    const cache1 = new KafkaKeyValue({
+
+    const cache1 = KafkaKeyValueWithProducer.withPixyProducer({
       cacheHost: 'http://localhost:8091',
       metrics,
       pixyHost: 'http://pixy',
@@ -37,7 +37,7 @@ describe('waiting for initial cache readiness', function () {
 
     await cache1.onReady();
 
-    const cache2 = new KafkaKeyValue({
+    const cache2 = KafkaKeyValueWithProducer.withPixyProducer({
       cacheHost: 'http://localhost:8092',
       metrics,
       pixyHost: 'http://pixy',
@@ -62,7 +62,7 @@ describe('waiting for initial cache readiness', function () {
   });
 
   it('lets us put and get values afterwards', async function () {
-    const cache1 = new KafkaKeyValue({
+    const cache1 = KafkaKeyValueWithProducer.withPixyProducer({
       cacheHost: 'http://localhost:8091',
       metrics: KafkaKeyValue.createMetrics(promClient.Counter, promClient.Gauge, promClient.Histogram),
       pixyHost: 'http://pixy',
