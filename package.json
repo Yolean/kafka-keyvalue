@@ -1,6 +1,6 @@
 {
   "name": "@yolean/kafka-keyvalue",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "keywords": [],
   "author": "Yolean AB",
   "license": "Apache-2.0",
@@ -28,9 +28,9 @@
     "prepublishOnly": "npm test"
   },
   "dependencies": {
-    "body-parser": "1.20.2",
+    "body-parser": "1.20.3",
     "@yolean/bunyan": "2.1.4",
-    "express": "4.18.2",
+    "express": "4.21.2",
     "node-fetch": "2.6.7"
   },
   "devDependencies": {
