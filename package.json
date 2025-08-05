@@ -1,6 +1,6 @@
 {
   "name": "@yolean/kafka-keyvalue",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "keywords": [],
   "author": "Yolean AB",
   "license": "Apache-2.0",
@@ -18,6 +18,14 @@
     ".": {
       "require": "./target/js/index.js",
       "import": "./target/esm/index.js"
+    },
+    "./target/js/update-events": {
+      "require": "./target/js/update-events.js",
+      "import": "./target/esm/update-events.js"
+    },
+    "./target/js/KafkaKeyValue": {
+      "require": "./target/js/KafkaKeyValue.js",
+      "import": "./target/esm/KafkaKeyValue.js"
     }
   },
   "scripts": {
