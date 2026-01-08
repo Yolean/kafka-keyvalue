@@ -1,6 +1,6 @@
 {
   "name": "@yolean/kafka-keyvalue",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "keywords": [],
   "author": "Yolean AB",
   "license": "Apache-2.0",
@@ -29,6 +29,8 @@
     }
   },
   "scripts": {
+    "refresh": "y-npm install --strict-peer-deps",
+    "audit": "y-npm audit --audit-level=high",
     "test": "KKV_FETCH_RETRY_INTERVAL_MS=1 ./node_modules/.bin/jest",
     "prepare:esm": "rm -rf target/esm && tsc --skipLibCheck --module es2022 --target es2022 --outDir target/esm",
     "prepare:cjs": "rm -rf target/js && tsc --skipLibCheck --outDir target/js",
@@ -36,9 +38,9 @@
     "prepublishOnly": "npm test"
   },
   "dependencies": {
-    "body-parser": "1.20.3",
+    "body-parser": "1.20.4",
     "@yolean/bunyan": "2.1.4",
-    "express": "4.21.2",
+    "express": "4.22.1",
     "node-fetch": "2.6.7"
   },
   "devDependencies": {
