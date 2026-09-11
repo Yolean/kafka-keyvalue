@@ -462,6 +462,27 @@ export default class KafkaKeyValue {
     this.updateLastSeenOffsetsFromHeader(res);
   }
 
+  /**
+   * streamValues for a consumer that cannot do anything useful without the values:
+   * waits for the cache to report ready, then streams, and starts over after any
+   * failure until the stream completes. Never rejects. A consumer whose readiness
+   * depends on this stays not-ready meanwhile, which is the right signal for a kkv
+   * that is scaling up next to it.
+   */
+  async streamValuesWhenReady(onValue: (value: any) => void, options: { retryIntervalMs?: number } = {}): Promise<void> {
+    const retryIntervalMs = options.retryIntervalMs ?? 3000;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await this.onReady();
+        await this.streamValues(onValue);
+        return;
+      } catch (err) {
+        this.logger.warn({ err, attempt, retryIntervalMs }, 'Values stream failed, waiting for the cache and retrying');
+        await new Promise(resolve => setTimeout(resolve, retryIntervalMs));
+      }
+    }
+  }
+
   on(event: 'put', fn: UpdateHandler): void {
     this.onUpdate(fn);
   }

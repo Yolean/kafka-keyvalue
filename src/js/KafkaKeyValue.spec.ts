@@ -1012,4 +1012,45 @@ describe('KafkaKeyValue', function () {
 
     });
   })
+
+  describe('streamValuesWhenReady', function () {
+
+    it('waits for readiness, retries a failed stream, and resolves once the values arrived', async function () {
+      jest.useFakeTimers();
+      try {
+        const fetchMock = jest.fn();
+        const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+        const kkv = new KafkaKeyValue({ cacheHost: 'http://cache-kkv', metrics, topicName: 'testtopic08', fetchImpl: fetchMock });
+        const refused = Object.assign(new Error('connect ECONNREFUSED'), { errno: 'ECONNREFUSED', code: 'ECONNREFUSED' });
+        const valuesResponse = () => {
+          const body = new EventEmitter();
+          setTimeout(() => { body.emit('data', JSON.stringify({ foo: 'bar' }) + '\n'); body.emit('end'); }, 0);
+          return { status: 200, ok: true, body, headers: new Map([[LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([{ topic: 'testtopic08', partition: 0, offset: 9 }])]]) };
+        };
+        fetchMock.mockImplementation(async (url: string) => {
+          if (url.endsWith('/q/health/ready')) {
+            const n = fetchMock.mock.calls.filter(([u]) => u.endsWith('/q/health/ready')).length;
+            if (n === 1) throw refused;
+            if (n === 2) return { status: 503, text: async () => 'starting' };
+            return { status: 200, text: async () => '' };
+          }
+          const n = fetchMock.mock.calls.filter(([u]) => u.endsWith('/cache/v1/values')).length;
+          // the package's own KKV_FETCH_NUMBER_RETRIES (5) apply first, so six failures reach the outer loop once
+          if (n <= 6) throw refused;
+          return valuesResponse();
+        });
+        const seen = jest.fn();
+        const done = kkv.streamValuesWhenReady(seen, { retryIntervalMs: 3000 });
+        for (let i = 0; i < 8; i++) await jest.advanceTimersByTimeAsync(3000);
+        await done;
+        const paths = fetchMock.mock.calls.map(([u]) => (u as string).replace('http://cache-kkv', ''));
+        expect(paths.slice(0, 3)).toEqual(['/q/health/ready', '/q/health/ready', '/q/health/ready']);
+        expect(paths.filter(p => p === '/cache/v1/values').length).toEqual(7);
+        expect(paths[paths.length - 2]).toEqual('/q/health/ready');
+        expect(seen).toHaveBeenCalledWith({ foo: 'bar' });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+  })
 });
