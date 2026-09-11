@@ -7,7 +7,8 @@ import KafkaKeyValue, {
   NotFoundError,
   UpdateRequestBody,
   KafkaKeyValueWithProducer,
-  ProducerFunction
+  ProducerFunction,
+  IKafkaKeyValue
 } from './KafkaKeyValue';
 import updateEvents from './update-events';
 import { EventEmitter } from 'events';
@@ -1050,6 +1051,165 @@ describe('KafkaKeyValue', function () {
         expect(seen).toHaveBeenCalledWith({ foo: 'bar' });
       } finally {
         jest.useRealTimers();
+      }
+    });
+  })
+
+  describe('retrying a key whose fetch failed after an onupdate', function () {
+
+    const ok = (topic: string, offset: number, value: any) => ({
+      status: 200, ok: true, json: async () => value,
+      headers: new Map([[LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([{ topic, partition: 0, offset }])]])
+    });
+    const reset = () => Object.assign(new Error('request failed, reason: socket hang up'), { code: 'ECONNRESET', errno: 'ECONNRESET' });
+    const update = (topic: string, offset: number, keys: string[]): UpdateRequestBody =>
+      ({ v: 1, topic, offsets: { '0': offset }, updates: Object.fromEntries(keys.map(k => [k, {}])) });
+    // KKV_FETCH_NUMBER_RETRIES defaults to 5, so one failed refresh is six fetches
+    const ATTEMPTS = KKV_FETCH_RETRY_OPTIONS.nRetries + 1;
+
+    function setup(topic: string, config: Partial<IKafkaKeyValue> = {}) {
+      const fetchMock = jest.fn();
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({ cacheHost: 'http://cache-kkv', metrics, topicName: topic, fetchImpl: fetchMock, updateRetry: { baseMs: 5000, maxMs: 20000 }, ...config });
+      const handler = jest.fn();
+      kkv.onUpdate(handler);
+      // @ts-expect-error
+      const warn: jest.SpyInstance<any, [any, string]> = jest.spyOn(kkv.logger, 'warn');
+      // @ts-expect-error
+      const error: jest.SpyInstance<any, [any, string]> = jest.spyOn(kkv.logger, 'error');
+      return { kkv, fetchMock, handler, warn, error };
+    }
+
+    // The fetch's own 1 ms retries (KKV_FETCH_RETRY_INTERVAL_MS in npm test) need the fake clock to move
+    const settle = async (promise: Promise<void>) => { await jest.advanceTimersByTimeAsync(50); await promise; };
+    const retryMsg = 'Update for key failed, value stays as it was until the retry succeeds';
+
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it('retries with backoff until the fetch succeeds, then delivers', async function () {
+      const { kkv, fetchMock, handler, warn } = setup('testtopic10');
+      let failing = true;
+      fetchMock.mockImplementation(async () => { if (failing) throw reset(); return ok('testtopic10', 7, { v: 7 }); });
+
+      await settle(kkv.updateListener(update('testtopic10', 7, ['k'])));
+      expect(fetchMock).toHaveBeenCalledTimes(ATTEMPTS);
+      expect(kkv.pendingUpdateCount).toEqual(1);
+      expect(warn.mock.calls.filter(([, msg]) => msg === retryMsg).map(([o]) => [o.attempts, o.retryInMs])).toEqual([[1, 5000]]);
+
+      await jest.advanceTimersByTimeAsync(5000 + 50);
+      expect(fetchMock).toHaveBeenCalledTimes(2 * ATTEMPTS);
+      expect(warn.mock.calls.filter(([, msg]) => msg === retryMsg).map(([o]) => [o.attempts, o.retryInMs])).toEqual([[1, 5000], [2, 10000]]);
+
+      await jest.advanceTimersByTimeAsync(10000 + 50);
+      expect(fetchMock).toHaveBeenCalledTimes(3 * ATTEMPTS);
+      expect(warn.mock.calls.filter(([, msg]) => msg === retryMsg).map(([o]) => [o.attempts, o.retryInMs])).toEqual([[1, 5000], [2, 10000], [3, 20000]]);
+
+      await jest.advanceTimersByTimeAsync(20000 + 50);
+      // capped at maxMs
+      expect(warn.mock.calls.filter(([, msg]) => msg === retryMsg).map(([o]) => o.retryInMs)).toEqual([5000, 10000, 20000, 20000]);
+
+      failing = false;
+      await jest.advanceTimersByTimeAsync(20000 + 50);
+      expect(handler.mock.calls).toEqual([['k', { v: 7 }]]);
+      expect(kkv.pendingUpdateCount).toEqual(0);
+      const before = fetchMock.mock.calls.length;
+      await jest.advanceTimersByTimeAsync(120000);
+      expect(fetchMock).toHaveBeenCalledTimes(before);
+      kkv.close();
+    });
+
+    it('a newer update for a pending key is fetched at once and replaces the retry', async function () {
+      const { kkv, fetchMock, handler } = setup('testtopic11');
+      let failing = true;
+      fetchMock.mockImplementation(async () => { if (failing) throw reset(); return ok('testtopic11', 8, { v: 8 }); });
+      await settle(kkv.updateListener(update('testtopic11', 7, ['k'])));
+      expect(kkv.pendingUpdateCount).toEqual(1);
+      failing = false;
+      await settle(kkv.updateListener(update('testtopic11', 8, ['k'])));
+      expect(handler.mock.calls).toEqual([['k', { v: 8 }]]);
+      expect(kkv.pendingUpdateCount).toEqual(0);
+      const before = fetchMock.mock.calls.length;
+      await jest.advanceTimersByTimeAsync(120000);
+      expect(fetchMock).toHaveBeenCalledTimes(before);
+      kkv.close();
+    });
+
+    it('keeps delivering the other keys of the same update', async function () {
+      const { kkv, fetchMock, handler } = setup('testtopic12');
+      fetchMock.mockImplementation(async (url: string) => { if (url.endsWith('/bad')) throw reset(); return ok('testtopic12', 7, { key: url.split('/').pop() }); });
+      await settle(kkv.updateListener(update('testtopic12', 7, ['bad', 'good'])));
+      expect(handler.mock.calls).toEqual([['good', { key: 'good' }]]);
+      expect(kkv.pendingUpdateCount).toEqual(1);
+      kkv.close();
+    });
+
+    it('a 404 that survived the fetch retries is an answer, logged and not retried', async function () {
+      const { kkv, fetchMock, handler, error } = setup('testtopic13');
+      fetchMock.mockResolvedValue({ status: 404, ok: false, headers: new Map([]) });
+      await settle(kkv.updateListener(update('testtopic13', 7, ['gone'])));
+      expect(fetchMock).toHaveBeenCalledTimes(ATTEMPTS);
+      expect(kkv.pendingUpdateCount).toEqual(0);
+      expect(error.mock.calls[0][0].err).toBeInstanceOf(NotFoundError);
+      await jest.advanceTimersByTimeAsync(120000);
+      expect(fetchMock).toHaveBeenCalledTimes(ATTEMPTS);
+      expect(handler).not.toHaveBeenCalled();
+      kkv.close();
+    });
+
+    it('updateRetry: false keeps the 1.8 behaviour, stale until the next update names the key', async function () {
+      const { kkv, fetchMock, error } = setup('testtopic14', { updateRetry: false });
+      fetchMock.mockImplementation(async () => { throw reset(); });
+      await settle(kkv.updateListener(update('testtopic14', 7, ['k'])));
+      expect(fetchMock).toHaveBeenCalledTimes(ATTEMPTS);
+      expect(kkv.pendingUpdateCount).toEqual(0);
+      expect(error).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(120000);
+      expect(fetchMock).toHaveBeenCalledTimes(ATTEMPTS);
+      // the same offset pushed again fetches again
+      await settle(kkv.updateListener(update('testtopic14', 7, ['k'])));
+      expect(fetchMock).toHaveBeenCalledTimes(2 * ATTEMPTS);
+      kkv.close();
+    });
+
+    it('close() cancels the scheduled retry', async function () {
+      const { kkv, fetchMock } = setup('testtopic15');
+      fetchMock.mockImplementation(async () => { throw reset(); });
+      await settle(kkv.updateListener(update('testtopic15', 7, ['k'])));
+      kkv.close();
+      await jest.advanceTimersByTimeAsync(120000);
+      expect(fetchMock).toHaveBeenCalledTimes(ATTEMPTS);
+    });
+  })
+
+  describe('connections', function () {
+
+    it('opens a new connection for every request, so a retry re-enters the Service load balancing', async function () {
+      // node-fetch 2 sends Connection: close whenever no agent is given, and turns
+      // agent: false into no agent at all. This pins the behaviour a retry against a
+      // multi-replica kkv Service relies on; pooling would pin every retry to the
+      // replica that just failed.
+      const http = await import('http');
+      const ports: number[] = [];
+      const srv = http.createServer((req, res) => {
+        ports.push(req.socket.remotePort as number);
+        if (ports.length < 3) { res.statusCode = 503; res.end('busy'); return; }
+        res.setHeader(LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([{ topic: 't', partition: 0, offset: 1 }]));
+        res.end(JSON.stringify({ ok: true }));
+      });
+      await new Promise<void>(resolve => srv.listen(0, resolve));
+      const address = srv.address() as { port: number };
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({ cacheHost: `http://127.0.0.1:${address.port}`, metrics, topicName: 't' });
+      try {
+        // a 503 is not retried by get itself; three plain gets stand in for three attempts
+        await expect(kkv.get('k')).rejects.toThrow('Unknown status response: 503');
+        await expect(kkv.get('k')).rejects.toThrow('Unknown status response: 503');
+        await expect(kkv.get('k')).resolves.toEqual({ ok: true });
+        expect(new Set(ports).size).toEqual(3);
+      } finally {
+        kkv.close();
+        srv.close();
       }
     });
   })
