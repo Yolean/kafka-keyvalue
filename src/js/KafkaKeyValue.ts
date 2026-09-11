@@ -263,8 +263,17 @@ export default class KafkaKeyValue {
     updateEvents.on('update', this.updateListener.bind(this));
   }
 
+  /**
+   * Handles one onupdate webhook body. Never rejects: it is bound to a plain
+   * EventEmitter, where a rejection is nobody's to catch and becomes the process's
+   * unhandledRejection. A key whose value could not be fetched is logged and keeps
+   * its previous value until the next update names it again.
+   */
   async updateListener(requestBody: UpdateRequestBody) {
-    if (requestBody.v !== 1) throw new Error(`Unknown kkv onupdate protocol ${requestBody.v}!`);
+    if (requestBody.v !== 1) {
+      this.logger.error({ v: requestBody.v }, 'Unknown kkv onupdate protocol, update ignored');
+      return;
+    }
 
     const {
       topic, offsets, updates
@@ -290,11 +299,23 @@ export default class KafkaKeyValue {
           this.lastKeyUpdate.set(key, highestOffset);
 
           this.logger.trace({ key }, 'Received update event for key');
-          const value = await this.get(key, {
-            retryOnMissing: true,
-            requireOffset: highestOffset
-          });
-          this.updateHandlers.forEach(fn => fn(key, value));
+          let value;
+          try {
+            value = await this.get(key, {
+              retryOnMissing: true,
+              requireOffset: highestOffset
+            });
+          } catch (err) {
+            // Forget the offset so the next event naming this key fetches it again
+            if (this.lastKeyUpdate.get(key) === highestOffset) this.lastKeyUpdate.delete(key);
+            this.logger.error({ err, key, offset: highestOffset }, 'Update for key failed, value stays as it was until the next update');
+            return;
+          }
+          try {
+            this.updateHandlers.forEach(fn => fn(key, value));
+          } catch (err) {
+            this.logger.error({ err, key, offset: highestOffset }, 'Update handler threw, remaining handlers skipped for this key');
+          }
         }
       });
 

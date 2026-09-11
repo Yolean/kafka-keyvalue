@@ -207,7 +207,13 @@ describe('KafkaKeyValue', function () {
       fetchMock.mockResolvedValueOnce(missingGetResponse);
       fetchMock.mockResolvedValueOnce(missingGetResponse);
 
-      await expect(kkv.updateListener(update)).rejects.toEqual(new Error('Cache does not contain key: key1'));
+      // @ts-expect-error
+      const errorSpy = jest.spyOn(kkv.logger, 'error');
+
+      // The listener is bound to an EventEmitter, so a rejection would be an
+      // unhandled rejection in the consumer process (live-v3 exited on exactly that,
+      // 2026-09-10); it resolves and logs instead.
+      await expect(kkv.updateListener(update)).resolves.toBeUndefined();
 
       expect(fetchMock.mock.calls.map(args => [args[0]])).toEqual([
         ['http://cache-kkv/cache/v1/raw/key1'],
@@ -219,6 +225,51 @@ describe('KafkaKeyValue', function () {
       ]);
 
       expect(onUpdateSpy.mock.calls).toEqual([]);
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      expect(errorSpy.mock.calls[0][0]).toMatchObject({ key: 'key1', offset: 3, err: new Error('Cache does not contain key: key1') });
+
+      // The same offset pushed again (the other kkv replica) fetches the key again
+      fetchMock.mockResolvedValueOnce({
+        status: 200, ok: true, json: async () => ({ myValue: true }),
+        headers: new Map([[LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([{ topic: 'testtopic05', partition: 0, offset: 3 }])]])
+      });
+      await kkv.updateListener(update);
+      expect(onUpdateSpy.mock.calls).toEqual([['key1', { myValue: true }]]);
+    });
+
+    it('a throwing update handler is logged and does not reject the listener', async function () {
+      const fetchMock = jest.fn();
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({
+        cacheHost: 'http://cache-kkv',
+        metrics,
+        topicName: 'testtopic06',
+        fetchImpl: fetchMock,
+      });
+      const first = jest.fn(() => { throw new Error('handler bug'); });
+      const second = jest.fn();
+      kkv.onUpdate(first);
+      kkv.onUpdate(second);
+      fetchMock.mockResolvedValue({
+        status: 200, ok: true, json: async () => ({ myValue: true }),
+        headers: new Map([[LAST_SEEN_OFFSETS_HEADER_NAME, JSON.stringify([{ topic: 'testtopic06', partition: 0, offset: 3 }])]])
+      });
+      // @ts-expect-error
+      const errorSpy = jest.spyOn(kkv.logger, 'error');
+
+      await expect(kkv.updateListener({ v: 1, topic: 'testtopic06', offsets: { '0': 3 }, updates: { key1: {}, key2: {} } })).resolves.toBeUndefined();
+
+      expect(first).toHaveBeenCalledTimes(2);
+      expect(errorSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('an unknown protocol version is logged, not thrown', async function () {
+      const metrics = KafkaKeyValue.createMetrics(promClientMock.Counter, promClientMock.Gauge, promClientMock.Histogram);
+      const kkv = new KafkaKeyValue({ cacheHost: 'http://cache-kkv', metrics, topicName: 'testtopic07', fetchImpl: jest.fn() });
+      // @ts-expect-error
+      const errorSpy = jest.spyOn(kkv.logger, 'error');
+      await expect(kkv.updateListener({ v: 2, topic: 'testtopic07', offsets: {}, updates: {} })).resolves.toBeUndefined();
+      expect(errorSpy).toHaveBeenCalledTimes(1);
     });
 
     it('retries on 404', async function () {
