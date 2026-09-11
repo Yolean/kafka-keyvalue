@@ -79,6 +79,26 @@ export interface IKafkaKeyValueMetrics {
   kafka_key_value_get_latency_seconds: Histogram<string>
   kafka_key_value_parse_latency_seconds: Histogram<string>
   kafka_key_value_stream_latency_seconds: Histogram<string>
+  // Added in 1.9; optional so a hand-built metrics object from before still type-checks
+  kafka_key_value_updates_received_total?: Counter<string>
+  kafka_key_value_update_failures_total?: Counter<string>
+  kafka_key_value_update_pending_keys?: Gauge<string>
+}
+
+/** Bounded cause label for kafka_key_value_update_failures_total */
+export type UpdateFailureCause = 'refused' | 'reset' | 'timeout' | 'offset-lag' | 'not-found' | 'status' | 'other';
+
+export function updateFailureCause(err: any): UpdateFailureCause {
+  if (err instanceof NotFoundError) return 'not-found';
+  if (err instanceof TransientGetError) return 'offset-lag';
+  if (!(err instanceof Error)) return 'other';
+  if (err.name === 'AbortError') return 'timeout';
+  const code = (err as any).code || (err as any).errno;
+  if (code === 'ECONNREFUSED') return 'refused';
+  if (code === 'ECONNRESET' || code === 'EPIPE') return 'reset';
+  if (code === 'ETIMEDOUT' || code === 'ESOCKETTIMEDOUT') return 'timeout';
+  if (err.message.startsWith('Unknown status response')) return 'status';
+  return 'other';
 }
 
 export interface PixyPostTopicKeySyncResponse {
@@ -262,6 +282,21 @@ export default class KafkaKeyValue {
         name: 'kafka_key_value_stream_latency_seconds',
         help: 'Latency in seconds for streaming all values from the http cache (includes parsing)',
         labelNames: ['cache_name']
+      }),
+      kafka_key_value_updates_received_total: new counterCtr({
+        name: 'kafka_key_value_updates_received_total',
+        help: 'onupdate webhooks received for this topic. Compare with the kkv pods\' kkv_onupdate_dispatch_total over the same window: the shortfall is webhooks this consumer never got, e.g. while it was not a Ready endpoint',
+        labelNames: ['cache_name', 'topic']
+      }),
+      kafka_key_value_update_failures_total: new counterCtr({
+        name: 'kafka_key_value_update_failures_total',
+        help: 'Failed fetches of a key named by an onupdate, after the fetch\'s own retries, by cause (refused|reset|timeout|offset-lag|not-found|status|other). Retried per updateRetry; the value is stale meanwhile, see kafka_key_value_update_pending_keys',
+        labelNames: ['cache_name', 'topic', 'cause']
+      }),
+      kafka_key_value_update_pending_keys: new gaugeCtr({
+        name: 'kafka_key_value_update_pending_keys',
+        help: 'Keys named by an onupdate whose fetch failed and awaits its retry. Each is stale on this consumer until this returns to 0',
+        labelNames: ['cache_name', 'topic']
       })
     }
   }
@@ -329,6 +364,7 @@ export default class KafkaKeyValue {
     } else {
       this.logger.trace({ topic, expectedTopic }, 'update event matches expected topic');
     }
+    this.metrics.kafka_key_value_updates_received_total?.inc({ cache_name: this.getCacheName(), topic });
 
     const highestOffset: number = Object.values(offsets).reduce((memo, offset) => {
       return Math.max(memo, offset);
@@ -373,6 +409,7 @@ export default class KafkaKeyValue {
     const pending = this.pendingUpdates.get(key);
     if (pending) {
       this.pendingUpdates.delete(key);
+      this.setPendingMetric();
       this.logger.info({ key, offset, attempts: pending.attempts, staleMs: Date.now() - pending.since }, 'Update for key recovered');
     }
     try {
@@ -383,10 +420,13 @@ export default class KafkaKeyValue {
   }
 
   private refreshFailed(key: string, offset: number, err: any) {
+    const cause = updateFailureCause(err);
+    this.metrics.kafka_key_value_update_failures_total?.inc({ cache_name: this.getCacheName(), topic: this.topic, cause });
     // A 404 that survived the fetch's own retries is an answer (a compacted or deleted
     // key), not a failure to keep retrying; so is the 1.8 behaviour when asked for
     if (this.updateRetry === false || err instanceof NotFoundError) {
       this.pendingUpdates.delete(key);
+      this.setPendingMetric();
       // Forget the offset so the next event naming this key fetches it again
       if (this.lastKeyUpdate.get(key) === offset) this.lastKeyUpdate.delete(key);
       this.logger.error({ err, key, offset }, 'Update for key failed, value stays as it was until the next update');
@@ -397,8 +437,13 @@ export default class KafkaKeyValue {
     const retryInMs = Math.min(this.updateRetry.baseMs * 2 ** (attempts - 1), this.updateRetry.maxMs);
     const now = Date.now();
     this.pendingUpdates.set(key, { offset, attempts, since: previous ? previous.since : now, nextAt: now + retryInMs });
-    this.logger.warn({ err, key, offset, attempts, retryInMs }, 'Update for key failed, value stays as it was until the retry succeeds');
+    this.setPendingMetric();
+    this.logger.warn({ err, key, offset, attempts, retryInMs, cause }, 'Update for key failed, value stays as it was until the retry succeeds');
     this.scheduleRetry();
+  }
+
+  private setPendingMetric() {
+    this.metrics.kafka_key_value_update_pending_keys?.set({ cache_name: this.getCacheName(), topic: this.topic }, this.pendingUpdates.size);
   }
 
   private scheduleRetry() {

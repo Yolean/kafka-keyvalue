@@ -8,7 +8,9 @@ import KafkaKeyValue, {
   UpdateRequestBody,
   KafkaKeyValueWithProducer,
   ProducerFunction,
-  IKafkaKeyValue
+  IKafkaKeyValue,
+  TransientGetError,
+  updateFailureCause
 } from './KafkaKeyValue';
 import updateEvents from './update-events';
 import { EventEmitter } from 'events';
@@ -1170,6 +1172,34 @@ describe('KafkaKeyValue', function () {
       await settle(kkv.updateListener(update('testtopic14', 7, ['k'])));
       expect(fetchMock).toHaveBeenCalledTimes(2 * ATTEMPTS);
       kkv.close();
+    });
+
+    it('counts received updates, failures by cause, and the keys pending retry', async function () {
+      const { kkv, fetchMock } = setup('testtopic16');
+      const m = kkv['metrics'] as any;
+      let failing = true;
+      fetchMock.mockImplementation(async () => { if (failing) throw reset(); return ok('testtopic16', 7, {}); });
+      await settle(kkv.updateListener(update('testtopic16', 7, ['k'])));
+      await settle(kkv.updateListener(update('testtopic16', 7, ['k'])));
+      expect(m.kafka_key_value_updates_received_total.inc).toHaveBeenCalledTimes(2);
+      expect(m.kafka_key_value_updates_received_total.inc).toHaveBeenCalledWith({ cache_name: 'cache-kkv', topic: 'testtopic16' });
+      expect(m.kafka_key_value_update_failures_total.inc).toHaveBeenCalledWith({ cache_name: 'cache-kkv', topic: 'testtopic16', cause: 'reset' });
+      expect(m.kafka_key_value_update_pending_keys.set).toHaveBeenLastCalledWith({ cache_name: 'cache-kkv', topic: 'testtopic16' }, 1);
+      failing = false;
+      await jest.advanceTimersByTimeAsync(5000 + 50);
+      expect(m.kafka_key_value_update_pending_keys.set).toHaveBeenLastCalledWith({ cache_name: 'cache-kkv', topic: 'testtopic16' }, 0);
+      kkv.close();
+    });
+
+    it('names the cause of a failure with a bounded label set', function () {
+      expect(updateFailureCause(Object.assign(new Error('x'), { code: 'ECONNREFUSED' }))).toEqual('refused');
+      expect(updateFailureCause(Object.assign(new Error('x'), { code: 'ECONNRESET' }))).toEqual('reset');
+      expect(updateFailureCause(Object.assign(new Error('x'), { name: 'AbortError' }))).toEqual('timeout');
+      expect(updateFailureCause(new TransientGetError('get request for key k requires offset 9, but kkv broker has not seen it'))).toEqual('offset-lag');
+      expect(updateFailureCause(new NotFoundError('Cache does not contain key: k'))).toEqual('not-found');
+      expect(updateFailureCause(new Error('Unknown status response: 503'))).toEqual('status');
+      expect(updateFailureCause(new Error('something else'))).toEqual('other');
+      expect(updateFailureCause('nope')).toEqual('other');
     });
 
     it('close() cancels the scheduled retry', async function () {
