@@ -24,7 +24,25 @@ export interface IKafkaKeyValue {
   gzip?: boolean
   metrics: IKafkaKeyValueMetrics
   fetchImpl?: IFetchImpl
+  /**
+   * Retry schedule for a key named by an onupdate whose fetch failed: doubling from
+   * baseMs up to maxMs, until the fetch succeeds. false keeps the previous value until
+   * the next update names the key (the 1.8 behaviour).
+   */
+  updateRetry?: { baseMs?: number, maxMs?: number } | false
 }
+
+export const UPDATE_RETRY_DEFAULTS = Object.freeze({
+  baseMs: 5000,
+  maxMs: 60000
+});
+
+type PendingUpdate = {
+  offset: number
+  attempts: number
+  since: number
+  nextAt: number
+};
 
 export interface IKafkaKeyValueWithPixy extends IKafkaKeyValue {
   pixyHost: string
@@ -61,6 +79,26 @@ export interface IKafkaKeyValueMetrics {
   kafka_key_value_get_latency_seconds: Histogram<string>
   kafka_key_value_parse_latency_seconds: Histogram<string>
   kafka_key_value_stream_latency_seconds: Histogram<string>
+  // Added in 1.9; optional so a hand-built metrics object from before still type-checks
+  kafka_key_value_updates_received_total?: Counter<string>
+  kafka_key_value_update_failures_total?: Counter<string>
+  kafka_key_value_update_pending_keys?: Gauge<string>
+}
+
+/** Bounded cause label for kafka_key_value_update_failures_total */
+export type UpdateFailureCause = 'refused' | 'reset' | 'timeout' | 'offset-lag' | 'not-found' | 'status' | 'other';
+
+export function updateFailureCause(err: any): UpdateFailureCause {
+  if (err instanceof NotFoundError) return 'not-found';
+  if (err instanceof TransientGetError) return 'offset-lag';
+  if (!(err instanceof Error)) return 'other';
+  if (err.name === 'AbortError') return 'timeout';
+  const code = (err as any).code || (err as any).errno;
+  if (code === 'ECONNREFUSED') return 'refused';
+  if (code === 'ECONNRESET' || code === 'EPIPE') return 'reset';
+  if (code === 'ETIMEDOUT' || code === 'ESOCKETTIMEDOUT') return 'timeout';
+  if (err.message.startsWith('Unknown status response')) return 'status';
+  return 'other';
 }
 
 export interface PixyPostTopicKeySyncResponse {
@@ -75,6 +113,10 @@ export class NotFoundError extends Error {
 
 export class TransientGetError extends Error {
   retryable = true
+}
+
+/** A 404 while retryOnMissing: transient within get's retries, NotFoundError past them */
+class MissingKeyError extends TransientGetError {
 }
 
 export async function decompressGzipResponse(logger, buffer: Buffer): Promise<any> {
@@ -240,6 +282,21 @@ export default class KafkaKeyValue {
         name: 'kafka_key_value_stream_latency_seconds',
         help: 'Latency in seconds for streaming all values from the http cache (includes parsing)',
         labelNames: ['cache_name']
+      }),
+      kafka_key_value_updates_received_total: new counterCtr({
+        name: 'kafka_key_value_updates_received_total',
+        help: 'onupdate webhooks received for this topic. Compare with the kkv pods\' kkv_onupdate_dispatch_total over the same window: the shortfall is webhooks this consumer never got, e.g. while it was not a Ready endpoint',
+        labelNames: ['cache_name', 'topic']
+      }),
+      kafka_key_value_update_failures_total: new counterCtr({
+        name: 'kafka_key_value_update_failures_total',
+        help: 'Failed fetches of a key named by an onupdate, after the fetch\'s own retries, by cause (refused|reset|timeout|offset-lag|not-found|status|other). Retried per updateRetry; the value is stale meanwhile, see kafka_key_value_update_pending_keys',
+        labelNames: ['cache_name', 'topic', 'cause']
+      }),
+      kafka_key_value_update_pending_keys: new gaugeCtr({
+        name: 'kafka_key_value_update_pending_keys',
+        help: 'Keys named by an onupdate whose fetch failed and awaits its retry. Each is stale on this consumer until this returns to 0',
+        labelNames: ['cache_name', 'topic']
       })
     }
   }
@@ -250,8 +307,14 @@ export default class KafkaKeyValue {
   private readonly metrics: IKafkaKeyValueMetrics;
   protected readonly fetchImpl: IFetchImpl;
   protected readonly logger;
+  /** Highest offset fetched or queued per key, so the second kkv replica's push for the same update is skipped */
   private readonly lastKeyUpdate: Map<string, number> = new Map();
   private readonly partitionOffsets: Map<string, number> = new Map();
+  /** Keys whose fetch failed and await their retry */
+  private readonly pendingUpdates: Map<string, PendingUpdate> = new Map();
+  private retryTimer: NodeJS.Timeout | null = null;
+  private readonly updateRetry: { baseMs: number, maxMs: number } | false;
+  private readonly boundUpdateListener: (requestBody: UpdateRequestBody) => Promise<void>;
 
   constructor(config: IKafkaKeyValue) {
     this.config = config;
@@ -259,12 +322,36 @@ export default class KafkaKeyValue {
     this.metrics = config.metrics;
     this.fetchImpl = getFetchImpl(config);
     this.logger = getLogger({ name: `kkv:${this.getCacheName()}` });
+    this.updateRetry = config.updateRetry === false ? false : { ...UPDATE_RETRY_DEFAULTS, ...config.updateRetry };
 
-    updateEvents.on('update', this.updateListener.bind(this));
+    this.boundUpdateListener = this.updateListener.bind(this);
+    updateEvents.on('update', this.boundUpdateListener);
   }
 
+  /** Stops listening for updates and cancels any scheduled retry */
+  close() {
+    updateEvents.off('update', this.boundUpdateListener);
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+  }
+
+  /** Keys named by an update whose value is not yet fetched; stale on this consumer meanwhile */
+  get pendingUpdateCount(): number {
+    return this.pendingUpdates.size;
+  }
+
+  /**
+   * Handles one onupdate webhook body. Never rejects: it is bound to a plain
+   * EventEmitter, where a rejection is nobody's to catch and becomes the process's
+   * unhandledRejection. Keys are fetched one at a time; a key whose fetch failed is
+   * retried on the updateRetry schedule, or (updateRetry: false, or a persisting 404)
+   * logged and left at its previous value until the next update names it.
+   */
   async updateListener(requestBody: UpdateRequestBody) {
-    if (requestBody.v !== 1) throw new Error(`Unknown kkv onupdate protocol ${requestBody.v}!`);
+    if (requestBody.v !== 1) {
+      this.logger.error({ v: requestBody.v }, 'Unknown kkv onupdate protocol, update ignored');
+      return;
+    }
 
     const {
       topic, offsets, updates
@@ -277,28 +364,22 @@ export default class KafkaKeyValue {
     } else {
       this.logger.trace({ topic, expectedTopic }, 'update event matches expected topic');
     }
+    this.metrics.kafka_key_value_updates_received_total?.inc({ cache_name: this.getCacheName(), topic });
 
     const highestOffset: number = Object.values(offsets).reduce((memo, offset) => {
       return Math.max(memo, offset);
     }, -1);
 
     if (this.updateHandlers.length > 0) {
-
-      const updatedPropagated: Array<Promise<void>> = Object.keys(updates).map(async key => {
-        const pendingOffset = this.lastKeyUpdate.get(key);
-        if (pendingOffset === undefined || highestOffset > pendingOffset) {
-          this.lastKeyUpdate.set(key, highestOffset);
-
-          this.logger.trace({ key }, 'Received update event for key');
-          const value = await this.get(key, {
-            retryOnMissing: true,
-            requireOffset: highestOffset
-          });
-          this.updateHandlers.forEach(fn => fn(key, value));
-        }
-      });
-
-      await Promise.all(updatedPropagated);
+      // One at a time: every consumer of a topic gets the same push within milliseconds,
+      // and kkv has a small connection cap
+      for (const key of Object.keys(updates)) {
+        const known = this.lastKeyUpdate.get(key);
+        if (known !== undefined && highestOffset <= known) continue;
+        this.lastKeyUpdate.set(key, highestOffset);
+        this.logger.trace({ key }, 'Received update event for key');
+        await this.refreshKey(key, highestOffset);
+      }
     } else {
       this.logger.trace({ topic }, 'No update handlers registered, update event has no effect');
     }
@@ -308,6 +389,83 @@ export default class KafkaKeyValue {
     this.updatePartitionOffsetMetrics(offsets);
 
     // TODO Resolve waitForOffset logic?
+  }
+
+  private async refreshKey(key: string, offset: number): Promise<void> {
+    let value;
+    try {
+      value = await this.get(key, {
+        retryOnMissing: true,
+        requireOffset: offset
+      });
+    } catch (err) {
+      // A newer update took the key over while this fetch ran; that one owns it now
+      if (this.lastKeyUpdate.get(key) !== offset) return;
+      this.refreshFailed(key, offset, err);
+      return;
+    }
+    if (this.lastKeyUpdate.get(key) !== offset) return;
+
+    const pending = this.pendingUpdates.get(key);
+    if (pending) {
+      this.pendingUpdates.delete(key);
+      this.setPendingMetric();
+      this.logger.info({ key, offset, attempts: pending.attempts, staleMs: Date.now() - pending.since }, 'Update for key recovered');
+    }
+    try {
+      this.updateHandlers.forEach(fn => fn(key, value));
+    } catch (err) {
+      this.logger.error({ err, key, offset }, 'Update handler threw, remaining handlers skipped for this key');
+    }
+  }
+
+  private refreshFailed(key: string, offset: number, err: any) {
+    const cause = updateFailureCause(err);
+    this.metrics.kafka_key_value_update_failures_total?.inc({ cache_name: this.getCacheName(), topic: this.topic, cause });
+    // A 404 that survived the fetch's own retries is an answer (a compacted or deleted
+    // key), not a failure to keep retrying; so is the 1.8 behaviour when asked for
+    if (this.updateRetry === false || err instanceof NotFoundError) {
+      this.pendingUpdates.delete(key);
+      this.setPendingMetric();
+      // Forget the offset so the next event naming this key fetches it again
+      if (this.lastKeyUpdate.get(key) === offset) this.lastKeyUpdate.delete(key);
+      this.logger.error({ err, key, offset }, 'Update for key failed, value stays as it was until the next update');
+      return;
+    }
+    const previous = this.pendingUpdates.get(key);
+    const attempts = (previous ? previous.attempts : 0) + 1;
+    const retryInMs = Math.min(this.updateRetry.baseMs * 2 ** (attempts - 1), this.updateRetry.maxMs);
+    const now = Date.now();
+    this.pendingUpdates.set(key, { offset, attempts, since: previous ? previous.since : now, nextAt: now + retryInMs });
+    this.setPendingMetric();
+    this.logger.warn({ err, key, offset, attempts, retryInMs, cause }, 'Update for key failed, value stays as it was until the retry succeeds');
+    this.scheduleRetry();
+  }
+
+  private setPendingMetric() {
+    this.metrics.kafka_key_value_update_pending_keys?.set({ cache_name: this.getCacheName(), topic: this.topic }, this.pendingUpdates.size);
+  }
+
+  private scheduleRetry() {
+    if (this.retryTimer || this.pendingUpdates.size === 0) return;
+    let nextAt = Infinity;
+    for (const pending of this.pendingUpdates.values()) nextAt = Math.min(nextAt, pending.nextAt);
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      this.retryDue().catch(err => this.logger.error({ err }, 'Update retry loop threw'));
+    }, Math.max(0, nextAt - Date.now()));
+    this.retryTimer.unref();
+  }
+
+  private async retryDue() {
+    const now = Date.now();
+    for (const [key, pending] of [...this.pendingUpdates]) {
+      if (pending.nextAt > now) continue;
+      // A newer update replaced this entry meanwhile and was fetched at once
+      if (this.pendingUpdates.get(key) !== pending) continue;
+      await this.refreshKey(key, pending.offset);
+    }
+    this.scheduleRetry();
   }
 
   /**
@@ -383,7 +541,7 @@ export default class KafkaKeyValue {
       if (timer) clearTimeout(timer);
 
       if (retryOptions.retryOnMissing && res.status === 404) {
-        throw new TransientGetError('Cache does not contain key: ' + key);
+        throw new MissingKeyError('Cache does not contain key: ' + key);
       }
 
       const requiredOffset = retryOptions.requireOffset;
@@ -399,6 +557,11 @@ export default class KafkaKeyValue {
     }, {
       ...KKV_FETCH_RETRY_OPTIONS,
       onRetryAttempt: ({ retriesLeft, error }) => this.logger.warn({ retriesLeft, key, error }, 'Get request failed, retrying')
+    }).catch(err => {
+      // Retried as transient (the answering replica may not have consumed it yet); a
+      // 404 that outlasts the retries is the cache's answer
+      if (err instanceof MissingKeyError) throw new NotFoundError(err.message);
+      throw err;
     });
     httpGetTiming();
 
@@ -439,6 +602,27 @@ export default class KafkaKeyValue {
     this.logger.trace({ cache_name: this.getCacheName() }, 'Streaming values for cache finished');
 
     this.updateLastSeenOffsetsFromHeader(res);
+  }
+
+  /**
+   * streamValues for a consumer that cannot do anything useful without the values:
+   * waits for the cache to report ready, then streams, and starts over after any
+   * failure until the stream completes. Never rejects. A consumer whose readiness
+   * depends on this stays not-ready meanwhile, which is the right signal for a kkv
+   * that is scaling up next to it.
+   */
+  async streamValuesWhenReady(onValue: (value: any) => void, options: { retryIntervalMs?: number } = {}): Promise<void> {
+    const retryIntervalMs = options.retryIntervalMs ?? 3000;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await this.onReady();
+        await this.streamValues(onValue);
+        return;
+      } catch (err) {
+        this.logger.warn({ err, attempt, retryIntervalMs }, 'Values stream failed, waiting for the cache and retrying');
+        await new Promise(resolve => setTimeout(resolve, retryIntervalMs));
+      }
+    }
   }
 
   on(event: 'put', fn: UpdateHandler): void {
